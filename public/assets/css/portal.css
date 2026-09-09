@@ -1,0 +1,1295 @@
+﻿/**
+ * مجموعة إياس الإعلامية - Stylesheet
+ */
+
+/* المتغيرات والسمات الأساسية (Design Tokens & Variables) */
+:root {
+  /* ألوان الهوية لمجموعة إياس الإعلامية */
+  --ems-gold: #C5A059;
+  --ems-gold-hover: #b08c45;
+  --ems-gold-light: #fcf8ee;
+  --ems-gold-border: #eddab2;
+  --ems-gold-gradient: linear-gradient(135deg, #d8b265 0%, #C5A059 50%, #9e7a33 100%);
+  
+  /* الألوان الحيادية والخلفيات */
+  --ems-bg: #f8fafc;
+  --ems-surface: #ffffff;
+  --ems-surface-alt: #f1f5f9;
+  --ems-surface-hover: #f8fafc;
+  --ems-border: #e2e8f0;
+  --ems-border-light: #edf2f7;
+  --ems-border-strong: #cbd5e1;
+  
+  /* ألوان النصوص والطباعة */
+  --ems-text-main: #0f172a;
+  --ems-text-muted: #64748b;
+  --ems-text-light: #94a3b8;
+  --ems-text-inverse: #ffffff;
+  
+  /* ألوان حالات النظام وسير العمل (Workflow States) */
+  --state-draft-text: #475569;
+  --state-draft-bg: #f1f5f9;
+  --state-draft-border: #cbd5e1;
+
+  --state-todo-text: #0369a1;
+  --state-todo-bg: #e0f2fe;
+  --state-todo-border: #bae6fd;
+
+  --state-progress-text: #b45309;
+  --state-progress-bg: #fef3c7;
+  --state-progress-border: #fde68a;
+
+  --state-review-text: #6d28d9;
+  --state-review-bg: #ede9fe;
+  --state-review-border: #ddd6fe;
+
+  --state-completed-text: #15803d;
+  --state-completed-bg: #dcfce7;
+  --state-completed-border: #bbf7d0;
+
+  --state-danger-text: #b91c1c;
+  --state-danger-bg: #fee2e2;
+  --state-danger-border: #fecaca;
+  
+  /* المقاسات والزوايا والظلال */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+  
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 16px -2px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 10px 30px -4px rgba(15, 23, 42, 0.12);
+  --shadow-gold: 0 4px 18px rgba(197, 160, 89, 0.28);
+  
+  /* أبعاد الهيكل */
+  --sidebar-width: 275px;
+  --topbar-height: 72px;
+  
+  /* الخطوط المعتمدة */
+  --font-arabic: 'Tajawal', 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* التهيئة وضبط الاتجاه (Reset & Base Settings) */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  direction: rtl;
+  text-align: right;
+  font-family: var(--font-arabic);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ems-text-main);
+  background-color: var(--ems-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--ems-bg);
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+img, svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* التمرير المخصص */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ems-surface-alt);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ems-border-strong);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ems-gold);
+}
+
+/* هيكل البوابة والتخطيط العام (Portal Layout) */
+.ems-app {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+}
+
+/* القائمة الجانبية (Sidebar) */
+.ems-sidebar {
+  width: var(--sidebar-width);
+  background-color: var(--ems-surface);
+  border-left: 1px solid var(--ems-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 100;
+  overflow-y: auto;
+  transition: transform 0.3s ease;
+  box-shadow: var(--shadow-xs);
+}
+
+/* ترويسة القائمة وشعار مجموعة إياس */
+.ems-brand {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-bottom: 1px solid var(--ems-border-light);
+  background: linear-gradient(180deg, rgba(197, 160, 89, 0.05) 0%, transparent 100%);
+}
+
+.ems-brand-logo-wrap {
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  border: 1px solid var(--ems-gold-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+  padding: 6px;
+  transition: transform 0.25s ease;
+}
+.ems-brand-logo-wrap:hover {
+  transform: translateY(-2px);
+}
+
+.ems-brand-logo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.ems-brand-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ems-text-main);
+  letter-spacing: -0.2px;
+}
+
+.ems-brand-subtitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ems-gold-hover);
+  margin-top: 3px;
+  background-color: var(--ems-gold-light);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--ems-gold-border);
+}
+
+/* روابط التنقل الجانبية */
+.ems-nav {
+  padding: 18px 14px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ems-nav-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ems-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 12px 6px;
+}
+
+.ems-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ems-text-muted);
+  transition: all 0.2s ease;
+}
+
+.ems-nav-link-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ems-nav-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+  stroke: currentColor;
+  fill: none;
+  flex-shrink: 0;
+  color: var(--ems-text-light);
+  transition: color 0.2s ease;
+}
+
+.ems-nav-link:hover {
+  background-color: var(--ems-surface-alt);
+  color: var(--ems-text-main);
+}
+.ems-nav-link:hover .ems-nav-icon {
+  color: var(--ems-gold);
+}
+
+.ems-nav-link.active {
+  background: var(--ems-gold-gradient);
+  color: var(--ems-text-inverse);
+  box-shadow: var(--shadow-gold);
+  font-weight: 700;
+}
+.ems-nav-link.active .ems-nav-icon {
+  color: var(--ems-text-inverse);
+}
+
+.ems-nav-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background-color: var(--ems-surface-alt);
+  color: var(--ems-text-muted);
+}
+.ems-nav-link.active .ems-nav-badge {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* ودجت البصمة ومؤشر النظام في القائمة الجانبية */
+.ems-sidebar-widget {
+  margin: 12px 14px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background-color: var(--ems-surface-alt);
+  border: 1px solid var(--ems-border);
+}
+
+.ems-sidebar-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ems-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10b981;
+  display: inline-block;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.ems-sidebar-footer {
+  padding: 14px 18px;
+  border-top: 1px solid var(--ems-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--ems-text-muted);
+}
+
+/* المحتوى الرئيسي (Main Container) */
+.ems-main {
+  flex: 1;
+  margin-right: var(--sidebar-width);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* الشريط العلوي (Topbar) */
+.ems-topbar {
+  height: var(--topbar-height);
+  background-color: var(--ems-surface);
+  border-bottom: 1px solid var(--ems-border);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  box-shadow: var(--shadow-xs);
+}
+
+.ems-topbar-start {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ems-mobile-toggle {
+  display: none;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background-color: var(--ems-surface-alt);
+  align-items: center;
+  justify-content: center;
+  color: var(--ems-text-muted);
+}
+
+.ems-search-box {
+  position: relative;
+  width: 320px;
+}
+
+.ems-search-input {
+  width: 100%;
+  padding: 9px 38px 9px 14px;
+  background-color: var(--ems-surface-alt);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font-size: 13.5px;
+  color: var(--ems-text-main);
+  outline: none;
+  transition: all 0.2s ease;
+}
+.ems-search-input:focus {
+  background-color: #ffffff;
+  border-color: var(--ems-gold);
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);
+}
+
+.ems-search-icon {
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--ems-text-light);
+  pointer-events: none;
+}
+
+.ems-topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* الأيقونات وزر الإشعارات */
+.ems-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ems-text-muted);
+  background-color: var(--ems-surface-alt);
+  border: 1px solid var(--ems-border-light);
+  position: relative;
+  transition: all 0.2s ease;
+}
+.ems-icon-btn:hover {
+  background-color: #ffffff;
+  color: var(--ems-gold);
+  border-color: var(--ems-gold-border);
+}
+
+.ems-icon-btn .badge-dot {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  border: 2px solid #ffffff;
+}
+
+/* بطاقة المستخدم الشخصية في الشريط العلوي - رئيس مجلس الإدارة */
+.ems-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px 6px 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--ems-surface-alt);
+  border: 1px solid var(--ems-border-light);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.ems-user-profile:hover {
+  background-color: var(--ems-gold-light);
+  border-color: var(--ems-gold-border);
+}
+
+.ems-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--ems-gold-gradient);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid #ffffff;
+}
+
+.ems-user-info {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  line-height: 1.25;
+}
+
+.ems-user-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ems-text-main);
+}
+
+.ems-user-role {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ems-gold-hover);
+}
+
+/* القوائم المنسدلة (Dropdowns) */
+.ems-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  background-color: #ffffff;
+  border: 1px solid var(--ems-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 8px;
+  display: none;
+  z-index: 1000;
+}
+.ems-dropdown-menu.active {
+  display: block;
+}
+
+.ems-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ems-text-main);
+  transition: background-color 0.15s ease;
+}
+.ems-dropdown-item:hover {
+  background-color: var(--ems-surface-alt);
+  color: var(--ems-gold-hover);
+}
+.ems-dropdown-divider {
+  height: 1px;
+  background-color: var(--ems-border-light);
+  margin: 6px 0;
+}
+
+/* منطقة العمل ومكونات الصفحات (Content Body & Components) */
+.ems-content {
+  padding: 30px;
+  flex: 1;
+}
+
+/* ترويسة الصفحة (Page Header) */
+.ems-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 26px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ems-page-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ems-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ems-text-muted);
+}
+.ems-breadcrumb-separator {
+  color: var(--ems-text-light);
+}
+
+.ems-page-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ems-text-main);
+  letter-spacing: -0.3px;
+}
+
+.ems-page-subtitle {
+  font-size: 13.5px;
+  color: var(--ems-text-muted);
+}
+
+.ems-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* البطاقات البيضاء الأساسية (Cards) */
+.ems-card {
+  background-color: var(--ems-surface);
+  border: 1px solid var(--ems-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  transition: all 0.25s ease;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.ems-card:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--ems-border-strong);
+}
+
+.ems-card-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--ems-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #ffffff;
+}
+
+.ems-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ems-text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ems-card-body {
+  padding: 24px;
+}
+
+.ems-card-footer {
+  padding: 16px 24px;
+  background-color: var(--ems-surface-alt);
+  border-top: 1px solid var(--ems-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* بطاقات الإحصائيات (Stat Cards Grid) */
+.ems-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 20px;
+  margin-bottom: 26px;
+}
+
+.ems-stat-card {
+  background-color: var(--ems-surface);
+  border: 1px solid var(--ems-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.ems-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--ems-gold-border);
+}
+
+.ems-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.ems-stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ems-text-muted);
+  margin-bottom: 6px;
+}
+
+.ems-stat-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ems-text-main);
+  font-family: var(--font-mono), var(--font-arabic);
+  line-height: 1.1;
+}
+
+.ems-stat-subtext {
+  font-size: 12px;
+  color: var(--ems-text-light);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ems-stat-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius-md);
+  background-color: var(--ems-gold-light);
+  border: 1px solid var(--ems-gold-border);
+  color: var(--ems-gold-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ems-stat-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* الأزرار ومكونات التحكم (Buttons & Controls) */
+.ems-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.ems-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ems-btn-primary {
+  background: var(--ems-gold-gradient);
+  color: #ffffff;
+  box-shadow: var(--shadow-gold);
+}
+.ems-btn-primary:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.ems-btn-secondary {
+  background-color: var(--ems-surface-alt);
+  color: var(--ems-text-main);
+  border-color: var(--ems-border);
+}
+.ems-btn-secondary:hover {
+  background-color: #ffffff;
+  border-color: var(--ems-border-strong);
+}
+
+.ems-btn-outline {
+  background-color: transparent;
+  color: var(--ems-gold-hover);
+  border-color: var(--ems-gold-border);
+}
+.ems-btn-outline:hover {
+  background-color: var(--ems-gold-light);
+  border-color: var(--ems-gold);
+}
+
+.ems-btn-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+.ems-btn-danger:hover {
+  background-color: #dc2626;
+}
+
+.ems-btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+}
+
+.ems-btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background-color: var(--ems-surface-alt);
+  color: var(--ems-text-muted);
+  border: 1px solid var(--ems-border);
+}
+.ems-btn-icon:hover {
+  color: var(--ems-text-main);
+  border-color: var(--ems-border-strong);
+}
+
+/* أشرطة التبويب والفلترة (Filter Tabs) */
+.ems-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--ems-border);
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+
+.ems-tab {
+  padding: 10px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ems-text-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ems-tab:hover {
+  color: var(--ems-gold-hover);
+}
+.ems-tab.active {
+  color: var(--ems-gold-hover);
+  border-bottom-color: var(--ems-gold);
+  font-weight: 700;
+}
+
+/* الجداول والبيانات (Data Tables) */
+.ems-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ems-table {
+  width: 100%;
+  text-align: right;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.ems-table th {
+  padding: 14px 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ems-text-muted);
+  background-color: var(--ems-surface-alt);
+  border-bottom: 1px solid var(--ems-border);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.ems-table td {
+  padding: 16px 20px;
+  font-size: 13.5px;
+  color: var(--ems-text-main);
+  border-bottom: 1px solid var(--ems-border-light);
+  vertical-align: middle;
+  background-color: #ffffff;
+  transition: background-color 0.15s ease;
+}
+
+.ems-table tbody tr:hover td {
+  background-color: #fbfdff;
+}
+
+.ems-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ترقيم الصفحات (Pagination) */
+.ems-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 1px solid var(--ems-border-light);
+  font-size: 13px;
+  color: var(--ems-text-muted);
+}
+.ems-pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ems-page-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ems-border);
+  background-color: #ffffff;
+  font-weight: 600;
+  color: var(--ems-text-main);
+}
+.ems-page-btn:hover {
+  border-color: var(--ems-gold);
+  color: var(--ems-gold-hover);
+}
+.ems-page-btn.active {
+  background: var(--ems-gold-gradient);
+  color: #ffffff;
+  border-color: var(--ems-gold);
+}
+
+/* الشارات والحالات الخمس للمهام (Badges & Task States) */
+.ems-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* الحالات الخمس المعتمدة في نظام مجموعة إياس الإعلامية */
+.badge-draft {
+  color: var(--state-draft-text);
+  background-color: var(--state-draft-bg);
+  border-color: var(--state-draft-border);
+}
+
+.badge-todo {
+  color: var(--state-todo-text);
+  background-color: var(--state-todo-bg);
+  border-color: var(--state-todo-border);
+}
+
+.badge-progress {
+  color: var(--state-progress-text);
+  background-color: var(--state-progress-bg);
+  border-color: var(--state-progress-border);
+}
+
+.badge-review {
+  color: var(--state-review-text);
+  background-color: var(--state-review-bg);
+  border-color: var(--state-review-border);
+}
+
+.badge-completed {
+  color: var(--state-completed-text);
+  background-color: var(--state-completed-bg);
+  border-color: var(--state-completed-border);
+}
+
+.badge-danger {
+  color: var(--state-danger-text);
+  background-color: var(--state-danger-bg);
+  border-color: var(--state-danger-border);
+}
+
+.badge-gold {
+  color: var(--ems-gold-hover);
+  background-color: var(--ems-gold-light);
+  border-color: var(--ems-gold-border);
+}
+
+/* لوحة المهام (Kanban 5-States Workflow) */
+.ems-kanban-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(260px, 1fr));
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+}
+
+.ems-kanban-column {
+  background-color: var(--ems-surface-alt);
+  border: 1px solid var(--ems-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 480px;
+}
+
+.ems-kanban-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ems-border);
+}
+
+.ems-kanban-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ems-kanban-count {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background-color: #ffffff;
+  border: 1px solid var(--ems-border);
+}
+
+.ems-kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.ems-task-card {
+  background-color: #ffffff;
+  border: 1px solid var(--ems-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-xs);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.ems-task-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--ems-gold-border);
+}
+
+.ems-task-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ems-task-id {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--ems-gold-hover);
+}
+
+.ems-task-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ems-text-main);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.ems-task-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ems-border-light);
+  font-size: 12px;
+  color: var(--ems-text-muted);
+}
+
+/* أشرطة التقدم (Progress Bars) */
+.ems-progress {
+  width: 100%;
+  height: 8px;
+  background-color: var(--ems-surface-alt);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.ems-progress-bar {
+  height: 100%;
+  background: var(--ems-gold-gradient);
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+}
+
+.ems-progress-bar.success {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+/* حقول النماذج والمدخلات (Form Fields & Inputs) */
+.ems-form-group {
+  margin-bottom: 18px;
+}
+
+.ems-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ems-text-main);
+  margin-bottom: 7px;
+}
+
+.ems-label .required {
+  color: #ef4444;
+  margin-right: 3px;
+}
+
+.ems-input, .ems-select, .ems-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background-color: #ffffff;
+  border: 1px solid var(--ems-border);
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  color: var(--ems-text-main);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.ems-input:focus, .ems-select:focus, .ems-textarea:focus {
+  border-color: var(--ems-gold);
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.18);
+}
+
+.ems-textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.ems-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.ems-form-help {
+  font-size: 11.5px;
+  color: var(--ems-text-muted);
+  margin-top: 5px;
+}
+
+/* النوافذ المنبثقة (Modals) */
+.ems-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.ems-modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.ems-modal {
+  background-color: #ffffff;
+  border: 1px solid var(--ems-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  transform: scale(0.96);
+  transition: transform 0.25s ease;
+  overflow: hidden;
+}
+
+.ems-modal-overlay.active .ems-modal {
+  transform: scale(1);
+}
+
+.ems-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--ems-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ems-modal-title {
+  font-size: 16.5px;
+  font-weight: 800;
+  color: var(--ems-text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ems-modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ems-text-light);
+  background-color: var(--ems-surface-alt);
+}
+.ems-modal-close:hover {
+  color: var(--ems-text-main);
+  background-color: var(--ems-border-light);
+}
+
+.ems-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.ems-modal-footer {
+  padding: 16px 24px;
+  background-color: var(--ems-surface-alt);
+  border-top: 1px solid var(--ems-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* إشعارات التوست (Toast Messages) */
+.ems-toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.ems-toast {
+  background-color: #0f172a;
+  color: #ffffff;
+  padding: 12px 22px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: toastSlideUp 0.25s ease-out;
+}
+.ems-toast.success {
+  background-color: #065f46;
+  border: 1px solid #10b981;
+}
+.ems-toast.info {
+  background-color: #1e3a8a;
+  border: 1px solid #3b82f6;
+}
+
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* التجاوب مع مختلف الشاشات (Responsive Breakpoints) */
+@media (max-width: 1024px) {
+  .ems-sidebar {
+    transform: translateX(100%);
+  }
+  .ems-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
+  }
+  .ems-main {
+    margin-right: 0;
+  }
+  .ems-mobile-toggle {
+    display: flex;
+  }
+  .ems-kanban-board {
+    grid-template-columns: repeat(5, 260px);
+  }
+}
+
+@media (max-width: 640px) {
+  .ems-content {
+    padding: 18px;
+  }
+  .ems-topbar {
+    padding: 0 16px;
+  }
+  .ems-search-box {
+    display: none;
+  }
+  .ems-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ems-page-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .ems-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
