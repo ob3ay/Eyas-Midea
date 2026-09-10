@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('title', 200)->comment('عنوان الإشعار');
             $table->text('message')->comment('نص وتفاصيل الإشعار');
             $table->timestamp('read_at')->nullable()->comment('تاريخ ووقت القراءة (NULL تعني غير مقروء)');
-            $table->boolen('isread')->default(false);
+            $table->boolean('isread')->default(false);
             // ربط متعدد بالكيان المرتبط (مهمة، مشروع، طلب حضور...)
             $table->nullableMorphs('related_entity');
 
