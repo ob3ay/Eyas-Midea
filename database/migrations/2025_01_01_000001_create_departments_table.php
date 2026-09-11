@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('code', 10)->nullable()->unique()->comment('كود الدائرة المختصر مثل PRD, HR');
             $table->string('name', 150)->unique()->comment('اسم الدائرة');
             $table->unsignedBigInteger('manager_employee_id')->nullable()->comment('مدير الدائرة');
+            $table->string('description', 500)->nullable()->comment('وصف الدائرة');
             $table->timestamps();
             $table->softDeletes();
         });
