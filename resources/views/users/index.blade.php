@@ -16,11 +16,13 @@
                     </p>
                 </div>
 
-                <button type="button" onclick="openModal('modal-add-user')"
-                    class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition">
-                    <i data-lucide="user-plus" class="w-5 h-5"></i>
-                    إضافة حساب مستخدم
-                </button>
+                @if ($canCreate)
+                    <button type="button" onclick="openModal('modal-add-user')"
+                        class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition">
+                        <i data-lucide="user-plus" class="w-5 h-5"></i>
+                        إضافة حساب مستخدم
+                    </button>
+                @endif
             </div>
 
             {{-- Alerts --}}
@@ -245,15 +247,38 @@
 
                                             <td class="px-4 py-3 text-center">
 
-                                                @if ($scope)
-                                                    <span
-                                                        class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {{ $scopeClasses[$scope] ?? 'bg-slate-100 text-slate-700' }}">
-                                                        {{ $scopeLabels[$scope] ?? $scope }}
-                                                    </span>
+                                                @if ($canManagePermissions)
+                                                    <form method="POST"
+                                                        action="{{ route('settings.roles.permissions.update', ['role' => $role, 'permission' => $permission]) }}"
+                                                        onsubmit="return true;">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <select name="scope" onchange="this.form.submit()"
+                                                            class="text-xs rounded-lg border-slate-200 px-2 py-1 {{ $scopeClasses[$scope] ?? 'bg-slate-50 text-slate-500' }}">
+                                                            <option value="" {{ !$scope ? 'selected' : '' }}>— بدون
+                                                                —</option>
+                                                            <option value="self"
+                                                                {{ $scope === 'self' ? 'selected' : '' }}>ذاتي (Self)
+                                                            </option>
+                                                            <option value="department"
+                                                                {{ $scope === 'department' ? 'selected' : '' }}>
+                                                                الدائرة/القسم</option>
+                                                            <option value="organization"
+                                                                {{ $scope === 'organization' ? 'selected' : '' }}>المؤسسة
+                                                                كاملة</option>
+                                                        </select>
+                                                    </form>
                                                 @else
-                                                    <span class="text-slate-300">
-                                                        —
-                                                    </span>
+                                                    @if ($scope)
+                                                        <span
+                                                            class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {{ $scopeClasses[$scope] ?? 'bg-slate-100 text-slate-700' }}">
+                                                            {{ $scopeLabels[$scope] ?? $scope }}
+                                                        </span>
+                                                    @else
+                                                        <span class="text-slate-300">
+                                                            —
+                                                        </span>
+                                                    @endif
                                                 @endif
 
                                             </td>
@@ -527,26 +552,31 @@
 
                                             <div class="flex items-center justify-center gap-2">
 
-                                                <button type="button" onclick="openEditUserModal({{ $user->id }})"
-                                                    class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600"
-                                                    title="تعديل">
-                                                    <i data-lucide="pencil" class="w-4 h-4"></i>
-                                                </button>
-
-
-                                                <form method="POST" action="{{ route('users.destroy', $user) }}"
-                                                    onsubmit="return confirm('هل أنت متأكد من حذف هذا الحساب؟')">
-
-                                                    @csrf
-                                                    @method('DELETE')
-
-                                                    <button type="submit"
-                                                        class="w-9 h-9 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-600"
-                                                        title="حذف">
-                                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                @if ($canUpdate)
+                                                    <button type="button"
+                                                        onclick="openEditUserModal({{ $user->id }})"
+                                                        class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600"
+                                                        title="تعديل">
+                                                        <i data-lucide="pencil" class="w-4 h-4"></i>
                                                     </button>
+                                                @endif
 
-                                                </form>
+
+                                                @if ($canDelete)
+                                                    <form method="POST" action="{{ route('users.destroy', $user) }}"
+                                                        onsubmit="return confirm('هل أنت متأكد من حذف هذا الحساب؟')">
+
+                                                        @csrf
+                                                        @method('DELETE')
+
+                                                        <button type="submit"
+                                                            class="w-9 h-9 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-600"
+                                                            title="حذف">
+                                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                        </button>
+
+                                                    </form>
+                                                @endif
 
                                             </div>
 
@@ -694,45 +724,47 @@
 
 
                         {{-- Roles --}}
-                        <div class="md:col-span-2">
+                        @if ($canManagePermissions)
+                            <div class="md:col-span-2">
 
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                الأدوار
-                            </label>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    الأدوار
+                                </label>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 
-                                @forelse($roles as $role)
-                                    <label
-                                        class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                                    @forelse($roles as $role)
+                                        <label
+                                            class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
 
-                                        <input type="checkbox" name="roles[]" value="{{ $role->id }}"
-                                            class="rounded border-slate-300">
+                                            <input type="checkbox" name="roles[]" value="{{ $role->id }}"
+                                                class="rounded border-slate-300">
 
-                                        <div>
-                                            <div class="text-sm font-medium text-slate-700">
-                                                {{ $role->display_name ?: $role->name }}
+                                            <div>
+                                                <div class="text-sm font-medium text-slate-700">
+                                                    {{ $role->display_name ?: $role->name }}
+                                                </div>
+
+                                                @if ($role->description)
+                                                    <div class="text-xs text-slate-400 mt-1">
+                                                        {{ $role->description }}
+                                                    </div>
+                                                @endif
                                             </div>
 
-                                            @if ($role->description)
-                                                <div class="text-xs text-slate-400 mt-1">
-                                                    {{ $role->description }}
-                                                </div>
-                                            @endif
-                                        </div>
+                                        </label>
 
-                                    </label>
+                                    @empty
 
-                                @empty
+                                        <p class="text-sm text-slate-400">
+                                            لا توجد أدوار مسجلة.
+                                        </p>
+                                    @endforelse
 
-                                    <p class="text-sm text-slate-400">
-                                        لا توجد أدوار مسجلة.
-                                    </p>
-                                @endforelse
+                                </div>
 
                             </div>
-
-                        </div>
+                        @endif
 
 
                         {{-- Active --}}
@@ -882,31 +914,33 @@
 
 
                         {{-- Roles --}}
-                        <div class="md:col-span-2">
+                        @if ($canManagePermissions)
+                            <div class="md:col-span-2">
 
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                الأدوار
-                            </label>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    الأدوار
+                                </label>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 
-                                @foreach ($roles as $role)
-                                    <label
-                                        class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                                    @foreach ($roles as $role)
+                                        <label
+                                            class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
 
-                                        <input type="checkbox" name="roles[]" value="{{ $role->id }}"
-                                            class="edit-role rounded border-slate-300">
+                                            <input type="checkbox" name="roles[]" value="{{ $role->id }}"
+                                                class="edit-role rounded border-slate-300">
 
-                                        <span class="text-sm font-medium text-slate-700">
-                                            {{ $role->display_name ?: $role->name }}
-                                        </span>
+                                            <span class="text-sm font-medium text-slate-700">
+                                                {{ $role->display_name ?: $role->name }}
+                                            </span>
 
-                                    </label>
-                                @endforeach
+                                        </label>
+                                    @endforeach
+
+                                </div>
 
                             </div>
-
-                        </div>
+                        @endif
 
 
                         {{-- Active --}}
@@ -1076,4 +1110,3 @@
     </script>
 
 @endsection
-

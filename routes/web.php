@@ -5,20 +5,11 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes - نظام مجموعة إياس الإعلامية (EMS)
-|--------------------------------------------------------------------------
-|
-| كافة المسارات والدوال المهيأة للربط مع Controllers ونماذج إطار العمل Laravel 13.
-|
-*/
-
-// مسارات المصادقة وتسجيل الدخول
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
@@ -32,13 +23,10 @@ Route::post('/logout', [LoginController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
-// مسارات البوابة المحمية بالصلاحيات (Auth Middleware)
 Route::middleware(['web', 'auth'])->group(function () {
 
-    // 0. لوحة التحكم التنفيذية الشاملة
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // 1. شؤون الموظفين (Employees)
     Route::prefix('employees')->name('employees.')->group(function () {
         Route::get('/', [EmployeeController::class, 'index'])->name('index');
         Route::get('/{employee}', [EmployeeController::class, 'show'])->name('show');
@@ -47,7 +35,6 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::delete('/{employee}', [EmployeeController::class, 'destroy'])->name('destroy');
     });
 
-    // 2. الدوائر والأقسام (Departments & Sections)
     Route::prefix('departments')->name('departments.')->group(function () {
         Route::get('/', [DepartmentController::class, 'index'])->name('index');
         Route::get('/structure', function () {
@@ -86,7 +73,6 @@ Route::middleware(['web', 'auth'])->group(function () {
         return back()->with('success', 'تم حذف القسم بنجاح');
     })->name('sections.destroy');
 
-    // 3. المشاريع والإنتاج (Projects)
     Route::prefix('projects')->name('projects.')->group(function () {
         Route::get('/', [ProjectController::class, 'index'])->name('index');
         Route::post('/store', [ProjectController::class, 'store'])->name('store');
@@ -94,24 +80,14 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::delete('/{project}', [ProjectController::class, 'destroy'])->name('destroy');
     });
 
-    // 4. المهام وتتبع الحالات الخمس (Tasks & 5-Stages Lifecycle)
     Route::prefix('tasks')->name('tasks.')->group(function () {
-    Route::get('/', [TaskController::class, 'index'])
-        ->name('index');
+        Route::get('/', [TaskController::class, 'index'])->name('index');
+        Route::post('/store', [TaskController::class, 'store'])->name('store');
+        Route::post('/{task}/state', [TaskController::class, 'updateState'])->name('update-state');
+        Route::put('/{task}', [TaskController::class, 'update'])->name('update');
+        Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy');
+    });
 
-    Route::post('/store', [TaskController::class, 'store'])
-        ->name('store');
-
-    Route::post('/{task}/state', [TaskController::class, 'updateState'])
-        ->name('update-state');
-
-    Route::put('/{task}', [TaskController::class, 'update'])
-        ->name('update');
-
-    Route::delete('/{task}', [TaskController::class, 'destroy'])
-        ->name('destroy');
-});
-    // 5. الحضور والانصراف والبصمة (Attendance)
     Route::prefix('attendance')->name('attendance.')->group(function () {
         Route::get('/', function () {
             return view('attendance.index');
@@ -127,7 +103,6 @@ Route::middleware(['web', 'auth'])->group(function () {
         })->name('manual');
     });
 
-    // 6. الأداء والإنجاز المؤسسي (Performance KPIs)
     Route::prefix('performance')->name('performance.')->group(function () {
         Route::get('/', function () {
             return view('performance.index');
@@ -137,27 +112,13 @@ Route::middleware(['web', 'auth'])->group(function () {
         })->name('evaluate');
     });
 
-    // 7. المستخدمون والصلاحيات (Users, Roles & Scopes)
     Route::prefix('users')->name('users.')->group(function () {
-
-        Route::get(
-            '/',
-            [UserController::class, 'index']
-        )->name('index');
-
-        Route::post(
-            '/store',
-            [UserController::class, 'store']
-        )->name('store');
-
-        Route::put(
-            '/{user}',
-            [UserController::class, 'update']
-        )->name('update');
-
-        Route::delete(
-            '/{user}',
-            [UserController::class, 'destroy']
-        )->name('destroy');
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::post('/store', [UserController::class, 'store'])->name('store');
+        Route::put('/{targetUser}', [UserController::class, 'update'])->name('update');
+        Route::delete('/{targetUser}', [UserController::class, 'destroy'])->name('destroy');
     });
+
+    Route::put('/settings/roles/{role}/permissions/{permission}', [RolePermissionController::class, 'update'])
+        ->name('settings.roles.permissions.update');
 });

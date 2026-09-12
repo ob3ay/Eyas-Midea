@@ -131,30 +131,118 @@ class DatabaseSeeder extends Seeder
         $secCampaigns->update(['section_head_employee_id' => $createdEmployees['EMP-0011']->id]);
         $secPr->update(['section_head_employee_id' => $createdEmployees['EMP-0012']->id]);
 
-        // 7) صلاحيات موديول الموظفين (Employees) وربطها بالأدوار بنطاقات مختلفة
-        $employeePermissions = [
-            'employees.view' => 'عرض بيانات الموظفين',
-            'employees.create' => 'إضافة موظف جديد',
-            'employees.update' => 'تعديل بيانات موظف',
-            'employees.delete' => 'حذف موظف',
+        // 7) صلاحيات كل موديولات النظام (EMS Modules) وربطها بالأدوار بنطاقات مختلفة
+        //    المفهوم: Role (دور) + Permission (ماذا يستطيع أن يفعل) + Scope (أين):
+        //    self=بياناته فقط / department=دائرته أو قسمه / organization=كل المؤسسة
+        $modulesWithActions = [
+            'employees' => ['view', 'create', 'update', 'delete'],
+            'departments' => ['view', 'create', 'update', 'delete'],
+            'projects' => ['view', 'create', 'update', 'delete'],
+            'tasks' => ['view', 'create', 'update', 'delete'],
+            'attendance' => ['view', 'create', 'update', 'delete'],
+            'performance' => ['view', 'create', 'update', 'delete'],
+            'reports' => ['view'],
+            'users' => ['view', 'create', 'update', 'delete'],
+            'settings' => ['view', 'update'],
         ];
+
         $permissionModels = [];
-        foreach ($employeePermissions as $key => $displayName) {
-            $permissionModels[$key] = Permission::firstOrCreate(['key' => $key], ['display_name' => $displayName]);
+        foreach ($modulesWithActions as $module => $actions) {
+            foreach ($actions as $action) {
+                $key = "{$module}.{$action}";
+                $permissionModels[$key] = Permission::firstOrCreate(
+                    ['key' => $key],
+                    ['display_name' => $this->permissionDisplayName($module, $action)]
+                );
+            }
         }
+        // صلاحية خاصة: إدارة مصفوفة الصلاحيات نفسها (مين يعطي مين شو) - للسوبر أدمن فقط
+        $permissionModels['settings.manage_permissions'] = Permission::firstOrCreate(
+            ['key' => 'settings.manage_permissions'],
+            ['display_name' => 'إدارة صلاحيات الأدوار والنطاقات']
+        );
 
         // خريطة: اسم الدور => [مفتاح الصلاحية => نطاق التطبيق]
         $roleScopeMap = [
-            'SA' => ['employees.view' => 'organization', 'employees.create' => 'organization', 'employees.update' => 'organization', 'employees.delete' => 'organization'],
-            'EX' => ['employees.view' => 'organization', 'employees.update' => 'organization'],
-            'DP' => ['employees.view' => 'department', 'employees.create' => 'department', 'employees.update' => 'department'],
-            'DM' => ['employees.view' => 'department', 'employees.update' => 'department'],
-            // ملاحظة: عمود scope بقاعدة البيانات فيه 3 قيم بس (self/department/organization)
-            // بلا مستوى "قسم" منفصل. رئيس القسم (SH) بناخد نطاقه "department" هون
-            // بس بنعامله بالكود كـ "حدود القسم (section) الخاص فيه" وليس الدائرة كاملة.
-            'SH' => ['employees.view' => 'department'],
-            'EMP' => ['employees.view' => 'self'],
-            'TA' => ['employees.view' => 'self'],
+            'SA' => $this->allPermissionsAtScope(array_keys($permissionModels), 'organization'),
+
+            'EX' => [
+                'employees.view' => 'organization',
+                'employees.update' => 'organization',
+                'departments.view' => 'organization',
+                'departments.update' => 'organization',
+                'projects.view' => 'organization',
+                'projects.update' => 'organization',
+                'tasks.view' => 'organization',
+                'tasks.update' => 'organization',
+                'attendance.view' => 'organization',
+                'attendance.update' => 'organization',
+                'performance.view' => 'organization',
+                'performance.update' => 'organization',
+                'reports.view' => 'organization',
+                'users.view' => 'organization',
+                'users.update' => 'organization',
+                'settings.view' => 'organization',
+            ],
+
+            'DP' => [
+                'employees.view' => 'department',
+                'employees.create' => 'department',
+                'employees.update' => 'department',
+                'departments.view' => 'department',
+                'projects.view' => 'department',
+                'projects.create' => 'department',
+                'projects.update' => 'department',
+                'tasks.view' => 'department',
+                'tasks.create' => 'department',
+                'tasks.update' => 'department',
+                'attendance.view' => 'department',
+                'attendance.update' => 'department',
+                'performance.view' => 'department',
+                'performance.create' => 'department',
+                'performance.update' => 'department',
+                'reports.view' => 'department',
+                'users.view' => 'department',
+            ],
+
+            'DM' => [
+                'employees.view' => 'department',
+                'employees.update' => 'department',
+                'projects.view' => 'department',
+                'projects.update' => 'department',
+                'tasks.view' => 'department',
+                'tasks.update' => 'department',
+                'attendance.view' => 'department',
+                'performance.view' => 'department',
+                'reports.view' => 'department',
+                'users.view' => 'department',
+            ],
+
+            'SH' => [
+                'employees.view' => 'department',
+                'tasks.view' => 'department',
+                'tasks.update' => 'department',
+                'attendance.view' => 'department',
+                'performance.view' => 'department',
+            ],
+
+            'EMP' => [
+                'employees.view' => 'self',
+                'tasks.view' => 'self',
+                'tasks.update' => 'self',
+                'attendance.view' => 'self',
+                'attendance.create' => 'self',
+                'performance.view' => 'self',
+            ],
+
+            'TA' => [
+                'employees.view' => 'self',
+                'tasks.view' => 'self',
+                'tasks.update' => 'self',
+                'attendance.view' => 'self',
+                'attendance.create' => 'self',
+                'performance.view' => 'self',
+            ],
         ];
 
         foreach ($roleScopeMap as $roleName => $permsWithScope) {
@@ -163,10 +251,41 @@ class DatabaseSeeder extends Seeder
                 continue;
             }
             foreach ($permsWithScope as $permKey => $scope) {
+                if (! isset($permissionModels[$permKey])) {
+                    continue;
+                }
                 $role->permissions()->syncWithoutDetaching([
                     $permissionModels[$permKey]->id => ['scope' => $scope],
                 ]);
             }
         }
+    }
+
+    private function allPermissionsAtScope(array $permissionKeys, string $scope): array
+    {
+        return array_fill_keys($permissionKeys, $scope);
+    }
+
+    private function permissionDisplayName(string $module, string $action): string
+    {
+        $moduleLabels = [
+            'employees' => 'الموظفين',
+            'departments' => 'الدوائر',
+            'projects' => 'المشاريع',
+            'tasks' => 'المهام',
+            'attendance' => 'الحضور',
+            'performance' => 'الأداء',
+            'reports' => 'التقارير',
+            'users' => 'المستخدمين',
+            'settings' => 'الإعدادات',
+        ];
+        $actionLabels = [
+            'view' => 'عرض',
+            'create' => 'إضافة',
+            'update' => 'تعديل',
+            'delete' => 'حذف',
+        ];
+
+        return ($actionLabels[$action] ?? $action) . ' ' . ($moduleLabels[$module] ?? $module);
     }
 }
