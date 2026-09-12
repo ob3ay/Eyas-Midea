@@ -1,349 +1,1079 @@
-﻿@extends('layouts.portal')
-@section('title', 'المستخدمون ومصفوفة الصلاحيات')
+﻿@extends('layouts.app')
+
 @section('content')
-<div class="ems-content">
-        <div class="ems-page-header">
-          <div class="ems-page-title-wrap">
-            <div class="ems-breadcrumb">
-              <a href="dashboard.html">الرئيسية</a>
-              <span class="ems-breadcrumb-separator">/</span>
-              <span>الأمان والتحكم</span>
-              <span class="ems-breadcrumb-separator">/</span>
-              <span style="color: var(--ems-text-main); font-weight: 700;">المستخدمون ومصفوفة الصلاحيات</span>
+    <div class="min-h-screen bg-slate-50 py-6" dir="rtl">
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            {{-- Header --}}
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">
+                        إدارة المستخدمين والصلاحيات
+                    </h1>
+                    <p class="text-sm text-slate-500 mt-1">
+                        إدارة حسابات المستخدمين والأدوار والصلاحيات
+                    </p>
+                </div>
+
+                <button type="button" onclick="openModal('modal-add-user')"
+                    class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition">
+                    <i data-lucide="user-plus" class="w-5 h-5"></i>
+                    إضافة حساب مستخدم
+                </button>
             </div>
-            <h1 class="ems-page-title">إدارة المستخدمين ومصفوفة الصلاحيات (RBAC & Scopes)</h1>
-            <p class="ems-page-subtitle">التحكم في أدوار النظام، نطاقات الوصول، وإدارة حسابات بوابة مجموعة إياس الإعلامية</p>
-          </div>
-          <div class="ems-page-actions">
-            <button class="ems-btn ems-btn-primary" onclick="openModal('modal-add-user')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-              <span>+ إضافة حساب مستخدم جديد</span>
-            </button>
-          </div>
+
+            {{-- Alerts --}}
+            @if (session('success'))
+                <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+
+            {{-- Statistics --}}
+            @php
+                $totalUsers = $users->count();
+                $activeUsers = $users->where('is_active', true)->count();
+                $inactiveUsers = $users->where('is_active', false)->count();
+                $totalRoles = $roles->count();
+                $totalPermissions = $permissions->count();
+            @endphp
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500">إجمالي المستخدمين</p>
+                            <p class="text-2xl font-bold text-slate-800 mt-1">
+                                {{ $totalUsers }}
+                            </p>
+                        </div>
+
+                        <div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center">
+                            <i data-lucide="users" class="w-5 h-5 text-slate-700"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500">المستخدمون النشطون</p>
+                            <p class="text-2xl font-bold text-emerald-600 mt-1">
+                                {{ $activeUsers }}
+                            </p>
+                        </div>
+
+                        <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center">
+                            <i data-lucide="user-check" class="w-5 h-5 text-emerald-600"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500">الأدوار</p>
+                            <p class="text-2xl font-bold text-indigo-600 mt-1">
+                                {{ $totalRoles }}
+                            </p>
+                        </div>
+
+                        <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center">
+                            <i data-lucide="shield" class="w-5 h-5 text-indigo-600"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-500">الصلاحيات</p>
+                            <p class="text-2xl font-bold text-purple-600 mt-1">
+                                {{ $totalPermissions }}
+                            </p>
+                        </div>
+
+                        <div class="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center">
+                            <i data-lucide="key-round" class="w-5 h-5 text-purple-600"></i>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+
+            {{-- Super Admin --}}
+            @if ($superAdmin)
+                <div class="bg-gradient-to-l from-slate-900 to-slate-800 rounded-2xl p-5 mb-6 text-white">
+
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+                        <div class="flex items-center gap-4">
+
+                            @if ($superAdmin->employee?->avatar)
+                                <img src="{{ asset('storage/' . $superAdmin->employee->avatar) }}"
+                                    alt="{{ $superAdmin->employee?->full_name ?? $superAdmin->username }}"
+                                    class="w-14 h-14 rounded-full object-cover border-2 border-white/20">
+                            @else
+                                <div class="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
+                                    <i data-lucide="shield-check" class="w-7 h-7"></i>
+                                </div>
+                            @endif
+
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h2 class="font-bold text-lg">
+                                        {{ $superAdmin->employee?->full_name ?? $superAdmin->username }}
+                                    </h2>
+
+                                    <span class="px-2 py-1 rounded-full text-xs bg-amber-400/20 text-amber-300">
+                                        Super Admin
+                                    </span>
+                                </div>
+
+                                <p class="text-sm text-slate-300 mt-1">
+                                    {{ $superAdmin->email }}
+                                </p>
+
+                                @if ($superAdmin->employee?->employee_code)
+                                    <p class="text-xs text-slate-400 mt-1">
+                                        {{ $superAdmin->employee->employee_code }}
+                                    </p>
+                                @endif
+                            </div>
+
+                        </div>
+
+                        <div class="text-sm text-slate-300">
+                            <span class="font-semibold text-white">
+                                {{ $superAdmin->roles->count() }}
+                            </span>
+                            أدوار مرتبطة
+                        </div>
+
+                    </div>
+
+                </div>
+            @endif
+
+
+            {{-- Permissions Matrix --}}
+            <div class="bg-white rounded-2xl border border-slate-200 mb-6 overflow-hidden">
+
+                <div class="px-5 py-4 border-b border-slate-200">
+                    <h2 class="font-bold text-slate-800">
+                        مصفوفة الصلاحيات
+                    </h2>
+
+                    <p class="text-sm text-slate-500 mt-1">
+                        الصلاحيات المرتبطة بكل دور ونطاقها
+                    </p>
+                </div>
+
+                @if ($roles->count() && $permissions->count())
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">
+                                        الصلاحية
+                                    </th>
+
+                                    @foreach ($roles as $role)
+                                        <th class="px-4 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">
+                                            {{ $role->display_name ?: $role->name }}
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+
+                            <tbody class="divide-y divide-slate-100">
+
+                                @foreach ($permissions as $permission)
+                                    <tr class="hover:bg-slate-50">
+
+                                        <td class="px-4 py-3">
+                                            <div class="font-medium text-slate-800">
+                                                {{ $permission->display_name ?: $permission->key }}
+                                            </div>
+
+                                            @if ($permission->description)
+                                                <div class="text-xs text-slate-400 mt-1">
+                                                    {{ $permission->description }}
+                                                </div>
+                                            @endif
+                                        </td>
+
+                                        @foreach ($roles as $role)
+                                            @php
+                                                $rolePermission = $role->permissions->firstWhere('id', $permission->id);
+
+                                                $scope = $rolePermission?->pivot?->scope;
+
+                                                $scopeLabels = [
+                                                    'organization' => 'المؤسسة',
+                                                    'department' => 'الدائرة',
+                                                    'self' => 'ذاتي',
+                                                ];
+
+                                                $scopeClasses = [
+                                                    'organization' => 'bg-emerald-100 text-emerald-700',
+                                                    'department' => 'bg-blue-100 text-blue-700',
+                                                    'self' => 'bg-amber-100 text-amber-700',
+                                                ];
+                                            @endphp
+
+                                            <td class="px-4 py-3 text-center">
+
+                                                @if ($scope)
+                                                    <span
+                                                        class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {{ $scopeClasses[$scope] ?? 'bg-slate-100 text-slate-700' }}">
+                                                        {{ $scopeLabels[$scope] ?? $scope }}
+                                                    </span>
+                                                @else
+                                                    <span class="text-slate-300">
+                                                        —
+                                                    </span>
+                                                @endif
+
+                                            </td>
+                                        @endforeach
+
+                                    </tr>
+                                @endforeach
+
+                            </tbody>
+
+                        </table>
+                    </div>
+                @else
+                    <div class="p-10 text-center text-slate-500">
+                        لا توجد أدوار أو صلاحيات مسجلة حالياً.
+                    </div>
+                @endif
+
+            </div>
+
+
+            {{-- Users Table --}}
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+
+                <div
+                    class="px-5 py-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+
+                    <div>
+                        <h2 class="font-bold text-slate-800">
+                            حسابات المستخدمين
+                        </h2>
+
+                        <p class="text-sm text-slate-500 mt-1">
+                            جميع حسابات النظام المسجلة
+                        </p>
+                    </div>
+
+                    <div class="relative">
+                        <i data-lucide="search"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+
+                        <input type="text" id="userSearch" placeholder="بحث..."
+                            class="pr-9 pl-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-slate-300 focus:border-slate-400 outline-none">
+                    </div>
+
+                </div>
+
+
+                @if ($users->count())
+                    <div class="overflow-x-auto">
+
+                        <table class="w-full text-sm">
+
+                            <thead class="bg-slate-50 border-b border-slate-200">
+
+                                <tr>
+
+                                    <th class="px-4 py-3 text-right font-semibold text-slate-700">
+                                        المستخدم
+                                    </th>
+
+                                    <th class="px-4 py-3 text-right font-semibold text-slate-700">
+                                        البريد
+                                    </th>
+
+                                    <th class="px-4 py-3 text-right font-semibold text-slate-700">
+                                        الأدوار
+                                    </th>
+
+                                    <th class="px-4 py-3 text-center font-semibold text-slate-700">
+                                        النطاق
+                                    </th>
+
+                                    <th class="px-4 py-3 text-center font-semibold text-slate-700">
+                                        الحالة
+                                    </th>
+
+                                    <th class="px-4 py-3 text-center font-semibold text-slate-700">
+                                        آخر دخول
+                                    </th>
+
+                                    <th class="px-4 py-3 text-center font-semibold text-slate-700">
+                                        الإجراءات
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="usersTableBody" class="divide-y divide-slate-100">
+
+                                @foreach ($users as $user)
+                                    @php
+
+                                        $highestScope = null;
+
+                                        foreach ($user->roles as $role) {
+                                            foreach ($role->permissions as $permission) {
+                                                $currentScope = $permission->pivot->scope ?? null;
+
+                                                if (!$currentScope) {
+                                                    continue;
+                                                }
+
+                                                $priority = [
+                                                    'organization' => 3,
+                                                    'department' => 2,
+                                                    'self' => 1,
+                                                ];
+
+                                                if (
+                                                    $highestScope === null ||
+                                                    ($priority[$currentScope] ?? 0) > ($priority[$highestScope] ?? 0)
+                                                ) {
+                                                    $highestScope = $currentScope;
+                                                }
+                                            }
+                                        }
+
+                                        $scopeLabels = [
+                                            'organization' => 'المؤسسة',
+                                            'department' => 'الدائرة',
+                                            'self' => 'ذاتي',
+                                        ];
+
+                                        $scopeClasses = [
+                                            'organization' => 'bg-emerald-100 text-emerald-700',
+                                            'department' => 'bg-blue-100 text-blue-700',
+                                            'self' => 'bg-amber-100 text-amber-700',
+                                        ];
+
+                                        $searchText = strtolower(
+                                            ($user->username ?? '') .
+                                                ' ' .
+                                                ($user->email ?? '') .
+                                                ' ' .
+                                                ($user->employee?->full_name ?? '') .
+                                                ' ' .
+                                                ($user->employee?->employee_code ?? ''),
+                                        );
+                                    @endphp
+
+
+                                    <tr class="user-row hover:bg-slate-50" data-search="{{ $searchText }}">
+
+                                        {{-- User --}}
+                                        <td class="px-4 py-4">
+
+                                            <div class="flex items-center gap-3">
+
+                                                @if ($user->employee?->avatar)
+                                                    <img src="{{ asset('storage/' . $user->employee->avatar) }}"
+                                                        alt="{{ $user->employee?->full_name ?? $user->username }}"
+                                                        class="w-10 h-10 rounded-full object-cover">
+                                                @else
+                                                    <div
+                                                        class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                                                        <i data-lucide="user" class="w-5 h-5 text-slate-500"></i>
+                                                    </div>
+                                                @endif
+
+                                                <div>
+
+                                                    <div class="font-semibold text-slate-800">
+                                                        {{ $user->employee?->full_name ?? $user->username }}
+                                                    </div>
+
+                                                    <div class="text-xs text-slate-400 mt-1">
+                                                        {{ $user->username }}
+
+                                                        @if ($user->employee?->employee_code)
+                                                            · {{ $user->employee->employee_code }}
+                                                        @endif
+                                                    </div>
+
+                                                </div>
+
+                                            </div>
+
+                                        </td>
+
+
+                                        {{-- Email --}}
+                                        <td class="px-4 py-4 text-slate-600">
+                                            {{ $user->email }}
+                                        </td>
+
+
+                                        {{-- Roles --}}
+                                        <td class="px-4 py-4">
+
+                                            <div class="flex flex-wrap gap-1.5">
+
+                                                @forelse($user->roles as $role)
+                                                    <span
+                                                        class="inline-flex px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">
+                                                        {{ $role->display_name ?: $role->name }}
+                                                    </span>
+
+                                                @empty
+
+                                                    <span class="text-slate-400 text-xs">
+                                                        بدون دور
+                                                    </span>
+                                                @endforelse
+
+                                            </div>
+
+                                        </td>
+
+
+                                        {{-- Scope --}}
+                                        <td class="px-4 py-4 text-center">
+
+                                            @if ($highestScope)
+                                                <span
+                                                    class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {{ $scopeClasses[$highestScope] ?? 'bg-slate-100 text-slate-700' }}">
+                                                    {{ $scopeLabels[$highestScope] ?? $highestScope }}
+                                                </span>
+                                            @else
+                                                <span class="text-slate-300">
+                                                    —
+                                                </span>
+                                            @endif
+
+                                        </td>
+
+
+                                        {{-- Status --}}
+                                        <td class="px-4 py-4 text-center">
+
+                                            @if ($user->is_active)
+                                                <span
+                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                    نشط
+                                                </span>
+                                            @else
+                                                <span
+                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                                    غير نشط
+                                                </span>
+                                            @endif
+
+                                        </td>
+
+
+                                        {{-- Last Login --}}
+                                        <td class="px-4 py-4 text-center text-slate-500">
+
+                                            @if ($user->last_login_at)
+                                                <div>
+                                                    {{ $user->last_login_at->format('Y-m-d') }}
+                                                </div>
+
+                                                <div class="text-xs text-slate-400 mt-1">
+                                                    {{ $user->last_login_at->format('H:i') }}
+                                                </div>
+                                            @else
+                                                <span class="text-slate-400">
+                                                    لم يسجل دخول
+                                                </span>
+                                            @endif
+
+                                        </td>
+
+
+                                        {{-- Actions --}}
+                                        <td class="px-4 py-4">
+
+                                            <div class="flex items-center justify-center gap-2">
+
+                                                <button type="button" onclick="openEditUserModal({{ $user->id }})"
+                                                    class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600"
+                                                    title="تعديل">
+                                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                                </button>
+
+
+                                                <form method="POST" action="{{ route('users.destroy', $user) }}"
+                                                    onsubmit="return confirm('هل أنت متأكد من حذف هذا الحساب؟')">
+
+                                                    @csrf
+                                                    @method('DELETE')
+
+                                                    <button type="submit"
+                                                        class="w-9 h-9 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-600"
+                                                        title="حذف">
+                                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                    </button>
+
+                                                </form>
+
+                                            </div>
+
+                                        </td>
+
+                                    </tr>
+                                @endforeach
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+                @else
+                    <div class="p-12 text-center">
+
+                        <div class="w-16 h-16 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center">
+                            <i data-lucide="users" class="w-8 h-8 text-slate-400"></i>
+                        </div>
+
+                        <h3 class="mt-4 font-semibold text-slate-700">
+                            لا يوجد مستخدمون
+                        </h3>
+
+                        <p class="text-sm text-slate-400 mt-1">
+                            لم يتم إنشاء أي حساب مستخدم حتى الآن.
+                        </p>
+
+                    </div>
+                @endif
+
+            </div>
+
         </div>
 
-        <!-- بطاقة رئيس مجلس الإدارة المميزة (Super Admin / Full Scope) -->
-        <div class="ems-super-admin-card">
-          <div style="display: flex; align-items: center; gap: 18px;">
-            <div class="ems-avatar" style="width: 58px; height: 58px; font-size: 22px;">ص</div>
-            <div>
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-                <h2 style="font-size: 18px; font-weight: 800; color: var(--ems-text-main);">صالح رزق محمد حسنين</h2>
-                <span class="ems-badge badge-gold">Super Admin</span>
-                <span class="ems-badge badge-completed">Full Scope (نطاق كامل)</span>
-              </div>
-              <div style="font-size: 13px; color: var(--ems-text-muted);">
-                رئيس مجلس الإدارة • المشرف العام على نظام مجموعة إياس الإعلامية (EMS)
-              </div>
-              <div style="font-size: 11.5px; color: var(--ems-text-light); margin-top: 4px; font-family: var(--font-mono);">
-                saleh@eyasmedia.com • صلاحية الوصول لجميع الدوائر والمشاريع والاعتمادات المالية والرقابية
-              </div>
-            </div>
-          </div>
 
-          <div>
-            <span class="ems-badge badge-gold" style="padding: 8px 16px; font-size: 13px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              <span>كامل الصلاحيات دون قيود (100%)</span>
-            </span>
-          </div>
+        {{-- Add User Modal --}}
+        <div id="modal-add-user" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+
+            <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden">
+
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800">
+                            إضافة حساب مستخدم
+                        </h2>
+
+                        <p class="text-xs text-slate-500 mt-1">
+                            إنشاء حساب وربطه بموظف وأدوار
+                        </p>
+                    </div>
+
+                    <button type="button" onclick="closeModal('modal-add-user')"
+                        class="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+
+                </div>
+
+
+                <form method="POST" action="{{ route('users.store') }}" class="p-6">
+
+                    @csrf
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {{-- Employee --}}
+                        <div class="md:col-span-2">
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                الموظف
+                            </label>
+
+                            <select name="employee_id" required
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300">
+                                <option value="">اختر الموظف</option>
+
+                                @foreach ($employees as $employee)
+                                    <option value="{{ $employee->id }}">
+                                        {{ $employee->full_name }}
+                                        @if ($employee->employee_code)
+                                            — {{ $employee->employee_code }}
+                                        @endif
+                                    </option>
+                                @endforeach
+
+                            </select>
+
+                        </div>
+
+
+                        {{-- Username --}}
+                        <div>
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                اسم المستخدم
+                            </label>
+
+                            <input type="text" name="username" required maxlength="100"
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300"
+                                placeholder="username">
+
+                        </div>
+
+
+                        {{-- Email --}}
+                        <div>
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                البريد الإلكتروني
+                            </label>
+
+                            <input type="email" name="email" required
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300"
+                                placeholder="email@example.com">
+
+                        </div>
+
+
+                        {{-- Password --}}
+                        <div>
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                كلمة المرور
+                            </label>
+
+                            <input type="password" name="password" required minlength="8"
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300">
+
+                        </div>
+
+
+                        {{-- Password Confirmation --}}
+                        <div>
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                تأكيد كلمة المرور
+                            </label>
+
+                            <input type="password" name="password_confirmation" required minlength="8"
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300">
+
+                        </div>
+
+
+                        {{-- Roles --}}
+                        <div class="md:col-span-2">
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                الأدوار
+                            </label>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+
+                                @forelse($roles as $role)
+                                    <label
+                                        class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+
+                                        <input type="checkbox" name="roles[]" value="{{ $role->id }}"
+                                            class="rounded border-slate-300">
+
+                                        <div>
+                                            <div class="text-sm font-medium text-slate-700">
+                                                {{ $role->display_name ?: $role->name }}
+                                            </div>
+
+                                            @if ($role->description)
+                                                <div class="text-xs text-slate-400 mt-1">
+                                                    {{ $role->description }}
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                    </label>
+
+                                @empty
+
+                                    <p class="text-sm text-slate-400">
+                                        لا توجد أدوار مسجلة.
+                                    </p>
+                                @endforelse
+
+                            </div>
+
+                        </div>
+
+
+                        {{-- Active --}}
+                        <div class="md:col-span-2">
+
+                            <label class="flex items-center gap-3 cursor-pointer">
+
+                                <input type="checkbox" name="is_active" value="1" checked
+                                    class="rounded border-slate-300">
+
+                                <span class="text-sm font-medium text-slate-700">
+                                    الحساب نشط
+                                </span>
+
+                            </label>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-slate-200">
+
+                        <button type="button" onclick="closeModal('modal-add-user')"
+                            class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">
+                            إلغاء
+                        </button>
+
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+                            إنشاء الحساب
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
         </div>
 
-        <!-- مصفوفة الصلاحيات التفاعلية (Role-Based Access Control Matrix) -->
-        <div class="ems-card">
-          <div class="ems-card-header">
-            <div class="ems-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              <span>مصفوفة الصلاحيات المعتمدة ونطاقات الوصول (Access Matrix)</span>
+
+        {{-- Edit User Modal --}}
+        <div id="modal-edit-user" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+
+            <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden">
+
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800">
+                            تعديل حساب المستخدم
+                        </h2>
+                    </div>
+
+                    <button type="button" onclick="closeModal('modal-edit-user')"
+                        class="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+
+                </div>
+
+
+                <form id="editUserForm" method="POST" class="p-6">
+
+                    @csrf
+                    @method('PUT')
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {{-- Employee --}}
+                        <div class="md:col-span-2">
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                الموظف
+                            </label>
+
+                            <select name="employee_id" id="edit_employee_id" required
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300">
+
+                                @foreach ($users as $existingUser)
+                                    @if ($existingUser->employee)
+                                        <option value="{{ $existingUser->employee->id }}">
+                                            {{ $existingUser->employee->full_name }}
+                                            @if ($existingUser->employee->employee_code)
+                                                — {{ $existingUser->employee->employee_code }}
+                                            @endif
+                                        </option>
+                                    @endif
+                                @endforeach
+
+                            </select>
+
+                        </div>
+
+
+                        {{-- Username --}}
+                        <div>
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                اسم المستخدم
+                            </label>
+
+                            <input type="text" name="username" id="edit_username" required
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300">
+
+                        </div>
+
+
+                        {{-- Email --}}
+                        <div>
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                البريد الإلكتروني
+                            </label>
+
+                            <input type="email" name="email" id="edit_email" required
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300">
+
+                        </div>
+
+
+                        {{-- Password --}}
+                        <div>
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                كلمة المرور الجديدة
+                            </label>
+
+                            <input type="password" name="password" minlength="8"
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300"
+                                placeholder="اتركها فارغة للإبقاء على الحالية">
+
+                        </div>
+
+
+                        {{-- Confirm Password --}}
+                        <div>
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                تأكيد كلمة المرور
+                            </label>
+
+                            <input type="password" name="password_confirmation" minlength="8"
+                                class="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300">
+
+                        </div>
+
+
+                        {{-- Roles --}}
+                        <div class="md:col-span-2">
+
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                الأدوار
+                            </label>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+
+                                @foreach ($roles as $role)
+                                    <label
+                                        class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+
+                                        <input type="checkbox" name="roles[]" value="{{ $role->id }}"
+                                            class="edit-role rounded border-slate-300">
+
+                                        <span class="text-sm font-medium text-slate-700">
+                                            {{ $role->display_name ?: $role->name }}
+                                        </span>
+
+                                    </label>
+                                @endforeach
+
+                            </div>
+
+                        </div>
+
+
+                        {{-- Active --}}
+                        <div class="md:col-span-2">
+
+                            <label class="flex items-center gap-3 cursor-pointer">
+
+                                <input type="checkbox" name="is_active" value="1" id="edit_is_active"
+                                    class="rounded border-slate-300">
+
+                                <span class="text-sm font-medium text-slate-700">
+                                    الحساب نشط
+                                </span>
+
+                            </label>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-slate-200">
+
+                        <button type="button" onclick="closeModal('modal-edit-user')"
+                            class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">
+                            إلغاء
+                        </button>
+
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+                            حفظ التعديلات
+                        </button>
+
+                    </div>
+
+                </form>
+
             </div>
-            <span class="ems-badge badge-gold">5 مستويات إدارية</span>
-          </div>
 
-          <div class="ems-card-body" style="padding: 0;">
-            <div class="ems-table-responsive">
-              <table class="ems-table ems-matrix-table">
-                <thead>
-                  <tr>
-                    <th>الوحدة الوظيفية / الصلاحية</th>
-                    <th>
-                      <div>رئيس مجلس الإدارة</div>
-                      <div class="scope-pill" style="color: var(--ems-gold-hover); margin-top: 4px;">Full Scope</div>
-                    </th>
-                    <th>
-                      <div>المدير العام / التنفيذي</div>
-                      <div class="scope-pill" style="margin-top: 4px;">Executive Scope</div>
-                    </th>
-                    <th>
-                      <div>مدراء الدوائر</div>
-                      <div class="scope-pill" style="margin-top: 4px;">Department Scope</div>
-                    </th>
-                    <th>
-                      <div>الموظفون والمنفذون</div>
-                      <div class="scope-pill" style="margin-top: 4px;">Assigned Scope</div>
-                    </th>
-                    <th>
-                      <div>التدقيق والمشاهدة</div>
-                      <div class="scope-pill" style="margin-top: 4px;">Audit Scope</div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>1. إدارة شؤون الموظفين (إضافة، تعديل، أجور)</strong></td>
-                    <td><span class="check-icon">✓ كامل</span></td>
-                    <td><span class="check-icon">✓ تعديل/عرض</span></td>
-                    <td><span class="check-icon">✓ كادر الدائرة</span></td>
-                    <td><span class="cross-icon">✕</span></td>
-                    <td><span style="font-size: 12px; color: var(--ems-text-muted);">قراءة فقط</span></td>
-                  </tr>
-
-                  <tr>
-                    <td><strong>2. الدوائر والأقسام (تعديل الهيكل والميزانيات)</strong></td>
-                    <td><span class="check-icon">✓ كامل</span></td>
-                    <td><span class="check-icon">✓ كامل</span></td>
-                    <td><span class="cross-icon">✕</span></td>
-                    <td><span class="cross-icon">✕</span></td>
-                    <td><span style="font-size: 12px; color: var(--ems-text-muted);">قراءة فقط</span></td>
-                  </tr>
-
-                  <tr>
-                    <td><strong>3. المشاريع البرمجية والإعلامية (إنشاء واعتماد)</strong></td>
-                    <td><span class="check-icon">✓ كامل</span></td>
-                    <td><span class="check-icon">✓ كامل</span></td>
-                    <td><span class="check-icon">✓ مشاريع الدائرة</span></td>
-                    <td><span class="cross-icon">✕</span></td>
-                    <td><span style="font-size: 12px; color: var(--ems-text-muted);">قراءة فقط</span></td>
-                  </tr>
-
-                  <tr>
-                    <td><strong>4. إدارة المهام (تكليف، مراجعة، نقل الحالات الخمس)</strong></td>
-                    <td><span class="check-icon">✓ كامل</span></td>
-                    <td><span class="check-icon">✓ كامل</span></td>
-                    <td><span class="check-icon">✓ كامل الدائرة</span></td>
-                    <td><span class="check-icon">✓ المهام المسندة</span></td>
-                    <td><span style="font-size: 12px; color: var(--ems-text-muted);">قراءة فقط</span></td>
-                  </tr>
-
-                  <tr>
-                    <td><strong>5. الحضور والانصراف والبصمة (الرقابة والتعديل)</strong></td>
-                    <td><span class="check-icon">✓ كامل</span></td>
-                    <td><span class="check-icon">✓ كامل</span></td>
-                    <td><span class="check-icon">✓ تقارير الدائرة</span></td>
-                    <td><span class="check-icon">✓ بصمته الشخصية</span></td>
-                    <td><span style="font-size: 12px; color: var(--ems-text-muted);">قراءة فقط</span></td>
-                  </tr>
-
-                  <tr>
-                    <td><strong>6. تقييم الأداء والإنجاز (KPIs والمصادقة)</strong></td>
-                    <td><span class="check-icon">✓ اعتماد نهائي</span></td>
-                    <td><span class="check-icon">✓ تقييم شامل</span></td>
-                    <td><span class="check-icon">✓ تقييم الكادر</span></td>
-                    <td><span class="cross-icon">✕</span></td>
-                    <td><span style="font-size: 12px; color: var(--ems-text-muted);">قراءة فقط</span></td>
-                  </tr>
-
-                  <tr>
-                    <td><strong>7. إدارة المستخدمين والحسابات ومصفوفة الأمان</strong></td>
-                    <td><span class="check-icon">✓ حصري</span></td>
-                    <td><span class="cross-icon">✕</span></td>
-                    <td><span class="cross-icon">✕</span></td>
-                    <td><span class="cross-icon">✕</span></td>
-                    <td><span class="cross-icon">✕</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
 
-        <!-- جدول حسابات المستخدمين في النظام -->
-        <div class="ems-card">
-          <div class="ems-card-header">
-            <div class="ems-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-              <span>حسابات مستخدمي بوابة مجموعة إياس الإعلامية</span>
-            </div>
-            <span class="ems-badge badge-gold">8 حسابات قيادية وتنفيذية نشطة</span>
-          </div>
+    </div>
 
-          <div class="ems-card-body" style="padding: 0;">
-            <div class="ems-table-responsive">
-              <table class="ems-table" id="usersTable">
-                <thead>
-                  <tr>
-                    <th>المستخدم</th>
-                    <th>البريد الإلكتروني</th>
-                    <th>الدور المعتمد</th>
-                    <th>نطاق الصلاحية (Scope)</th>
-                    <th>حالة الحساب</th>
-                    <th>آخر تسجيل دخول</th>
-                    <th style="text-align: center;">الإجراءات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style="background-color: #fdfbf7;">
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="ems-avatar" style="width: 32px; height: 32px; font-size: 12px; background: #c5a059;">ص</div>
-                        <div>
-                          <strong>صالح رزق محمد حسنين</strong>
-                          <span style="font-size: 10.5px; color: var(--ems-text-muted); display: block; font-family: var(--font-mono);">EMP-00</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span style="font-family: var(--font-mono);">saleh@eyasmedia.com</span></td>
-                    <td><span class="ems-badge badge-gold">رئيس مجلس الإدارة</span></td>
-                    <td><span class="scope-pill" style="color: var(--ems-gold-hover); font-weight: 800;">Full Scope</span></td>
-                    <td><span class="ems-badge badge-completed">نشط</span></td>
-                    <td>اليوم، 08:52 ص</td>
-                    <td style="text-align: center;"><span style="font-size: 12px; color: var(--ems-gold-hover); font-weight: 700;">المشرف الرئيسي</span></td>
-                  </tr>
 
-                  <tr>
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="ems-avatar" style="width: 32px; height: 32px; font-size: 12px; background:#1e293b;">م</div>
-                        <div>
-                          <strong>محمد ابو شحمه</strong>
-                          <span style="font-size: 10.5px; color: var(--ems-text-muted); display: block; font-family: var(--font-mono);">EMP-01</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span style="font-family: var(--font-mono);">m.shahme@eyasmedia.com</span></td>
-                    <td><span class="ems-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">المدير التنفيذي</span></td>
-                    <td><span class="scope-pill" style="color:#1d4ed8; font-weight:700;">Executive Scope</span></td>
-                    <td><span class="ems-badge badge-completed">نشط</span></td>
-                    <td>اليوم، 08:55 ص</td>
-                    <td style="text-align: center;">
-                      <button class="ems-btn ems-btn-icon" title="تعديل الدور"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                    </td>
-                  </tr>
+    <script>
+        const usersData = @js(
+    $users
+        ->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'employee_id' => $user->employee_id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'is_active' => (bool) $user->is_active,
+                'roles' => $user->roles->pluck('id')->values()->all(),
+            ];
+        })
+        ->values()
+        ->all(),
+);
 
-                  <tr>
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="ems-avatar" style="width: 32px; height: 32px; font-size: 12px; background:#334155;">ب</div>
-                        <div>
-                          <strong>براء عمر</strong>
-                          <span style="font-size: 10.5px; color: var(--ems-text-muted); display: block; font-family: var(--font-mono);">EMP-02</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span style="font-family: var(--font-mono);">b.omar@eyasmedia.com</span></td>
-                    <td><span class="ems-badge" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;">المستشار القانوني ونائب المدير</span></td>
-                    <td><span class="scope-pill" style="color:#334155; font-weight:700;">Executive Scope</span></td>
-                    <td><span class="ems-badge badge-completed">نشط</span></td>
-                    <td>اليوم، 09:00 ص</td>
-                    <td style="text-align: center;">
-                      <button class="ems-btn ems-btn-icon" title="تعديل الدور"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                    </td>
-                  </tr>
+        function openModal(id) {
+            const modal = document.getElementById(id);
 
-                  <tr>
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="ems-avatar" style="width: 32px; height: 32px; font-size: 12px; background:#475569;">ر</div>
-                        <div>
-                          <strong>رواء صلاح</strong>
-                          <span style="font-size: 10.5px; color: var(--ems-text-muted); display: block; font-family: var(--font-mono);">EMP-03</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span style="font-family: var(--font-mono);">r.salah@eyasmedia.com</span></td>
-                    <td>السكرتارية التنفيذية ومتابعة المكاتب</td>
-                    <td><span class="scope-pill">Operational Scope</span></td>
-                    <td><span class="ems-badge badge-completed">نشط</span></td>
-                    <td>اليوم، 08:48 ص</td>
-                    <td style="text-align: center;">
-                      <button class="ems-btn ems-btn-icon" title="تعديل الدور"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                    </td>
-                  </tr>
+            if (!modal) {
+                return;
+            }
 
-                  <tr>
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="ems-avatar" style="width: 32px; height: 32px; font-size: 12px; background:#0284c7;">ا</div>
-                        <div>
-                          <strong>البراء ابو عامر</strong>
-                          <span style="font-size: 10.5px; color: var(--ems-text-muted); display: block; font-family: var(--font-mono);">EMP-04</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span style="font-family: var(--font-mono);">b.amer@eyasmedia.com</span></td>
-                    <td>دائرة الإعلام - قسم المرئي</td>
-                    <td><span class="scope-pill">Department Scope</span></td>
-                    <td><span class="ems-badge badge-completed">نشط</span></td>
-                    <td>اليوم، 09:10 ص</td>
-                    <td style="text-align: center;">
-                      <button class="ems-btn ems-btn-icon" title="تعديل الدور"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                    </td>
-                  </tr>
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.classList.add('overflow-hidden');
+        }
 
-                  <tr>
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="ems-avatar" style="width: 32px; height: 32px; font-size: 12px; background:#0369a1;">ل</div>
-                        <div>
-                          <strong>لؤي بركة</strong>
-                          <span style="font-size: 10.5px; color: var(--ems-text-muted); display: block; font-family: var(--font-mono);">EMP-05</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span style="font-family: var(--font-mono);">l.baraka@eyasmedia.com</span></td>
-                    <td>دائرة الإعلام - منسق الرقمي</td>
-                    <td><span class="scope-pill">Department Scope</span></td>
-                    <td><span class="ems-badge badge-completed">نشط</span></td>
-                    <td>اليوم، 09:12 ص</td>
-                    <td style="text-align: center;">
-                      <button class="ems-btn ems-btn-icon" title="تعديل الدور"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                    </td>
-                  </tr>
+        function closeModal(id) {
+            const modal = document.getElementById(id);
 
-                  <tr>
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="ems-avatar" style="width: 32px; height: 32px; font-size: 12px; background:#3b82f6;">أ</div>
-                        <div>
-                          <strong>أحمد حبيب</strong>
-                          <span style="font-size: 10.5px; color: var(--ems-text-muted); display: block; font-family: var(--font-mono);">EMP-06</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span style="font-family: var(--font-mono);">ahmed.habib@eyasmedia.com</span></td>
-                    <td>دائرة البرمجة والتقنية - مسؤول الويب</td>
-                    <td><span class="scope-pill">Department Scope</span></td>
-                    <td><span class="ems-badge badge-completed">نشط</span></td>
-                    <td>اليوم، 08:58 ص</td>
-                    <td style="text-align: center;">
-                      <button class="ems-btn ems-btn-icon" title="تعديل الدور"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                    </td>
-                  </tr>
+            if (!modal) {
+                return;
+            }
 
-                  <tr>
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="ems-avatar" style="width: 32px; height: 32px; font-size: 12px; background:#d97706;">ع</div>
-                        <div>
-                          <strong>عمر العشي</strong>
-                          <span style="font-size: 10.5px; color: var(--ems-text-muted); display: block; font-family: var(--font-mono);">EMP-21</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span style="font-family: var(--font-mono);">o.ashi@eyasmedia.com</span></td>
-                    <td>دائرة التسويق - منسق التسويق الرقمي</td>
-                    <td><span class="scope-pill">Department Scope</span></td>
-                    <td><span class="ems-badge badge-completed">نشط</span></td>
-                    <td>اليوم، 09:15 ص</td>
-                    <td style="text-align: center;">
-                      <button class="ems-btn ems-btn-icon" title="تعديل الدور"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.classList.remove('overflow-hidden');
+        }
 
-      </div>
+        function openEditUserModal(userId) {
+            const user = usersData.find(
+                item => Number(item.id) === Number(userId)
+            );
+
+            if (!user) {
+                return;
+            }
+
+            const form = document.getElementById('editUserForm');
+
+            if (form) {
+                form.action = "{{ url('/users') }}/" + user.id;
+            }
+
+            const employeeInput = document.getElementById('edit_employee_id');
+            const usernameInput = document.getElementById('edit_username');
+            const emailInput = document.getElementById('edit_email');
+            const activeInput = document.getElementById('edit_is_active');
+
+            if (employeeInput) {
+                employeeInput.value = user.employee_id ?? '';
+            }
+
+            if (usernameInput) {
+                usernameInput.value = user.username ?? '';
+            }
+
+            if (emailInput) {
+                emailInput.value = user.email ?? '';
+            }
+
+            if (activeInput) {
+                activeInput.checked = user.is_active;
+            }
+
+            document.querySelectorAll('.edit-role').forEach(function(checkbox) {
+                checkbox.checked = user.roles.includes(
+                    Number(checkbox.value)
+                );
+            });
+
+            openModal('modal-edit-user');
+        }
+
+        const searchInput = document.getElementById('userSearch');
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const value = this.value.trim().toLowerCase();
+
+                document.querySelectorAll('.user-row').forEach(function(row) {
+                    const text = row.dataset.search || '';
+
+                    row.style.display = text.includes(value) ? '' : 'none';
+                });
+            });
+        }
+
+        document.querySelectorAll('[id^="modal-"]').forEach(function(modal) {
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeModal(modal.id);
+                }
+            });
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            document.querySelectorAll('[id^="modal-"]').forEach(function(modal) {
+                if (!modal.classList.contains('hidden')) {
+                    closeModal(modal.id);
+                }
+            });
+        });
+
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    </script>
+
 @endsection
 

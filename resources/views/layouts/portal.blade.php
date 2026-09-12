@@ -218,64 +218,144 @@
                         </svg>
                         <span class="badge-dot"></span>
                     </button>
-
                     <!-- بيانات المستخدم الحركية -->
                     @php
                         $authUser = auth()->user();
-                        $userName = $authUser?->name ?? 'صالح رزق محمد حسنين';
-                        $userRole = $authUser?->role_name ?? 'رئيس مجلس الإدارة (Super Admin)';
+
+                        // اسم المستخدم من جدول users
+                        $userName = $authUser?->username ?? 'المستخدم';
+
+                        // جلب جميع الـ Roles الخاصة بالمستخدم
+                        $userRoles = $authUser?->roleNames() ?? [];
+
+                        // عرض أول Role بجانب اسم المستخدم
+                        $userRole = $userRoles[0] ?? 'مستخدم';
+
+                        // أول حرف من اسم المستخدم
                         $firstLetter = mb_substr($userName, 0, 1, 'UTF-8');
                     @endphp
 
-                    <div class="ems-user-profile" data-dropdown-toggle="userDropdownMenu">
-                        <div class="ems-avatar">{{ $firstLetter }}</div>
-                        <div class="ems-user-info">
-                            <span class="ems-user-name">{{ $userName }}</span>
-                            <span class="ems-user-role">{{ $userRole }}</span>
-                        </div>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <polyline points="6 9 12 15 18 9" />
-                        </svg>
+                    @if ($authUser)
+                        <div class="ems-user-profile" data-dropdown-toggle="userDropdownMenu">
 
-                        <div class="ems-dropdown-menu" id="userDropdownMenu">
-                            @if (Route::has('users.index'))
-                                <a href="{{ route('users.index') }}" class="ems-dropdown-item">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                        stroke="currentColor" stroke-width="2">
-                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                        <circle cx="12" cy="7" r="4" />
-                                    </svg>
-                                    <span>الملف الشخصي</span>
-                                </a>
-                                <a href="{{ route('users.index') }}" class="ems-dropdown-item">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                        stroke="currentColor" stroke-width="2">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                    </svg>
-                                    <span>مصفوفة الصلاحيات (Full Scope)</span>
-                                </a>
-                            @endif
+                            <!-- Avatar -->
+                            <div class="ems-avatar">
+                                {{ $firstLetter }}
+                            </div>
 
-                            <div class="ems-dropdown-divider"></div>
+                            <!-- User Info -->
+                            <div class="ems-user-info">
+                                <span class="ems-user-name">
+                                    {{ $userName }}
+                                </span>
 
-                            @if (Route::has('logout'))
-                                <form action="{{ route('logout') }}" method="POST" id="logoutForm">
-                                    @csrf
-                                    <button type="submit" class="ems-dropdown-item"
-                                        style="color: #ef4444; width: 100%; text-align: right; background: none; border: none; cursor: pointer;">
+                                <span class="ems-user-role">
+                                    {{ $userRole }}
+                                </span>
+                            </div>
+
+                            <!-- Arrow -->
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+
+
+                            <!-- Dropdown -->
+                            <div class="ems-dropdown-menu" id="userDropdownMenu">
+
+                                <!-- Profile -->
+                                @if (Route::has('employees.show') && $authUser->employee)
+                                    <a href="{{ route('employees.show', $authUser->employee->id) }}" class="ems-dropdown-item">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                                             stroke="currentColor" stroke-width="2">
-                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                                            <polyline points="16 17 21 12 16 7" />
-                                            <line x1="21" y1="12" x2="9" y2="12" />
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                            <circle cx="12" cy="7" r="4" />
                                         </svg>
-                                        <span>تسجيل الخروج</span>
-                                    </button>
-                                </form>
-                            @endif
+
+                                        <span>الملف الشخصي</span>
+                                    </a>
+                                @endif
+
+
+                                <!-- Roles -->
+                                @if (count($userRoles) > 0)
+
+                                    <div class="ems-dropdown-item"
+                                        style="cursor: default; flex-direction: column; align-items: flex-start; gap: 6px;">
+
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                            </svg>
+
+                                            <span>الأدوار والصلاحيات</span>
+
+                                        </div>
+
+                                        <!-- جميع Roles -->
+                                        <div style="display: flex; flex-wrap: wrap; gap: 4px; padding-right: 24px;">
+
+                                            @foreach ($userRoles as $role)
+                                                <span
+                                                    style="
+                                    background: #fdf6e2;
+                                    color: #9b7b32;
+                                    padding: 3px 7px;
+                                    border-radius: 5px;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                ">
+                                                    {{ $role }}
+                                                </span>
+                                            @endforeach
+
+                                        </div>
+
+                                    </div>
+
+                                @endif
+
+
+                                <div class="ems-dropdown-divider"></div>
+
+
+                                <!-- Logout -->
+                                @if (Route::has('logout'))
+                                    <form action="{{ route('logout') }}" method="POST" id="logoutForm">
+                                        @csrf
+
+                                        <button type="submit" class="ems-dropdown-item"
+                                            style="
+                            color: #ef4444;
+                            width: 100%;
+                            text-align: right;
+                            background: none;
+                            border: none;
+                            cursor: pointer;
+                        ">
+
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                                <polyline points="16 17 21 12 16 7" />
+                                                <line x1="21" y1="12" x2="9" y2="12" />
+                                            </svg>
+
+                                            <span>تسجيل الخروج</span>
+
+                                        </button>
+                                    </form>
+                                @endif
+
+                            </div>
+
                         </div>
-                    </div>
+                    @endif
+
+
                 </div>
             </header>
 

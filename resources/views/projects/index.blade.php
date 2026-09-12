@@ -1,40 +1,65 @@
 ﻿@extends('layouts.portal')
+
 @section('title', 'المشاريع والإنتاج')
 
 @section('content')
+
     <div class="ems-content">
+
+        {{-- Page Header --}}
         <div class="ems-page-header">
             <div class="ems-page-title-wrap">
+
                 <div class="ems-breadcrumb">
                     <a href="{{ route('dashboard') }}">الرئيسية</a>
                     <span class="ems-breadcrumb-separator">/</span>
                     <span>إدارة الإنتاج</span>
                     <span class="ems-breadcrumb-separator">/</span>
-                    <span style="color: var(--ems-text-main); font-weight: 700;">المشاريع والإنتاج</span>
+                    <span style="color: var(--ems-text-main); font-weight: 700;">
+                        المشاريع والإنتاج
+                    </span>
                 </div>
-                <h1 class="ems-page-title">إدارة المشاريع البرمجية والإعلامية</h1>
-                <p class="ems-page-subtitle">متابعة خطط التنفيذ، الميزانيات، ونسب الإنجاز لمشاريع مجموعة إياس الإعلامية</p>
+
+                <h1 class="ems-page-title">
+                    إدارة المشاريع والإنتاج
+                </h1>
+
+                <p class="ems-page-subtitle">
+                    متابعة خطط التنفيذ ونسب الإنجاز ومواعيد تسليم مشاريع مجموعة إياس الإعلامية
+                </p>
+
             </div>
+
             <div class="ems-page-actions">
-                <button class="ems-btn ems-btn-primary" onclick="openModal('modal-add-project')">
+                <button type="button" class="ems-btn ems-btn-primary" onclick="openModal('modal-add-project')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    <span>+ مشروع إنتاجي جديد</span>
+
+                    <span>+ مشروع جديد</span>
                 </button>
             </div>
         </div>
 
-        <!-- إحصائيات المشاريع -->
+
+        {{-- Statistics --}}
         <div class="ems-stats-grid">
+
+            {{-- Total --}}
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">إجمالي المشاريع</span>
-                    <span class="ems-stat-value">{{ $stats['total'] ?? 0 }}</span>
-                    <span class="ems-stat-subtext">{{ $stats['software_count'] ?? 0 }} برمجية •
-                        {{ $stats['media_count'] ?? 0 }} إعلامية</span>
+
+                    <span class="ems-stat-value">
+                        {{ $stats['total'] ?? 0 }}
+                    </span>
+
+                    <span class="ems-stat-subtext">
+                        جميع المشاريع المسجلة
+                    </span>
                 </div>
+
                 <div class="ems-stat-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
@@ -43,26 +68,48 @@
                 </div>
             </div>
 
+
+            {{-- In Progress --}}
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
-                    <span class="ems-stat-label">قيد التنفيذ والبرمجة</span>
-                    <span class="ems-stat-value" style="color: #d97706;">{{ $stats['in_progress'] ?? 0 }}</span>
-                    <span class="ems-stat-subtext">تطوير مستمر بالـ Sprints</span>
+                    <span class="ems-stat-label">
+                        قيد التنفيذ
+                    </span>
+
+                    <span class="ems-stat-value" style="color: #d97706;">
+                        {{ $stats['in_progress'] ?? 0 }}
+                    </span>
+
+                    <span class="ems-stat-subtext">
+                        مشاريع قيد العمل
+                    </span>
                 </div>
+
                 <div class="ems-stat-icon" style="background-color: #fef3c7; border-color: #fde68a; color: #b45309;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
                     </svg>
                 </div>
             </div>
 
+
+            {{-- Review --}}
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
-                    <span class="ems-stat-label">المراجعة والاعتماد النهائي</span>
-                    <span class="ems-stat-value" style="color: #6d28d9;">{{ $stats['in_review'] ?? 0 }}</span>
-                    <span class="ems-stat-subtext">فحص الـ QA والتدقيق</span>
+                    <span class="ems-stat-label">
+                        قيد المراجعة
+                    </span>
+
+                    <span class="ems-stat-value" style="color: #6d28d9;">
+                        {{ $stats['in_review'] ?? 0 }}
+                    </span>
+
+                    <span class="ems-stat-subtext">
+                        مشاريع بانتظار الاعتماد
+                    </span>
                 </div>
+
                 <div class="ems-stat-icon" style="background-color: #ede9fe; border-color: #ddd6fe; color: #6d28d9;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon
@@ -71,104 +118,237 @@
                 </div>
             </div>
 
+
+            {{-- Completed --}}
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
-                    <span class="ems-stat-label">مكتملة ومسلمة</span>
-                    <span class="ems-stat-value" style="color: #10b981;">{{ $stats['completed'] ?? 0 }}</span>
-                    <span class="ems-stat-subtext">تم الإطلاق بنجاح 100%</span>
+                    <span class="ems-stat-label">
+                        مكتملة
+                    </span>
+
+                    <span class="ems-stat-value" style="color: #10b981;">
+                        {{ $stats['completed'] ?? 0 }}
+                    </span>
+
+                    <span class="ems-stat-subtext">
+                        مشاريع تم إنجازها
+                    </span>
                 </div>
+
                 <div class="ems-stat-icon" style="background-color: #dcfce7; border-color: #bbf7d0; color: #15803d;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 6L9 17l-5-5" />
+                        <path d="M20 6L9 17l-5-5"></path>
                     </svg>
                 </div>
             </div>
+
         </div>
 
-        <!-- جدول بيانات المشاريع -->
+
+        {{-- Projects Table --}}
         <div class="ems-card">
+
             <div class="ems-card-header">
+
                 <div class="ems-card-title">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2">
                         <path
                             d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 8 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
                     </svg>
-                    <span>سجل مشاريع مجموعة إياس الإعلامية</span>
+
+                    <span>
+                        سجل المشاريع
+                    </span>
                 </div>
-                <span class="ems-badge badge-gold">متوسط الإنجاز الكلي:
-                    {{ number_format($averageProgress ?? 0, 0) }}%</span>
+
+                <span class="ems-badge badge-gold">
+                    متوسط الإنجاز الكلي:
+                    {{ number_format($averageProgress ?? 0, 0) }}%
+                </span>
+
             </div>
 
+
             <div class="ems-card-body" style="padding: 0;">
+
                 <div class="ems-table-responsive">
-                    <table class="ems-table" id="projectsTable">
+
+                    <table class="ems-table">
+
                         <thead>
                             <tr>
-                                <th>رمز المشروع</th>
-                                <th>اسم المشروع ونوعه</th>
-                                <th>الدائرة المسؤولة</th>
-                                <th>مدير المشروع</th>
-                                <th style="min-width: 140px;">نسبة الإنجاز</th>
-                                <th>موعد التسليم</th>
+                                <th>المشروع</th>
+                                <th>القسم</th>
+                                <th>المسؤول</th>
+                                <th style="min-width: 160px;">
+                                    نسبة الإنجاز
+                                </th>
+                                <th>بداية المشروع</th>
+                                <th>موعد الانتهاء</th>
                                 <th>الحالة</th>
-                                <th style="text-align: center;">الإجراءات</th>
+                                <th style="text-align: center;">
+                                    الإجراءات
+                                </th>
                             </tr>
                         </thead>
+
                         <tbody>
+
                             @forelse($projects as $project)
+                                @php
+                                    $progress = (float) ($project->completion_percentage ?? 0);
+
+                                    $statusLabels = [
+                                        'in_progress' => 'قيد التنفيذ',
+                                        'in_review' => 'قيد المراجعة',
+                                        'completed' => 'مكتمل',
+                                        'on_hold' => 'متوقف',
+                                    ];
+
+                                    $statusClasses = [
+                                        'in_progress' => 'badge-warning',
+                                        'in_review' => 'badge-purple',
+                                        'completed' => 'badge-success',
+                                        'on_hold' => 'badge-danger',
+                                    ];
+
+                                    $statusLabel = $statusLabels[$project->status] ?? $project->status;
+                                    $statusClass = $statusClasses[$project->status] ?? '';
+                                @endphp
+
                                 <tr>
+
+                                    {{-- Project --}}
                                     <td>
-                                        <span
-                                            style="font-family: var(--font-mono); font-weight: 700; color: var(--ems-gold-hover);">
-                                            {{ $project->code }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div style="font-weight: 800; color: var(--ems-text-main);">{{ $project->name }}
+
+                                        <div style="font-weight: 800; color: var(--ems-text-main);">
+                                            {{ $project->title }}
                                         </div>
-                                        <div style="font-size: 11.5px; color: var(--ems-text-muted);">
-                                            {{ $project->description }}</div>
-                                    </td>
-                                    <td>{{ $project->department->name ?? 'غير محدد' }}</td>
-                                    <td>{{ $project->manager->name ?? 'غير معين' }}</td>
-                                    <td>
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <div class="ems-progress" style="height: 6px; flex-grow: 1;">
-                                                <div class="ems-progress-bar {{ $project->progress == 100 ? 'success' : '' }}"
-                                                    style="width: {{ $project->progress }}%;"></div>
+
+                                        @if ($project->description)
+                                            <div
+                                                style="
+                                                font-size: 11.5px;
+                                                color: var(--ems-text-muted);
+                                                margin-top: 4px;
+                                            ">
+                                                {{ Str::limit($project->description, 80) }}
                                             </div>
-                                            <span
-                                                style="font-size: 11px; font-weight: 700; font-family: var(--font-mono); {{ $project->progress == 100 ? 'color: #10b981;' : '' }}">
-                                                {{ $project->progress }}%
-                                            </span>
-                                        </div>
+                                        @endif
+
                                     </td>
-                                    <td>{{ \Carbon\Carbon::parse($project->delivery_date)->format('d F Y') }}</td>
+
+
+                                    {{-- Department --}}
                                     <td>
-                                        <span class="ems-badge {{ $project->status_badge_class }}">
-                                            {{ $project->status_label }}
-                                        </span>
+                                        {{ $project->department?->name ?? 'غير محدد' }}
                                     </td>
+
+
+                                    {{-- Owner --}}
+                                    <td>
+                                        {{ $project->owner?->full_name ?? 'غير معين' }}
+                                    </td>
+
+
+                                    {{-- Progress --}}
+                                    <td>
+
+                                        <div
+                                            style="
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 8px;
+                                        ">
+
+                                            <div class="ems-progress"
+                                                style="
+                                                height: 6px;
+                                                flex-grow: 1;
+                                            ">
+                                                <div class="ems-progress-bar {{ $progress >= 100 ? 'success' : '' }}"
+                                                    style="width: {{ min(100, $progress) }}%;"></div>
+                                            </div>
+
+                                            <span
+                                                style="
+                                                font-size: 11px;
+                                                font-weight: 700;
+                                                font-family: var(--font-mono);
+                                                {{ $progress >= 100 ? 'color: #10b981;' : '' }}
+                                            ">
+                                                {{ number_format($progress, 0) }}%
+                                            </span>
+
+                                        </div>
+
+                                    </td>
+
+
+                                    {{-- Start Date --}}
+                                    <td>
+                                        {{ $project->start_date?->format('d/m/Y') ?? 'غير محدد' }}
+                                    </td>
+
+
+                                    {{-- End Date --}}
+                                    <td>
+                                        {{ $project->end_date?->format('d/m/Y') ?? 'غير محدد' }}
+                                    </td>
+
+
+                                    {{-- Status --}}
+                                    <td>
+
+                                        <span class="ems-badge {{ $statusClass }}">
+                                            {{ $statusLabel }}
+                                        </span>
+
+                                    </td>
+
+
+                                    {{-- Actions --}}
                                     <td style="text-align: center;">
-                                        <div style="display: flex; justify-content: center; gap: 4px;">
-                                            <!-- رابط المهام المرتبطة بالمشروع مطابق لملف المسارات -->
+
+                                        <div
+                                            style="
+                                            display: flex;
+                                            justify-content: center;
+                                            gap: 4px;
+                                        ">
+
+                                            {{-- Tasks --}}
                                             <a href="{{ route('tasks.index', ['project_id' => $project->id]) }}"
-                                                class="ems-btn ems-btn-icon" title="عرض المهام المرتبطة">
+                                                class="ems-btn ems-btn-icon" title="المهام">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                     stroke-width="2">
-                                                    <path d="m9 11 3 3L22 4" />
-                                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                                    <path d="m9 11 3 3L22 4"></path>
+                                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11">
+                                                    </path>
                                                 </svg>
                                             </a>
 
-                                            <!-- زر حذف المشروع -->
+
+                                            {{-- Edit --}}
+                                            <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
+                                                onclick="openEditProjectModal({{ $project->id }})">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path d="M12 20h9"></path>
+                                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                                </svg>
+                                            </button>
+
+
+                                            {{-- Delete --}}
                                             <form action="{{ route('projects.destroy', $project->id) }}" method="POST"
-                                                onsubmit="return confirm('هل أنت تأكد من رغبتك في حذف هذا المشروع؟');"
+                                                onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
                                                 style="display: inline;">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="ems-btn ems-btn-icon" title="حذف المشروع"
+
+                                                <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
                                                     style="color: #ef4444;">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                         stroke-width="2">
@@ -178,80 +358,463 @@
                                                         </path>
                                                     </svg>
                                                 </button>
+
                                             </form>
+
                                         </div>
+
                                     </td>
+
                                 </tr>
+
                             @empty
+
                                 <tr>
                                     <td colspan="8"
-                                        style="text-align: center; padding: 24px; color: var(--ems-text-muted);">
+                                        style="
+                                        text-align: center;
+                                        padding: 30px;
+                                        color: var(--ems-text-muted);
+                                    ">
                                         لا توجد مشاريع مسجلة حالياً.
                                     </td>
                                 </tr>
                             @endforelse
+
                         </tbody>
+
                     </table>
+
                 </div>
+
             </div>
+
         </div>
+
     </div>
 
-    <!-- نافذة إضافة مشروع جديد Modal -->
+
+    {{-- Add Project Modal --}}
     <div class="ems-modal" id="modal-add-project" style="display: none;">
+
         <div class="ems-modal-content">
+
             <div class="ems-modal-header">
-                <h3>إضافة مشروع جديد</h3>
-                <button type="button" onclick="closeModal('modal-add-project')" class="ems-modal-close">&times;</button>
+
+                <h3>
+                    إضافة مشروع جديد
+                </h3>
+
+                <button type="button" onclick="closeModal('modal-add-project')" class="ems-modal-close">
+                    &times;
+                </button>
+
             </div>
+
+
             <form action="{{ route('projects.store') }}" method="POST">
+
                 @csrf
+
                 <div class="ems-modal-body">
+
+                    {{-- Title --}}
                     <div class="ems-form-group">
-                        <label>اسم المشروع</label>
-                        <input type="text" name="name" class="ems-input" required placeholder="أدخل اسم المشروع">
+
+                        <label>
+                            اسم المشروع
+                        </label>
+
+                        <input type="text" name="title" class="ems-input" required placeholder="أدخل اسم المشروع">
+
                     </div>
 
+
+                    {{-- Description --}}
                     <div class="ems-form-group">
-                        <label>نوع المشروع</label>
-                        <select name="type" class="ems-input" required>
-                            <option value="software">برمجي (Software)</option>
-                            <option value="media">إعلامي (Media)</option>
+
+                        <label>
+                            الوصف
+                        </label>
+
+                        <textarea name="description" class="ems-input" rows="3" placeholder="تفاصيل وأهداف المشروع"></textarea>
+
+                    </div>
+
+
+                    {{-- Department --}}
+                    <div class="ems-form-group">
+
+                        <label>
+                            القسم
+                        </label>
+
+                        <select name="department_id" class="ems-input">
+
+                            <option value="">
+                                اختر القسم
+                            </option>
+
+                            @foreach ($departments as $department)
+                                <option value="{{ $department->id }}">
+                                    {{ $department->name }}
+                                </option>
+                            @endforeach
+
+                        </select>
+
+                    </div>
+
+
+                    {{-- Owner --}}
+                    <div class="ems-form-group">
+
+                        <label>
+                            المسؤول عن المشروع
+                        </label>
+
+                        <select name="owner_employee_id" class="ems-input">
+
+                            <option value="">
+                                اختر المسؤول
+                            </option>
+
+                            @foreach ($employees as $employee)
+                                <option value="{{ $employee->id }}">
+                                    {{ $employee->full_name }}
+                                </option>
+                            @endforeach
+
+                        </select>
+
+                    </div>
+
+
+                    {{-- Start Date --}}
+                    <div class="ems-form-group">
+
+                        <label>
+                            تاريخ البداية
+                        </label>
+
+                        <input type="date" name="start_date" class="ems-input" required>
+
+                    </div>
+
+
+                    {{-- End Date --}}
+                    <div class="ems-form-group">
+
+                        <label>
+                            تاريخ الانتهاء المتوقع
+                        </label>
+
+                        <input type="date" name="end_date" class="ems-input">
+
+                    </div>
+
+
+                    {{-- Status --}}
+                    <div class="ems-form-group">
+
+                        <label>
+                            الحالة
+                        </label>
+
+                        <select name="status" class="ems-input" required>
+                            <option value="in_progress">
+                                قيد التنفيذ
+                            </option>
+
+                            <option value="in_review">
+                                قيد المراجعة
+                            </option>
+
+                            <option value="completed">
+                                مكتمل
+                            </option>
+
+                            <option value="on_hold">
+                                متوقف
+                            </option>
+                        </select>
+
+                    </div>
+
+
+                    {{-- Progress --}}
+                    <div class="ems-form-group">
+
+                        <label>
+                            نسبة الإنجاز
+                        </label>
+
+                        <input type="number" name="completion_percentage" class="ems-input" min="0"
+                            max="100" value="0">
+
+                    </div>
+
+                </div>
+
+
+                <div class="ems-modal-footer">
+
+                    <button type="button" class="ems-btn" onclick="closeModal('modal-add-project')">
+                        إلغاء
+                    </button>
+
+                    <button type="submit" class="ems-btn ems-btn-primary">
+                        حفظ المشروع
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    {{-- Edit Project Modal --}}
+    <div class="ems-modal" id="modal-edit-project" style="display: none;">
+
+        <div class="ems-modal-content">
+
+            <div class="ems-modal-header">
+
+                <h3>
+                    تعديل المشروع
+                </h3>
+
+                <button type="button" onclick="closeModal('modal-edit-project')" class="ems-modal-close">
+                    &times;
+                </button>
+
+            </div>
+
+
+            <form id="editProjectForm" method="POST">
+
+                @csrf
+                @method('PUT')
+
+                <div class="ems-modal-body">
+
+                    <div class="ems-form-group">
+                        <label>اسم المشروع</label>
+
+                        <input type="text" id="edit_title" name="title" class="ems-input" required>
+                    </div>
+
+
+                    <div class="ems-form-group">
+                        <label>الوصف</label>
+
+                        <textarea id="edit_description" name="description" class="ems-input" rows="3"></textarea>
+                    </div>
+
+
+                    <div class="ems-form-group">
+                        <label>القسم</label>
+
+                        <select id="edit_department_id" name="department_id" class="ems-input">
+                            <option value="">
+                                اختر القسم
+                            </option>
+
+                            @foreach ($departments as $department)
+                                <option value="{{ $department->id }}">
+                                    {{ $department->name }}
+                                </option>
+                            @endforeach
                         </select>
                     </div>
 
-                    <div class="ems-form-group">
-                        <label>الوصف المختصر</label>
-                        <textarea name="description" class="ems-input" rows="3" placeholder="تفاصيل واهداف المشروع"></textarea>
-                    </div>
 
                     <div class="ems-form-group">
-                        <label>تاريخ التسليم المتوقع</label>
-                        <input type="date" name="delivery_date" class="ems-input" required>
+                        <label>المسؤول</label>
+
+                        <select id="edit_owner_employee_id" name="owner_employee_id" class="ems-input">
+                            <option value="">
+                                اختر المسؤول
+                            </option>
+
+                            @foreach ($employees as $employee)
+                                <option value="{{ $employee->id }}">
+                                    {{ $employee->full_name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
+
+
+                    <div class="ems-form-group">
+                        <label>تاريخ البداية</label>
+
+                        <input type="date" id="edit_start_date" name="start_date" class="ems-input" required>
+                    </div>
+
+
+                    <div class="ems-form-group">
+                        <label>تاريخ الانتهاء</label>
+
+                        <input type="date" id="edit_end_date" name="end_date" class="ems-input">
+                    </div>
+
+
+                    <div class="ems-form-group">
+                        <label>تاريخ الانتهاء الفعلي</label>
+
+                        <input type="date" id="edit_actual_end_date" name="actual_end_date" class="ems-input">
+                    </div>
+
+
+                    <div class="ems-form-group">
+                        <label>الحالة</label>
+
+                        <select id="edit_status" name="status" class="ems-input" required>
+                            <option value="in_progress">قيد التنفيذ</option>
+                            <option value="in_review">قيد المراجعة</option>
+                            <option value="completed">مكتمل</option>
+                            <option value="on_hold">متوقف</option>
+                        </select>
+                    </div>
+
+
+                    <div class="ems-form-group">
+                        <label>نسبة الإنجاز</label>
+
+                        <input type="number" id="edit_completion_percentage" name="completion_percentage"
+                            class="ems-input" min="0" max="100" step="0.01" required>
+                    </div>
+
                 </div>
+
+
                 <div class="ems-modal-footer">
-                    <button type="button" class="ems-btn" onclick="closeModal('modal-add-project')">إلغاء</button>
-                    <button type="submit" class="ems-btn ems-btn-primary">حفظ المشروع</button>
+
+                    <button type="button" class="ems-btn" onclick="closeModal('modal-edit-project')">
+                        إلغاء
+                    </button>
+
+                    <button type="submit" class="ems-btn ems-btn-primary">
+                        حفظ التعديلات
+                    </button>
+
                 </div>
+
             </form>
+
         </div>
+
     </div>
 
-    <!-- سكربت التحكم بالـ Modal -->
+
+    {{-- JavaScript --}}
     <script>
+        const projectsData = @js(
+    $projects
+        ->map(function ($project) {
+            return [
+                'id' => $project->id,
+                'title' => $project->title,
+                'description' => $project->description,
+                'department_id' => $project->department_id,
+                'owner_employee_id' => $project->owner_employee_id,
+                'start_date' => $project->start_date?->format('Y-m-d'),
+                'end_date' => $project->end_date?->format('Y-m-d'),
+                'actual_end_date' => $project->actual_end_date?->format('Y-m-d'),
+                'status' => $project->status,
+                'completion_percentage' => (float) $project->completion_percentage,
+            ];
+        })
+        ->values()
+        ->all(),
+);
+
+
         function openModal(id) {
-            document.getElementById(id).style.display = 'flex';
+
+            const modal = document.getElementById(id);
+
+            if (!modal) {
+                return;
+            }
+
+            modal.style.display = 'flex';
         }
+
 
         function closeModal(id) {
-            document.getElementById(id).style.display = 'none';
+
+            const modal = document.getElementById(id);
+
+            if (!modal) {
+                return;
+            }
+
+            modal.style.display = 'none';
         }
 
-        window.onclick = function(event) {
+
+        function openEditProjectModal(projectId) {
+
+            const project = projectsData.find(
+                item => Number(item.id) === Number(projectId)
+            );
+
+            if (!project) {
+                return;
+            }
+
+
+            const form = document.getElementById('editProjectForm');
+
+            if (form) {
+                form.action = "{{ url('/projects') }}/" + project.id;
+            }
+
+
+            document.getElementById('edit_title').value =
+                project.title ?? '';
+
+            document.getElementById('edit_description').value =
+                project.description ?? '';
+
+            document.getElementById('edit_department_id').value =
+                project.department_id ?? '';
+
+            document.getElementById('edit_owner_employee_id').value =
+                project.owner_employee_id ?? '';
+
+            document.getElementById('edit_start_date').value =
+                project.start_date ?? '';
+
+            document.getElementById('edit_end_date').value =
+                project.end_date ?? '';
+
+            document.getElementById('edit_actual_end_date').value =
+                project.actual_end_date ?? '';
+
+            document.getElementById('edit_status').value =
+                project.status ?? 'in_progress';
+
+            document.getElementById('edit_completion_percentage').value =
+                project.completion_percentage ?? 0;
+
+
+            openModal('modal-edit-project');
+        }
+
+
+        window.addEventListener('click', function(event) {
+
             if (event.target.classList.contains('ems-modal')) {
                 event.target.style.display = 'none';
             }
-        }
+
+        });
     </script>
+
 @endsection

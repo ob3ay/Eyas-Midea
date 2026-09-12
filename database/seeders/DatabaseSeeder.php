@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Section;
 use App\Models\User;
@@ -129,5 +130,43 @@ class DatabaseSeeder extends Seeder
         $secDigitalMkt->update(['section_head_employee_id' => $createdEmployees['EMP-0010']->id]);
         $secCampaigns->update(['section_head_employee_id' => $createdEmployees['EMP-0011']->id]);
         $secPr->update(['section_head_employee_id' => $createdEmployees['EMP-0012']->id]);
+
+        // 7) صلاحيات موديول الموظفين (Employees) وربطها بالأدوار بنطاقات مختلفة
+        $employeePermissions = [
+            'employees.view' => 'عرض بيانات الموظفين',
+            'employees.create' => 'إضافة موظف جديد',
+            'employees.update' => 'تعديل بيانات موظف',
+            'employees.delete' => 'حذف موظف',
+        ];
+        $permissionModels = [];
+        foreach ($employeePermissions as $key => $displayName) {
+            $permissionModels[$key] = Permission::firstOrCreate(['key' => $key], ['display_name' => $displayName]);
+        }
+
+        // خريطة: اسم الدور => [مفتاح الصلاحية => نطاق التطبيق]
+        $roleScopeMap = [
+            'SA' => ['employees.view' => 'organization', 'employees.create' => 'organization', 'employees.update' => 'organization', 'employees.delete' => 'organization'],
+            'EX' => ['employees.view' => 'organization', 'employees.update' => 'organization'],
+            'DP' => ['employees.view' => 'department', 'employees.create' => 'department', 'employees.update' => 'department'],
+            'DM' => ['employees.view' => 'department', 'employees.update' => 'department'],
+            // ملاحظة: عمود scope بقاعدة البيانات فيه 3 قيم بس (self/department/organization)
+            // بلا مستوى "قسم" منفصل. رئيس القسم (SH) بناخد نطاقه "department" هون
+            // بس بنعامله بالكود كـ "حدود القسم (section) الخاص فيه" وليس الدائرة كاملة.
+            'SH' => ['employees.view' => 'department'],
+            'EMP' => ['employees.view' => 'self'],
+            'TA' => ['employees.view' => 'self'],
+        ];
+
+        foreach ($roleScopeMap as $roleName => $permsWithScope) {
+            $role = Role::where('name', $roleName)->first();
+            if (! $role) {
+                continue;
+            }
+            foreach ($permsWithScope as $permKey => $scope) {
+                $role->permissions()->syncWithoutDetaching([
+                    $permissionModels[$permKey]->id => ['scope' => $scope],
+                ]);
+            }
+        }
     }
 }

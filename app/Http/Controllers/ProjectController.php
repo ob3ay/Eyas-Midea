@@ -2,92 +2,212 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Project;
 use App\Models\Department;
-use App\Models\User;
+use App\Models\Employee;
+use App\Models\Project;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class ProjectController extends Controller
 {
     /**
-     * عرض قائمة المشاريع والإنتاج مع الإحصائيات
+     * عرض قائمة المشاريع مع الإحصائيات
      */
     public function index()
     {
-        // جلب المشاريع مع العلاقات مرتبة من الأحدث
-        $projects = Project::with(['department', 'manager'])
+        $projects = Project::with([
+            'department',
+            'owner',
+            'members',
+            'tasks',
+        ])
             ->latest()
             ->get();
 
-        // الإحصائيات المطابقة لكروت Dashboard بالأعلى
+        $departments = Department::orderBy('name')->get();
+
+        $employees = Employee::orderBy('full_name')->get();
+
         $stats = [
-            'total'          => $projects->count(),
-            'software_count' => $projects->where('type', 'software')->count(),
-            'media_count'    => $projects->where('type', 'media')->count(),
-            'in_progress'    => $projects->where('status', 'in_progress')->count(),
-            'in_review'      => $projects->where('status', 'in_review')->count(),
-            'completed'      => $projects->where('status', 'completed')->count(),
+            'total' => $projects->count(),
+
+            'in_progress' => $projects
+                ->where('status', 'in_progress')
+                ->count(),
+
+            'in_review' => $projects
+                ->where('status', 'in_review')
+                ->count(),
+
+            'completed' => $projects
+                ->where('status', 'completed')
+                ->count(),
+
+            'on_hold' => $projects
+                ->where('status', 'on_hold')
+                ->count(),
         ];
 
-        // نسبة الإنجاز الكلية
-        $averageProgress = $projects->avg('progress') ?? 0;
+        $averageProgress = $projects->avg('completion_percentage') ?? 0;
 
-        return view('projects.index', compact('projects', 'stats', 'averageProgress'));
+        return view('projects.index', compact(
+            'projects',
+            'departments',
+            'employees',
+            'stats',
+            'averageProgress'
+        ));
     }
 
     /**
      * حفظ مشروع جديد
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'          => 'required|string|max:255',
-            'description'   => 'nullable|string',
-            'delivery_date' => 'required|date',
-            'department_id' => 'nullable|exists:departments,id',
-            'manager_id'    => 'nullable|exists:users,id',
-            'type'          => 'nullable|in:software,media',
+            'title' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'description' => [
+                'nullable',
+                'string',
+            ],
+
+            'department_id' => [
+                'nullable',
+                'exists:departments,id',
+            ],
+
+            'owner_employee_id' => [
+                'nullable',
+                'exists:employees,id',
+            ],
+
+            'start_date' => [
+                'required',
+                'date',
+            ],
+
+            'end_date' => [
+                'nullable',
+                'date',
+                'after_or_equal:start_date',
+            ],
+
+            'status' => [
+                'required',
+                'in:in_progress,in_review,completed,on_hold',
+            ],
+
+            'completion_percentage' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:100',
+            ],
         ]);
 
-        // توليد كود تلقائي برمز إياس الإعلامية
-        $validated['code'] = 'EYAS-PRJ-' . strtoupper(Str::random(4));
-        $validated['progress'] = 0;
-        $validated['status'] = 'in_progress';
+        $validated['completion_percentage'] =
+            $validated['completion_percentage'] ?? 0;
+
+        if ($validated['status'] === 'completed') {
+            $validated['completion_percentage'] = 100;
+        }
 
         Project::create($validated);
 
-        return redirect()->route('projects.index')->with('success', 'تم إضافة المشروع بنجاح');
+        return redirect()
+            ->route('projects.index')
+            ->with('success', 'تم إضافة المشروع بنجاح');
     }
 
     /**
-     * تحديث بيانات مشروع قائم (مطابق للمسار projects.update)
+     * تحديث مشروع قائم
      */
-    public function update(Request $request, Project $project)
-    {
+    public function update(
+        Request $request,
+        Project $project
+    ): RedirectResponse {
         $validated = $request->validate([
-            'name'          => 'required|string|max:255',
-            'description'   => 'nullable|string',
-            'delivery_date' => 'required|date',
-            'department_id' => 'nullable|exists:departments,id',
-            'manager_id'    => 'nullable|exists:users,id',
-            'progress'      => 'nullable|integer|min:0|max:100',
-            'status'        => 'required|in:in_progress,in_review,completed,on_hold',
-            'type'          => 'required|in:software,media',
+            'title' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'description' => [
+                'nullable',
+                'string',
+            ],
+
+            'department_id' => [
+                'nullable',
+                'exists:departments,id',
+            ],
+
+            'owner_employee_id' => [
+                'nullable',
+                'exists:employees,id',
+            ],
+
+            'start_date' => [
+                'required',
+                'date',
+            ],
+
+            'end_date' => [
+                'nullable',
+                'date',
+                'after_or_equal:start_date',
+            ],
+
+            'actual_end_date' => [
+                'nullable',
+                'date',
+                'after_or_equal:start_date',
+            ],
+
+            'status' => [
+                'required',
+                'in:in_progress,in_review,completed,on_hold',
+            ],
+
+            'completion_percentage' => [
+                'required',
+                'numeric',
+                'min:0',
+                'max:100',
+            ],
         ]);
+
+        if ($validated['status'] === 'completed') {
+            $validated['completion_percentage'] = 100;
+
+            if (empty($validated['actual_end_date'])) {
+                $validated['actual_end_date'] = now()->toDateString();
+            }
+        }
 
         $project->update($validated);
 
-        return redirect()->route('projects.index')->with('success', 'تم تعديل بيانات المشروع بنجاح');
+        return redirect()
+            ->route('projects.index')
+            ->with('success', 'تم تعديل بيانات المشروع بنجاح');
     }
 
     /**
-     * حذف مشروع (مطابق للمسار projects.destroy)
+     * حذف مشروع
      */
-    public function destroy(Project $project)
+    public function destroy(Project $project): RedirectResponse
     {
         $project->delete();
 
-        return redirect()->route('projects.index')->with('success', 'تم حذف المشروع بنجاح');
+        return redirect()
+            ->route('projects.index')
+            ->with('success', 'تم حذف المشروع بنجاح');
     }
 }

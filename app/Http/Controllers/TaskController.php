@@ -3,330 +3,392 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
-use App\Models\Notification;
 use App\Models\Project;
 use App\Models\Task;
-use App\Models\TaskStatusHistory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
 {
-    private const STATUSES = [
-        'Backlog',
-        'Todo',
-        'In Progress',
-        'Review',
-        'Completed',
-        'Cancelled',
-    ];
-
-    private const PRIORITIES = [
-        'Low',
-        'Medium',
-        'High',
-        'Critical',
-    ];
-
     public function index(Request $request)
     {
-        $projectId = $request->query('project_id');
-
         $query = Task::with([
             'project',
             'assignee',
-        ])->latest();
+            'creator',
+            'parentTask',
+            'subtasks',
+        ]);
 
-        if ($projectId) {
-            $query->where('project_id', $projectId);
+        // فلترة حسب المشروع
+        if ($request->filled('project_id')) {
+            $query->where('project_id', $request->project_id);
         }
 
-        $tasks = $query->paginate(50)->appends($request->query());
+        // فلترة حسب الموظف
+        if ($request->filled('assignee_employee_id')) {
+            $query->where(
+                'assignee_employee_id',
+                $request->assignee_employee_id
+            );
+        }
 
-        $employees = Employee::where('employment_status', 'active')
-            ->orderBy('full_name')
+        // فلترة حسب الحالة
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // فلترة حسب الأولوية
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        $tasks = $query
+            ->orderByRaw("
+                CASE priority
+                    WHEN 'Urgent' THEN 1
+                    WHEN 'High' THEN 2
+                    WHEN 'Medium' THEN 3
+                    WHEN 'Low' THEN 4
+                    ELSE 5
+                END
+            ")
+            ->latest()
             ->get();
 
-        $selectedProject = $projectId ? Project::find($projectId) : null;
+        $projects = Project::orderBy('title')->get();
 
-        return view(
-            'tasks.index',
-            compact('tasks', 'employees', 'selectedProject')
-        );
+        $employees = Employee::orderBy('full_name')->get();
+
+        $stats = [
+            'total' => $tasks->count(),
+
+            'draft' => $tasks
+                ->where('status', 'Draft')
+                ->count(),
+
+            'todo' => $tasks
+                ->where('status', 'To-Do')
+                ->count(),
+
+            'in_progress' => $tasks
+                ->where('status', 'In Progress')
+                ->count(),
+
+            'under_review' => $tasks
+                ->where('status', 'Under Review')
+                ->count(),
+
+            'completed' => $tasks
+                ->where('status', 'Completed')
+                ->count(),
+
+            'rejected' => $tasks
+                ->where('status', 'Rejected')
+                ->count(),
+
+            'overdue' => $tasks
+                ->filter(function ($task) {
+                    return $task->due_datetime
+                        && $task->due_datetime->isPast()
+                        && $task->status !== 'Completed';
+                })
+                ->count(),
+        ];
+
+        $averageProgress = $tasks->avg('completion_percentage') ?? 0;
+
+        return view('tasks.index', compact(
+            'tasks',
+            'projects',
+            'employees',
+            'stats',
+            'averageProgress'
+        ));
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $validated = $request->validate([
+            'title' => [
+                'required',
+                'string',
+                'max:200',
+            ],
 
-        $this->normalizeAssignee($data);
+            'description' => [
+                'nullable',
+                'string',
+            ],
 
-        $task = DB::transaction(function () use (
-            $request,
-            $data
-        ) {
-            $task = Task::create([
-                'task_code' => $data['task_code'] ?? null,
-                'title' => $data['title'],
-                'description' => $data['description'] ?? null,
-                'project_id' => $data['project_id'] ?? null,
-                'parent_task_id' => $data['parent_task_id'] ?? null,
-                'assignee_employee_id' => $data['assignee_employee_id'],
-                'priority' => $data['priority'] ?? 'Medium',
-                'due_datetime' => $data['due_datetime'] ?? null,
-                'status' => $data['status'] ?? 'Todo',
-                'completion_percentage' => $data['completion_percentage'] ?? 0,
-            ]);
+            'project_id' => [
+                'nullable',
+                'exists:projects,id',
+            ],
 
-            TaskStatusHistory::create([
-                'task_id' => $task->id,
-                'old_status' => null,
-                'new_status' => $task->status,
-                'notes' => 'Task created',
-                'changed_by' => $request->user()->employee?->id,
-            ]);
+            'parent_task_id' => [
+                'nullable',
+                'exists:tasks,id',
+            ],
 
-            $this->notifyEmployee(
-                $task->assignee_employee_id,
-                'task_assigned',
-                'مهمة جديدة',
-                "تم إسناد المهمة: {$task->title}",
-                $task
-            );
+            'assignee_employee_id' => [
+                'required',
+                'exists:employees,id',
+            ],
 
-            $this->audit(
-                'Create',
-                'Task',
-                $task->id,
-                null,
-                $task->toArray(),
-                $request
-            );
+            'priority' => [
+                'required',
+                Rule::in([
+                    'Low',
+                    'Medium',
+                    'High',
+                    'Urgent',
+                ]),
+            ],
 
-            return $task;
-        });
+            'due_datetime' => [
+                'nullable',
+                'date',
+            ],
 
-        return back()->with(
-            'success',
-            "تم إنشاء المهمة #{$task->id} وإسنادها بنجاح."
-        );
-    }
-
-    public function updateState(
-        Request $request,
-        Task $task
-    ): JsonResponse {
-        $data = $request->validate([
             'status' => [
                 'required',
-                Rule::in(self::STATUSES),
+                Rule::in([
+                    'Draft',
+                    'To-Do',
+                    'In Progress',
+                    'Under Review',
+                    'Completed',
+                    'Rejected',
+                ]),
             ],
+
             'completion_percentage' => [
                 'nullable',
                 'numeric',
                 'min:0',
                 'max:100',
             ],
-            'notes' => [
-                'nullable',
-                'string',
-                'max:2000',
-            ],
         ]);
 
-        $employee = $request->user()->employee;
+        /*
+        |--------------------------------------------------------------------------
+        | منشئ المهمة
+        |--------------------------------------------------------------------------
+        */
 
-        if (!$employee) {
-            return response()->json([
-                'message' => 'الحساب الحالي غير مرتبط بموظف.',
-            ], 422);
+        $creatorEmployeeId = auth()->user()?->employee?->id;
+
+        if (!$creatorEmployeeId) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'created_by' => 'لا يمكن تحديد الموظف الذي أنشأ المهمة.',
+                ]);
         }
 
-        DB::transaction(function () use (
-            $task,
-            $data,
-            $employee,
-            $request
-        ) {
-            $oldStatus = $task->status;
-            $newStatus = $data['status'];
+        $validated['created_by'] = $creatorEmployeeId;
 
-            $percentage = array_key_exists('completion_percentage', $data)
-                ? $data['completion_percentage']
-                : ($newStatus === 'Completed' ? 100 : $task->completion_percentage);
+        /*
+        |--------------------------------------------------------------------------
+        | نسبة الإنجاز
+        |--------------------------------------------------------------------------
+        */
 
-            $task->update([
-                'status' => $newStatus,
-                'completion_percentage' => $percentage,
-                'completed_at' => $newStatus === 'Completed' ? now() : null,
-            ]);
+        $validated['completion_percentage']
+            = $validated['completion_percentage'] ?? 0;
 
-            if ($oldStatus !== $newStatus) {
-                TaskStatusHistory::create([
-                    'task_id' => $task->id,
-                    'old_status' => $oldStatus,
-                    'new_status' => $newStatus,
-                    'notes' => $data['notes'] ?? null,
-                    'changed_by' => $employee->id,
-                ]);
-            }
+        /*
+        |--------------------------------------------------------------------------
+        | حالة Completed
+        |--------------------------------------------------------------------------
+        */
 
-            $this->audit(
-                'Update',
-                'Task',
-                $task->id,
-                ['status' => $oldStatus],
-                $task->fresh()->toArray(),
-                $request
-            );
-        });
+        if ($validated['status'] === 'Completed') {
+            $validated['completion_percentage'] = 100;
+            $validated['completed_at'] = now();
+        }
 
-        return response()->json([
-            'message' => 'تم تحديث حالة المهمة.',
-            'task' => $task->fresh()->only([
-                'id',
-                'status',
-                'completion_percentage',
-                'completed_at',
-            ]),
-        ]);
+        Task::create($validated);
+
+        return redirect()
+            ->route('tasks.index')
+            ->with('success', 'تم إنشاء المهمة بنجاح');
     }
 
     public function update(
         Request $request,
         Task $task
     ): RedirectResponse {
-        $data = $this->validated($request, true);
+        $validated = $request->validate([
+            'title' => [
+                'required',
+                'string',
+                'max:200',
+            ],
 
-        $this->normalizeAssignee($data);
+            'description' => [
+                'nullable',
+                'string',
+            ],
 
-        $old = $task->toArray();
-        $status = $data['status'] ?? $task->status;
+            'project_id' => [
+                'nullable',
+                'exists:projects,id',
+            ],
+
+            'parent_task_id' => [
+                'nullable',
+                'exists:tasks,id',
+            ],
+
+            'assignee_employee_id' => [
+                'required',
+                'exists:employees,id',
+            ],
+
+            'priority' => [
+                'required',
+                Rule::in([
+                    'Low',
+                    'Medium',
+                    'High',
+                    'Urgent',
+                ]),
+            ],
+
+            'due_datetime' => [
+                'nullable',
+                'date',
+            ],
+
+            'status' => [
+                'required',
+                Rule::in([
+                    'Draft',
+                    'To-Do',
+                    'In Progress',
+                    'Under Review',
+                    'Completed',
+                    'Rejected',
+                ]),
+            ],
+
+            'completion_percentage' => [
+                'required',
+                'numeric',
+                'min:0',
+                'max:100',
+            ],
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | منع المهمة من أن تكون أباً لنفسها
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            !empty($validated['parent_task_id']) &&
+            (int) $validated['parent_task_id'] === (int) $task->id
+        ) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'parent_task_id' => 'لا يمكن أن تكون المهمة الرئيسية هي نفس المهمة.',
+                ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Completed
+        |--------------------------------------------------------------------------
+        */
+
+        if ($validated['status'] === 'Completed') {
+            $validated['completion_percentage'] = 100;
+
+            if (!$task->completed_at) {
+                $validated['completed_at'] = now();
+            }
+        } else {
+            $validated['completed_at'] = null;
+        }
+
+        $task->update($validated);
+
+        return redirect()
+            ->route('tasks.index')
+            ->with('success', 'تم تحديث المهمة بنجاح');
+    }
+
+    public function updateState(
+        Request $request,
+        Task $task
+    ): JsonResponse {
+        $validated = $request->validate([
+            'status' => [
+                'required',
+                Rule::in([
+                    'Draft',
+                    'To-Do',
+                    'In Progress',
+                    'Under Review',
+                    'Completed',
+                    'Rejected',
+                ]),
+            ],
+
+            'completion_percentage' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:100',
+            ],
+        ]);
+
+        $status = $validated['status'];
+
+        $progress = $validated['completion_percentage']
+            ?? $task->completion_percentage;
+
+        if ($status === 'Completed') {
+            $progress = 100;
+        }
+
+        $completedAt = $status === 'Completed'
+            ? ($task->completed_at ?? now())
+            : null;
 
         $task->update([
-            'task_code' => $data['task_code'] ?? $task->task_code,
-            'title' => $data['title'],
-            'description' => $data['description'] ?? null,
-            'project_id' => $data['project_id'] ?? null,
-            'parent_task_id' => $data['parent_task_id'] ?? null,
-            'assignee_employee_id' => $data['assignee_employee_id'],
-            'priority' => $data['priority'] ?? 'Medium',
-            'due_datetime' => $data['due_datetime'] ?? null,
             'status' => $status,
-            'completion_percentage' => $data['completion_percentage'] ?? $task->completion_percentage,
-            'completed_at' => $status === 'Completed' ? ($task->completed_at ?? now()) : null,
+            'completion_percentage' => $progress,
+            'completed_at' => $completedAt,
         ]);
 
-        if (array_key_exists('status', $data) && $old['status'] !== $status) {
-            TaskStatusHistory::create([
-                'task_id' => $task->id,
-                'old_status' => $old['status'],
-                'new_status' => $status,
-                'changed_by' => $request->user()->employee?->id,
-            ]);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تحديث حالة المهمة بنجاح',
 
-        $this->audit(
-            'Update',
-            'Task',
-            $task->id,
-            $old,
-            $task->fresh()->toArray(),
-            $request
-        );
-
-        return back()->with(
-            'success',
-            'تم تحديث المهمة.'
-        );
+            'task' => [
+                'id' => $task->id,
+                'status' => $task->status,
+                'completion_percentage' =>
+                (float) $task->completion_percentage,
+                'completed_at' =>
+                $task->completed_at?->toISOString(),
+            ],
+        ]);
     }
 
-    public function destroy(
-        Request $request,
-        Task $task
-    ): RedirectResponse {
-        $old = $task->toArray();
-
+    public function destroy(Task $task): RedirectResponse
+    {
         $task->delete();
 
-        $this->audit(
-            'Delete',
-            'Task',
-            $task->id,
-            $old,
-            null,
-            $request
-        );
-
-        return back()->with(
-            'success',
-            'تم حذف المهمة.'
-        );
-    }
-
-    private function validated(
-        Request $request,
-        bool $updating = false
-    ): array {
-        $data = $request->validate([
-            'task_code' => ['nullable', 'string', 'max:30'],
-            'title' => ['required', 'string', 'max:200'],
-            'description' => ['nullable', 'string'],
-            'project_id' => ['nullable', 'integer', Rule::exists('projects', 'id')],
-            'parent_task_id' => ['nullable', 'integer', Rule::exists('tasks', 'id')],
-            'assignee_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')],
-            'assigned_to' => ['nullable', 'integer', Rule::exists('employees', 'id')],
-            'priority' => ['nullable', Rule::in(self::PRIORITIES)],
-            'due_datetime' => ['nullable', 'date'],
-            'status' => ['nullable', Rule::in(self::STATUSES)],
-            'stage' => ['nullable', Rule::in(self::STATUSES)],
-            'completion_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
-        ]);
-
-        if (empty($data['assignee_employee_id']) && empty($data['assigned_to'])) {
-            throw ValidationException::withMessages([
-                'assigned_to' => 'يجب تحديد الموظف المسند إليه.',
-            ]);
-        }
-
-        return $data;
-    }
-
-    private function normalizeAssignee(array &$data): void
-    {
-        if (empty($data['assignee_employee_id']) && !empty($data['assigned_to'])) {
-            $data['assignee_employee_id'] = $data['assigned_to'];
-        }
-
-        if (empty($data['status']) && !empty($data['stage'])) {
-            $data['status'] = $data['stage'];
-        }
-    }
-
-    private function notifyEmployee(
-        int $employeeId,
-        string $type,
-        string $title,
-        string $message,
-        Task $task
-    ): void {
-        $userId = Employee::find($employeeId)?->user?->id;
-
-        if (!$userId) {
-            return;
-        }
-
-        Notification::create([
-            'recipient_user_id' => $userId,
-            'type' => $type,
-            'title' => $title,
-            'message' => $message,
-            'related_entity_type' => Task::class,
-            'related_entity_id' => $task->id,
-        ]);
+        return redirect()
+            ->route('tasks.index')
+            ->with('success', 'تم حذف المهمة بنجاح');
     }
 }
