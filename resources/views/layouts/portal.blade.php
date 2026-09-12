@@ -11,7 +11,7 @@
 <body>
 
   <div class="ems-app">
-    
+
     <!-- القائمة الجانبية (Sidebar) -->
     <aside class="ems-sidebar">
       <div class="ems-brand">
@@ -182,7 +182,7 @@
         <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">{{ auth()->user()->name ?? 'صالح رزق محمد حسنين' }}</h3>
         <p style="font-size: 12.5px; color: var(--ems-text-muted); margin-bottom: 16px;">رئيس مجلس الإدارة • مجموعة إياس الإعلامية</p>
         <div class="ems-live-clock" style="font-size: 24px; font-weight: 800; font-family: var(--font-mono); color: var(--ems-gold-hover); margin-bottom: 20px;">--:--:--</div>
-        
+
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <button class="ems-btn ems-btn-primary" onclick="quickAttendanceAction()">
             <span>تسجيل حضور (Check-In)</span>

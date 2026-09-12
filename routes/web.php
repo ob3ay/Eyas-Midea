@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\EmployeeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -33,26 +35,15 @@ Route::post('/logout', [LoginController::class, 'logout'])
 Route::middleware(['web', 'auth'])->group(function () {
 
     // 0. لوحة التحكم التنفيذية الشاملة
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // 1. شؤون الموظفين (Employees)
     Route::prefix('employees')->name('employees.')->group(function () {
-        Route::get('/', function () {
-            return view('employees.index');
-        })->name('index');
-        Route::post('/store', function () {
-            return back()->with('success', 'تم حفظ بيانات الموظف بنجاح');
-        })->name('store');
-        Route::put('/{id}', function ($id) {
-            return back()->with('success', 'تم تحديث الموظف');
-        })->name('update');
-        Route::delete('/{id}', function ($id) {
-            return back()->with('success', 'تم حذف الموظف');
-        })->name('destroy');
+        Route::get('/', [EmployeeController::class, 'index'])->name('index');
+        Route::post('/store', [EmployeeController::class, 'store'])->name('store');
+        Route::put('/{employee}', [EmployeeController::class, 'update'])->name('update');
+        Route::delete('/{employee}', [EmployeeController::class, 'destroy'])->name('destroy');
     });
-
     // 2. الدوائر والأقسام (Departments & Sections)
     Route::prefix('departments')->name('departments.')->group(function () {
         Route::get('/', [DepartmentController::class, 'index'])->name('index');
