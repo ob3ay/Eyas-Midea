@@ -1,8 +1,21 @@
-﻿@extends('layouts.portal')
+@extends('layouts.portal')
 @section('title', 'الدوائر والأقسام')
 @section('content')
-    <div class="ems-content">
-        <div class="ems-page-header">
+    @php
+        $deptNumbers = $departments->map(function ($d) {
+            if (preg_match('/DEPT-(\d+)/i', $d->code ?? '', $m)) {
+                return (int) $m[1];
+            }
+            return 0;
+        });
+        $maxDeptNum = $deptNumbers->max() ?: $departments->count();
+        $nextDeptCode = 'DEPT-' . str_pad($maxDeptNum + 1, 2, '0', STR_PAD_LEFT);
+        $availableEmployees = \App\Models\Employee::where('employment_status', 'active')->orderBy('full_name')->get();
+        if ($availableEmployees->isEmpty()) {
+            $availableEmployees = \App\Models\Employee::orderBy('full_name')->get();
+        }
+    @endphp
+    <div class="ems-page-header">
             <div class="ems-page-title-wrap">
                 <div class="ems-breadcrumb">
                     <a href="{{ route('dashboard') }}">الرئيسية</a>
@@ -14,13 +27,24 @@
                 <h1 class="ems-page-title">الدوائر والأقسام التخصصية</h1>
                 <p class="ems-page-subtitle">الهيكل التنظيمي المعتمد لمجموعة إياس الإعلامية وتوزيع الكوادر والمسؤوليات</p>
             </div>
-            <div class="ems-page-actions">
+            <div class="ems-page-actions" style="display: flex; gap: 10px; align-items: center;">
+                <a href="{{ route('departments.structure') }}" class="ems-btn ems-btn-secondary"
+                    style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="6" rx="1.5" />
+                        <rect x="14" y="3" width="7" height="6" rx="1.5" />
+                        <rect x="8.5" y="15" width="7" height="6" rx="1.5" />
+                        <path d="M6.5 9v3a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V9" />
+                        <path d="M12 13v2" />
+                    </svg>
+                    <span>الهيكل التنظيمي الكامل</span>
+                </a>
                 <button class="ems-btn ems-btn-primary" onclick="openModal('modal-add-department')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
-                    <span>+ إضافة دائرة أو قسم جديد</span>
+                    <span>إضافة دائرة جديدة</span>
                 </button>
             </div>
         </div>
@@ -102,9 +126,38 @@
                                     {{ $department->manager->full_name ?? 'غير محدد' }}</div>
                             </div>
                         </div>
-                        <button class="ems-btn ems-btn-secondary ems-btn-sm" style="width: 100%;"
-                            onclick="showToast('{{ $department->name }}: {{ $department->employees_count }} موظف موزعين على {{ $department->sections_count }} قسم', 'info')">استعراض
-                            الهيكل ←</button>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <a href="{{ route('departments.structure', ['department' => $department->id]) }}"
+                                class="ems-btn ems-btn-secondary ems-btn-sm"
+                                style="flex: 1; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                                <span>استعراض الهيكل</span>
+                                <span style="font-size: 14px;">←</span>
+                            </a>
+                            <button type="button" class="ems-btn ems-btn-icon ems-btn-sm" title="تعديل الدائرة"
+                                onclick="openEditDepartmentModal({{ json_encode([
+                                    'id' => $department->id,
+                                    'code' => $department->code,
+                                    'name' => $department->name,
+                                    'manager_employee_id' => $department->manager_employee_id,
+                                ]) }})">
+                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                            </button>
+                            <form action="{{ route('departments.destroy', $department->id) }}" method="POST"
+                                onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف دائرة ({{ $department->name }})؟');" style="margin: 0; display: inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="ems-btn ems-btn-icon ems-btn-sm" title="حذف الدائرة"
+                                    style="color: var(--ems-danger, #ef4444);">
+                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             @empty
@@ -124,7 +177,16 @@
                     </svg>
                     <span>سجل الأقسام التخصصية والوحدات التنفيذية المعتمدة</span>
                 </div>
-                <span class="ems-badge badge-completed">{{ $sections->count() }} وحدات تخصصية</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="ems-badge badge-completed">{{ $sections->count() }} وحدات تخصصية</span>
+                    <button type="button" class="ems-btn ems-btn-primary ems-btn-sm" onclick="openModal('modal-add-section')">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        <span>إضافة قسم جديد</span>
+                    </button>
+                </div>
             </div>
 
             <div class="ems-card-body" style="padding: 0;">
@@ -153,11 +215,33 @@
                                     <td>{{ $section->employees_count }} موظف</td>
                                     <td><span class="ems-badge badge-completed">نشط</span></td>
                                     <td style="text-align: center;">
-                                        <button class="ems-btn ems-btn-icon" title="تعديل"><svg viewBox="0 0 24 24"
-                                                fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                            </svg></button>
+                                        <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                            <button class="ems-btn ems-btn-icon" title="تعديل"
+                                                onclick="openEditSectionModal({{ json_encode([
+                                                    'id' => $section->id,
+                                                    'code' => 'SEC-' . str_pad($section->id, 3, '0', STR_PAD_LEFT),
+                                                    'name' => $section->name,
+                                                    'department_id' => $section->department_id,
+                                                    'section_head_employee_id' => $section->section_head_employee_id,
+                                                ]) }})">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                </svg>
+                                            </button>
+                                            <form action="{{ route('sections.destroy', $section->id) }}" method="POST"
+                                                onsubmit="return confirm('هل أنت متأكد من حذف قسم ({{ $section->name }})؟');" style="margin: 0; display: inline;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
+                                                    style="color: var(--ems-danger, #ef4444);">
+                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
@@ -172,5 +256,287 @@
             </div>
         </div>
 
+    <!-- نافذة إضافة دائرة جديدة وأقسامها التابعة -->
+    <div class="ems-modal-overlay" id="modal-add-department">
+        <div class="ems-modal">
+            <div class="ems-modal-header">
+                <div class="ems-modal-title">إضافة دائرة إدارية جديدة وتحديد أقسامها</div>
+                <button class="ems-modal-close" onclick="closeModal('modal-add-department')">✕</button>
+            </div>
+            <form action="{{ route('departments.store') }}" method="POST" id="addDepartmentForm">
+                @csrf
+                <div class="ems-modal-body">
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="dept_code" class="ems-label">رمز / كود الدائرة (تلقائي)</label>
+                            <input type="text" id="dept_code" name="code" class="ems-input"
+                                value="{{ $nextDeptCode }}" readonly
+                                style="background-color: var(--ems-surface-alt); font-family: var(--font-mono); font-weight: 600; cursor: default;">
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="dept_name" class="ems-label"><span class="required">*</span> اسم الدائرة</label>
+                            <input type="text" id="dept_name" name="name" class="ems-input"
+                                placeholder="مثال: دائرة الإنتاج والعمليات" required>
+                        </div>
+                    </div>
+
+                    <div class="ems-form-group" style="margin-bottom: 16px;">
+                        <label for="dept_manager" class="ems-label">مدير الدائرة المسؤول</label>
+                        <select id="dept_manager" name="manager_employee_id" class="ems-select">
+                            <option value="">-- حدد مدير الدائرة (اختياري) --</option>
+                            @foreach ($availableEmployees as $emp)
+                                <option value="{{ $emp->id }}">
+                                    {{ $emp->full_name }} {{ $emp->position ? '— (' . $emp->position . ')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="ems-form-group" style="margin-bottom: 16px;">
+                        <label for="dept_desc" class="ems-label">وصف ومسؤوليات الدائرة</label>
+                        <textarea id="dept_desc" name="description" class="ems-input" rows="2"
+                            placeholder="نبذة موجزة عن مهام الدائرة واختصاصاتها..." style="resize: vertical; height: auto; padding: 10px;"></textarea>
+                    </div>
+
+                    <!-- الأقسام التابعة للدائرة -->
+                    <div style="background: var(--ems-surface-alt); border: 1px solid var(--ems-border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 8px;">
+                        <label class="ems-label" style="margin-bottom: 6px; font-weight: 700; color: var(--ems-text-main);">الأقسام والوحدات التابعة لهذه الدائرة</label>
+                        <p style="font-size: 11.5px; color: var(--ems-text-muted); margin-bottom: 12px;">
+                            يمكنك كتابة أسماء الأقسام التي تتبع هذه الدائرة لإضافتها مباشرة ضمن هيكلها:
+                        </p>
+
+                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                            <input type="text" id="new_section_input" class="ems-input" placeholder="اسم القسم الجديد (مثال: قسم التنسيق والمتابعة)" style="background: #ffffff;">
+                            <button type="button" class="ems-btn ems-btn-secondary" onclick="addSectionToList()" style="white-space: nowrap; padding: 0 16px;">
+                                <span>+ إضافة قسم</span>
+                            </button>
+                        </div>
+
+                        <div id="sections_container" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 36px; align-items: center;">
+                            <span id="no_sections_hint" style="font-size: 12px; color: var(--ems-text-muted); font-style: italic;">
+                                لم يتم إضافة أقسام بعد (يمكنك حفظ الدائرة وإضافة أقسام لاحقاً).
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="ems-modal-footer">
+                    <button type="button" class="ems-btn ems-btn-secondary"
+                        onclick="closeModal('modal-add-department')">إلغاء</button>
+                    <button type="submit" class="ems-btn ems-btn-primary">حفظ الدائرة والأقسام</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- نافذة تعديل بيانات القسم التخصصي -->
+    <div class="ems-modal-overlay" id="modal-edit-section">
+        <div class="ems-modal">
+            <div class="ems-modal-header">
+                <div class="ems-modal-title">تعديل بيانات القسم التخصصي</div>
+                <button class="ems-modal-close" onclick="closeModal('modal-edit-section')">✕</button>
+            </div>
+            <form action="" method="POST" id="editSectionForm">
+                @csrf
+                @method('PUT')
+                <div class="ems-modal-body">
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="edit_sec_code" class="ems-label">رمز القسم</label>
+                            <input type="text" id="edit_sec_code" class="ems-input" readonly
+                                style="background-color: var(--ems-surface-alt); font-family: var(--font-mono); font-weight: 600; cursor: not-allowed;">
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="edit_sec_name" class="ems-label"><span class="required">*</span> اسم القسم التخصصي</label>
+                            <input type="text" id="edit_sec_name" name="name" class="ems-input" required>
+                        </div>
+                    </div>
+
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="edit_sec_department_id" class="ems-label"><span class="required">*</span> الدائرة الإدارية التابع لها</label>
+                            <select id="edit_sec_department_id" name="department_id" class="ems-select" required>
+                                @foreach ($departments as $dept)
+                                    <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code ?? 'DEPT' }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="edit_sec_head_employee_id" class="ems-label">المسؤول المباشر / رئيس القسم</label>
+                            <select id="edit_sec_head_employee_id" name="section_head_employee_id" class="ems-select">
+                                <option value="">-- غير محدد (شاغر) --</option>
+                                @foreach ($availableEmployees as $emp)
+                                    <option value="{{ $emp->id }}">
+                                        {{ $emp->full_name }} {{ $emp->position ? '— (' . $emp->position . ')' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="ems-modal-footer">
+                    <button type="button" class="ems-btn ems-btn-secondary"
+                        onclick="closeModal('modal-edit-section')">إلغاء</button>
+                    <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- نافذة تعديل بيانات الدائرة الإدارية -->
+    <div class="ems-modal-overlay" id="modal-edit-department">
+        <div class="ems-modal">
+            <div class="ems-modal-header">
+                <div class="ems-modal-title">تعديل بيانات الدائرة الإدارية</div>
+                <button class="ems-modal-close" onclick="closeModal('modal-edit-department')">✕</button>
+            </div>
+            <form action="" method="POST" id="editDepartmentForm">
+                @csrf
+                @method('PUT')
+                <div class="ems-modal-body">
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="edit_dept_code" class="ems-label">رمز / كود الدائرة</label>
+                            <input type="text" id="edit_dept_code" name="code" class="ems-input"
+                                style="font-family: var(--font-mono); font-weight: 600;">
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="edit_dept_name" class="ems-label"><span class="required">*</span> اسم الدائرة</label>
+                            <input type="text" id="edit_dept_name" name="name" class="ems-input" required>
+                        </div>
+                    </div>
+
+                    <div class="ems-form-group" style="margin-bottom: 16px;">
+                        <label for="edit_dept_manager" class="ems-label">مدير الدائرة المسؤول</label>
+                        <select id="edit_dept_manager" name="manager_employee_id" class="ems-select">
+                            <option value="">-- حدد مدير الدائرة (اختياري) --</option>
+                            @foreach ($availableEmployees as $emp)
+                                <option value="{{ $emp->id }}">
+                                    {{ $emp->full_name }} {{ $emp->position ? '— (' . $emp->position . ')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="ems-modal-footer">
+                    <button type="button" class="ems-btn ems-btn-secondary"
+                        onclick="closeModal('modal-edit-department')">إلغاء</button>
+                    <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- نافذة إضافة قسم تخصصي جديد -->
+    <div class="ems-modal-overlay" id="modal-add-section">
+        <div class="ems-modal">
+            <div class="ems-modal-header">
+                <div class="ems-modal-title">إضافة قسم تخصصي جديد</div>
+                <button class="ems-modal-close" onclick="closeModal('modal-add-section')">✕</button>
+            </div>
+            <form action="{{ route('sections.store') }}" method="POST" id="addSectionForm">
+                @csrf
+                <div class="ems-modal-body">
+                    <div class="ems-form-group" style="margin-bottom: 16px;">
+                        <label for="new_sec_name" class="ems-label"><span class="required">*</span> اسم القسم التخصصي</label>
+                        <input type="text" id="new_sec_name" name="name" class="ems-input"
+                            placeholder="مثال: قسم التنسيق والمتابعة" required>
+                    </div>
+
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="new_sec_department_id" class="ems-label"><span class="required">*</span> الدائرة التابع لها</label>
+                            <select id="new_sec_department_id" name="department_id" class="ems-select" required>
+                                <option value="">-- حدد الدائرة الإدارية --</option>
+                                @foreach ($departments as $dept)
+                                    <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code ?? 'DEPT' }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="new_sec_head_employee_id" class="ems-label">المسؤول المباشر / رئيس القسم</label>
+                            <select id="new_sec_head_employee_id" name="section_head_employee_id" class="ems-select">
+                                <option value="">-- غير محدد (شاغر) --</option>
+                                @foreach ($availableEmployees as $emp)
+                                    <option value="{{ $emp->id }}">
+                                        {{ $emp->full_name }} {{ $emp->position ? '— (' . $emp->position . ')' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="ems-modal-footer">
+                    <button type="button" class="ems-btn ems-btn-secondary"
+                        onclick="closeModal('modal-add-section')">إلغاء</button>
+                    <button type="submit" class="ems-btn ems-btn-primary">إضافة القسم</button>
+                </div>
+            </form>
+        </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+    function openEditDepartmentModal(dept) {
+        const form = document.getElementById('editDepartmentForm');
+        form.action = "{{ url('departments') }}/" + dept.id;
+        document.getElementById('edit_dept_code').value = dept.code || '';
+        document.getElementById('edit_dept_name').value = dept.name || '';
+        document.getElementById('edit_dept_manager').value = dept.manager_employee_id || '';
+        openModal('modal-edit-department');
+    }
+
+    function openEditSectionModal(section) {
+        const form = document.getElementById('editSectionForm');
+        form.action = "{{ url('sections') }}/" + section.id;
+        document.getElementById('edit_sec_code').value = section.code || '';
+        document.getElementById('edit_sec_name').value = section.name || '';
+        document.getElementById('edit_sec_department_id').value = section.department_id || '';
+        document.getElementById('edit_sec_head_employee_id').value = section.section_head_employee_id || '';
+        openModal('modal-edit-section');
+    }
+
+    function addSectionToList() {
+        const input = document.getElementById('new_section_input');
+        const sectionName = input.value.trim();
+        if (!sectionName) return;
+
+        const container = document.getElementById('sections_container');
+        const hint = document.getElementById('no_sections_hint');
+        if (hint) hint.style.display = 'none';
+
+        const tag = document.createElement('div');
+        tag.className = 'ems-badge badge-gold';
+        tag.style.cssText = 'display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12.5px;';
+        tag.innerHTML = `
+            <span>${sectionName}</span>
+            <input type="hidden" name="sections[]" value="${sectionName}">
+            <button type="button" style="cursor: pointer; color: #ef4444; font-weight: bold; background: none; border: none;" onclick="this.parentElement.remove(); checkEmptySections();">✕</button>
+        `;
+        container.appendChild(tag);
+        input.value = '';
+        input.focus();
+    }
+
+    function checkEmptySections() {
+        const container = document.getElementById('sections_container');
+        const inputs = container.querySelectorAll('input[type="hidden"]');
+        const hint = document.getElementById('no_sections_hint');
+        if (inputs.length === 0 && hint) {
+            hint.style.display = 'inline';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const secInput = document.getElementById('new_section_input');
+        if (secInput) {
+            secInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addSectionToList();
+                }
+            });
+        }
+    });
+</script>
+@endpush

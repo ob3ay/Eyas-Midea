@@ -1,4 +1,4 @@
-﻿@extends('layouts.portal')
+@extends('layouts.portal')
 
 @section('title', 'سجل الموظفين والكوادر')
 
@@ -21,7 +21,7 @@
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span>+ إضافة موظف جديد</span>
+                <span>إضافة موظف جديد</span>
             </button>
         </div>
     </div>
@@ -180,11 +180,24 @@
                                 <td>{{ $employee->hire_date?->translatedFormat('d F Y') ?? '-' }}</td>
                                 <td><span class="ems-badge {{ $status['class'] }}">{{ $status['text'] }}</span></td>
                                 <td style="text-align: center;">
-                                    <button class="ems-btn ems-btn-icon" title="تعديل"><svg viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2">
+                                    <button class="ems-btn ems-btn-icon" title="تعديل"
+                                        onclick="openEditEmployeeModal({{ json_encode([
+                                            'id' => $employee->id,
+                                            'code' => $employee->employee_code ?? 'EMP-' . str_pad($employee->id, 4, '0', STR_PAD_LEFT),
+                                            'national_id' => $employee->national_id ?? '',
+                                            'full_name' => $employee->full_name,
+                                            'position' => $employee->position ?? '',
+                                            'department_id' => $employee->department_id,
+                                            'phone' => $employee->phone ?? '',
+                                            'email' => $employee->user->email ?? '',
+                                            'hire_date' => $employee->hire_date ? $employee->hire_date->format('Y-m-d') : '',
+                                            'employment_status' => $employee->employment_status,
+                                        ]) }})">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                        </svg></button>
+                                        </svg>
+                                    </button>
                                 </td>
                             </tr>
                         @empty
@@ -282,4 +295,140 @@
             </form>
         </div>
     </div>
+
+    <!-- نافذة تعديل بيانات موظف (مطابقة تماماً لحقول نافذة الإضافة) -->
+    <div class="ems-modal-overlay" id="modal-edit-employee">
+        <div class="ems-modal">
+            <div class="ems-modal-header">
+                <div class="ems-modal-title">تعديل بيانات الموظف</div>
+                <button class="ems-modal-close" onclick="closeModal('modal-edit-employee')">✕</button>
+            </div>
+            <form action="" method="POST" id="editEmployeeForm">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="full_name" id="edit_full_name">
+
+                <div class="ems-modal-body">
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="edit_emp_code" class="ems-label"><span class="required">*</span> الرقم الوظيفي</label>
+                            <input type="text" id="edit_emp_code" class="ems-input" readonly
+                                style="background-color: var(--ems-surface-alt);">
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="edit_national_id" class="ems-label"><span class="required">*</span> رقم الهوية / الإقامة</label>
+                            <input type="text" id="edit_national_id" name="national_id" class="ems-input"
+                                placeholder="مثال: 900123456">
+                        </div>
+                    </div>
+
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="edit_first_name" class="ems-label"><span class="required">*</span> الاسم الأول</label>
+                            <input type="text" id="edit_first_name" class="ems-input" required>
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="edit_last_name" class="ems-label"><span class="required">*</span> اسم العائلة</label>
+                            <input type="text" id="edit_last_name" class="ems-input" required>
+                        </div>
+                    </div>
+
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="edit_email" class="ems-label"><span class="required">*</span> البريد المؤسسي (لحساب الدخول)</label>
+                            <input type="email" id="edit_email" name="email" class="ems-input"
+                                placeholder="name@eyasmedia.com">
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="edit_phone" class="ems-label"><span class="required">*</span> رقم الهاتف</label>
+                            <input type="tel" id="edit_phone" name="phone" class="ems-input">
+                        </div>
+                    </div>
+
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="edit_department_id" class="ems-label"><span class="required">*</span> الدائرة الإدارية</label>
+                            <select id="edit_department_id" name="department_id" class="ems-select" required>
+                                @foreach ($departments as $dept)
+                                    <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="edit_position" class="ems-label"><span class="required">*</span> المسمى الوظيفي</label>
+                            <input type="text" id="edit_position" name="position" class="ems-input" required>
+                        </div>
+                    </div>
+
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="edit_hire_date" class="ems-label"><span class="required">*</span> تاريخ التعيين</label>
+                            <input type="date" id="edit_hire_date" name="hire_date" class="ems-input">
+                        </div>
+                        <div class="ems-form-group">
+                            <label for="edit_employment_status" class="ems-label"><span class="required">*</span> الحالة الوظيفية</label>
+                            <select id="edit_employment_status" name="employment_status" class="ems-select" required>
+                                <option value="active">على رأس عمله</option>
+                                <option value="on_leave">في إجازة</option>
+                                <option value="inactive">غير نشط</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="ems-modal-footer">
+                    <button type="button" class="ems-btn ems-btn-secondary"
+                        onclick="closeModal('modal-edit-employee')">إلغاء</button>
+                    <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
 @endsection
+
+@push('scripts')
+<script>
+    function updateEditFullName() {
+        const fn = (document.getElementById('edit_first_name').value || '').trim();
+        const ln = (document.getElementById('edit_last_name').value || '').trim();
+        document.getElementById('edit_full_name').value = fn + (ln ? ' ' + ln : '');
+    }
+
+    function openEditEmployeeModal(employee) {
+        const form = document.getElementById('editEmployeeForm');
+        form.action = "{{ url('employees') }}/" + employee.id;
+        document.getElementById('edit_emp_code').value = employee.code || '';
+        document.getElementById('edit_national_id').value = employee.national_id || '';
+
+        // تقسيم الاسم إلى اسم أول واسم عائلة
+        let firstName = '';
+        let lastName = '';
+        if (employee.full_name) {
+            const parts = employee.full_name.trim().split(/\s+/);
+            firstName = parts[0] || '';
+            lastName = parts.slice(1).join(' ') || '';
+        }
+        document.getElementById('edit_first_name').value = firstName;
+        document.getElementById('edit_last_name').value = lastName;
+        document.getElementById('edit_full_name').value = employee.full_name || '';
+
+        document.getElementById('edit_email').value = employee.email || '';
+        document.getElementById('edit_phone').value = employee.phone || '';
+        document.getElementById('edit_department_id').value = employee.department_id || '';
+        document.getElementById('edit_position').value = employee.position || '';
+        document.getElementById('edit_hire_date').value = employee.hire_date || '';
+        document.getElementById('edit_employment_status').value = employee.employment_status || 'active';
+
+        openModal('modal-edit-employee');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const fnInput = document.getElementById('edit_first_name');
+        const lnInput = document.getElementById('edit_last_name');
+        const editForm = document.getElementById('editEmployeeForm');
+
+        if (fnInput) fnInput.addEventListener('input', updateEditFullName);
+        if (lnInput) lnInput.addEventListener('input', updateEditFullName);
+        if (editForm) editForm.addEventListener('submit', updateEditFullName);
+    });
+</script>
+@endpush

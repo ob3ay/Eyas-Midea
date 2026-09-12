@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>@yield('title', 'لوحة التحكم') | مجموعة إياس الإعلامية - EMS</title>
-  <link rel="stylesheet" href="{{ asset('assets/css/portal.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/css/portal.css') }}?v=1.2">
   @stack('styles')
 </head>
 <body>

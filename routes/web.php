@@ -47,10 +47,41 @@ Route::middleware(['web', 'auth'])->group(function () {
     // 2. الدوائر والأقسام (Departments & Sections)
     Route::prefix('departments')->name('departments.')->group(function () {
         Route::get('/', [DepartmentController::class, 'index'])->name('index');
+        Route::get('/structure', function () {
+            return view('departments.structure');
+        })->name('structure');
         Route::post('/store', [DepartmentController::class, 'store'])->name('store');
         Route::put('/{department}', [DepartmentController::class, 'update'])->name('update');
         Route::delete('/{department}', [DepartmentController::class, 'destroy'])->name('destroy');
     });
+
+    Route::post('/sections', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
+            'section_head_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+        ]);
+        \App\Models\Section::create($data);
+        return back()->with('success', 'تمت إضافة القسم التخصصي بنجاح');
+    })->name('sections.store');
+
+    Route::put('/sections/{section}', function (\Illuminate\Http\Request $request, \App\Models\Section $section) {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
+            'section_head_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+        ]);
+        $section->update($data);
+        return back()->with('success', 'تم تحديث بيانات القسم بنجاح');
+    })->name('sections.update');
+
+    Route::delete('/sections/{section}', function (\App\Models\Section $section) {
+        if ($section->employees()->exists()) {
+            return back()->with('error', 'لا يمكن حذف هذا القسم نظراً لوجود موظفين مسجلين به.');
+        }
+        $section->delete();
+        return back()->with('success', 'تم حذف القسم بنجاح');
+    })->name('sections.destroy');
 
     // 3. المشاريع والإنتاج (Projects)
     Route::prefix('projects')->name('projects.')->group(function () {
