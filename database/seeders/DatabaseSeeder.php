@@ -46,13 +46,40 @@ class DatabaseSeeder extends Seeder
             [
                 'employee_id' => $adminEmployee->id,
                 'username' => 'admin',
-                'password' => Hash::make('Passw0rd!'),
+                'password' => Hash::make('password123'),
                 'is_active' => true,
             ]
         );
+        $adminUser->update(['password' => Hash::make('password123')]);
+
         $superAdminRole = Role::where('name', 'SA')->first();
         if (! $adminUser->roles()->where('role_id', $superAdminRole->id)->exists()) {
             $adminUser->roles()->attach($superAdminRole->id);
+        }
+
+        $luayEmployee = Employee::firstOrCreate(
+            ['employee_code' => 'EMP-0000-L'],
+            [
+                'full_name' => 'لؤي مطر',
+                'department_id' => $adminDept->id,
+                'position' => 'Super Administrator',
+                'employment_status' => 'active',
+                'hire_date' => now(),
+            ]
+        );
+        $luayUser = User::firstOrCreate(
+            ['email' => 'luaymatar2001@gmail.com'],
+            [
+                'employee_id' => $luayEmployee->id,
+                'username' => 'luay',
+                'password' => Hash::make('password123'),
+                'is_active' => true,
+            ]
+        );
+        $luayUser->update(['password' => Hash::make('password123')]);
+
+        if (! $luayUser->roles()->where('role_id', $superAdminRole->id)->exists()) {
+            $luayUser->roles()->attach($superAdminRole->id);
         }
 
         // 3) الدوائر الأربعة الأساسية (حسب التصميم المعتمد)

@@ -1,4 +1,4 @@
-﻿@extends('layouts.portal')
+@extends('layouts.portal')
 
 @section('title', 'المهام وتتبع الحالات')
 
@@ -114,7 +114,7 @@
                 </svg>
 
                 <span>
-                    + إضافة مهمة جديدة
+                    إضافة مهمة جديدة
                 </span>
             </button>
 
@@ -142,75 +142,99 @@
 
     @endif
 
-    {{-- إحصائيات --}}
-    <div
-        style="
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        ">
-
-        <div class="ems-card">
-            <div style="font-size: 13px; color: var(--ems-text-muted);">
-                إجمالي المهام
+    {{-- بطاقات الإحصائيات (شبكة متوازنة 3x2) --}}
+    <div class="ems-stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+        {{-- Total --}}
+        <div class="ems-stat-card">
+            <div class="ems-stat-info">
+                <span class="ems-stat-label">إجمالي المهام</span>
+                <span class="ems-stat-value">{{ $stats['total'] }}</span>
+                <span class="ems-stat-subtext" style="color: var(--ems-gold-hover);">جميع المهام المسجلة في المنظومة</span>
             </div>
-
-            <div style="font-size: 28px; font-weight: 800;">
-                {{ $stats['total'] }}
+            <div class="ems-stat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect width="18" height="18" x="3" y="3" rx="2"/>
+                    <path d="m9 12 2 2 4-4"/>
+                </svg>
             </div>
         </div>
 
-        <div class="ems-card">
-            <div style="font-size: 13px; color: var(--ems-text-muted);">
-                قيد الانتظار
+        {{-- To Do --}}
+        <div class="ems-stat-card">
+            <div class="ems-stat-info">
+                <span class="ems-stat-label">قيد الانتظار (To-Do)</span>
+                <span class="ems-stat-value" style="color: #0284c7;">{{ $stats['todo'] }}</span>
+                <span class="ems-stat-subtext" style="color: #0369a1;">مهام بانتظار البدء في التنفيذ</span>
             </div>
-
-            <div style="font-size: 28px; font-weight: 800;">
-                {{ $stats['todo'] }}
-            </div>
-        </div>
-
-        <div class="ems-card">
-            <div style="font-size: 13px; color: var(--ems-text-muted);">
-                قيد التنفيذ
-            </div>
-
-            <div style="font-size: 28px; font-weight: 800;">
-                {{ $stats['in_progress'] }}
+            <div class="ems-stat-icon" style="background: #e0f2fe; border-color: #bae6fd; color: #0284c7;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
             </div>
         </div>
 
-        <div class="ems-card">
-            <div style="font-size: 13px; color: var(--ems-text-muted);">
-                قيد المراجعة
+        {{-- In Progress --}}
+        <div class="ems-stat-card">
+            <div class="ems-stat-info">
+                <span class="ems-stat-label">قيد التنفيذ (In Progress)</span>
+                <span class="ems-stat-value" style="color: #d97706;">{{ $stats['in_progress'] }}</span>
+                <span class="ems-stat-subtext" style="color: #b45309;">مهام جاري العمل عليها حالياً</span>
             </div>
-
-            <div style="font-size: 28px; font-weight: 800;">
-                {{ $stats['under_review'] }}
-            </div>
-        </div>
-
-        <div class="ems-card">
-            <div style="font-size: 13px; color: var(--ems-text-muted);">
-                مكتملة
-            </div>
-
-            <div style="font-size: 28px; font-weight: 800;">
-                {{ $stats['completed'] }}
+            <div class="ems-stat-icon" style="background: #fef3c7; border-color: #fde68a; color: #d97706;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20V10"/>
+                    <path d="M18 20V4"/>
+                    <path d="M6 20v-4"/>
+                </svg>
             </div>
         </div>
 
-        <div class="ems-card">
-            <div style="font-size: 13px; color: var(--ems-text-muted);">
-                متأخرة
+        {{-- Under Review --}}
+        <div class="ems-stat-card">
+            <div class="ems-stat-info">
+                <span class="ems-stat-label">قيد المراجعة والتدقيق</span>
+                <span class="ems-stat-value" style="color: #7c3aed;">{{ $stats['under_review'] }}</span>
+                <span class="ems-stat-subtext" style="color: #6d28d9;">مهام بانتظار الاعتماد النهائي</span>
             </div>
-
-            <div style="font-size: 28px; font-weight: 800;">
-                {{ $stats['overdue'] }}
+            <div class="ems-stat-icon" style="background: #ede9fe; border-color: #ddd6fe; color: #7c3aed;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
             </div>
         </div>
 
+        {{-- Completed --}}
+        <div class="ems-stat-card">
+            <div class="ems-stat-info">
+                <span class="ems-stat-label">مكتملة ومعتمدة</span>
+                <span class="ems-stat-value" style="color: #16a34a;">{{ $stats['completed'] }}</span>
+                <span class="ems-stat-subtext" style="color: #15803d;">تم إنجازها بنجاح تام</span>
+            </div>
+            <div class="ems-stat-icon" style="background: #dcfce7; border-color: #bbf7d0; color: #16a34a;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+        </div>
+
+        {{-- Overdue --}}
+        <div class="ems-stat-card">
+            <div class="ems-stat-info">
+                <span class="ems-stat-label">مهام متأخرة</span>
+                <span class="ems-stat-value" style="color: #dc2626;">{{ $stats['overdue'] }}</span>
+                <span class="ems-stat-subtext" style="color: #b91c1c;">تجاوزت التاريخ المحدد للإنجاز</span>
+            </div>
+            <div class="ems-stat-icon" style="background: #fee2e2; border-color: #fecaca; color: #dc2626;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+        </div>
     </div>
 
     {{-- لوحة Kanban --}}
@@ -225,19 +249,8 @@
                 <div class="ems-kanban-header">
 
                     <div class="ems-kanban-title">
-
-                        {{ $index + 1 }}.
-                        {{ $statusLabels[$status] }}
-
-                        <small
-                            style="
-                                opacity: .65;
-                                font-size: 11px;
-                                margin-right: 4px;
-                            ">
-                            ({{ $status }})
-                        </small>
-
+                        <span>{{ $index + 1 }}. {{ $statusLabels[$status] }}</span>
+                        <bdi style="opacity: .65; font-size: 11px; font-family: var(--font-sans); direction: ltr;">({{ $status }})</bdi>
                     </div>
 
                     <span class="ems-kanban-count">

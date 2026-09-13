@@ -1,4 +1,4 @@
-﻿@extends('layouts.portal')
+@extends('layouts.portal')
 @section('title', 'الحضور والانصراف')
 @section('content')
 <div class="ems-content">
@@ -21,7 +21,7 @@
             </button>
             <button class="ems-btn ems-btn-primary" onclick="openModal('modal-log-attendance')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span>+ تسجيل يدوي / إذن دوام</span>
+              <span>تسجيل يدوي / إذن دوام</span>
             </button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-﻿@extends('layouts.portal')
+@extends('layouts.portal')
 @section('title', 'الأداء والإنجاز')
 @section('content')
 <div class="ems-content">
@@ -21,7 +21,7 @@
             </button>
             <button class="ems-btn ems-btn-primary" onclick="openModal('modal-evaluate-performance')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-              <span>+ إضافة تقييم أداء جديد</span>
+              <span>إضافة تقييم أداء جديد</span>
             </button>
           </div>
         </div>

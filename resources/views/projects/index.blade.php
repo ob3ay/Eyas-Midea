@@ -1,4 +1,4 @@
-﻿@extends('layouts.portal')
+@extends('layouts.portal')
 
 @section('title', 'المشاريع والإنتاج')
 
@@ -37,10 +37,30 @@
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
 
-                    <span>+ مشروع جديد</span>
+                    <span>مشروع جديد</span>
                 </button>
             </div>
         </div>
+
+        @if (session('success'))
+            <div class="ems-badge badge-completed" style="display:block; padding:10px 14px; margin-bottom:14px;">
+                {{ session('success') }}
+            </div>
+        @endif
+        @if (session('error'))
+            <div class="ems-badge"
+                style="display:block; padding:10px 14px; margin-bottom:14px; background:#fee2e2; color:#b91c1c;">
+                {{ session('error') }}
+            </div>
+        @endif
+        @if ($errors->any())
+            <div class="ems-badge"
+                style="display:block; padding:10px 14px; margin-bottom:14px; background:#fee2e2; color:#b91c1c;">
+                @foreach ($errors->all() as $error)
+                    <div>{{ $error }}</div>
+                @endforeach
+            </div>
+        @endif
 
 
         {{-- Statistics --}}
@@ -395,319 +415,174 @@
 
 
     {{-- Add Project Modal --}}
-    <div class="ems-modal" id="modal-add-project" style="display: none;">
-
-        <div class="ems-modal-content">
-
+    <div class="ems-modal-overlay" id="modal-add-project">
+        <div class="ems-modal">
             <div class="ems-modal-header">
-
-                <h3>
-                    إضافة مشروع جديد
-                </h3>
-
-                <button type="button" onclick="closeModal('modal-add-project')" class="ems-modal-close">
-                    &times;
-                </button>
-
+                <div class="ems-modal-title">إضافة مشروع جديد</div>
+                <button type="button" onclick="closeModal('modal-add-project')" class="ems-modal-close">✕</button>
             </div>
 
-
             <form action="{{ route('projects.store') }}" method="POST">
-
                 @csrf
-
                 <div class="ems-modal-body">
-
-                    {{-- Title --}}
                     <div class="ems-form-group">
-
-                        <label>
-                            اسم المشروع
-                        </label>
-
+                        <label class="ems-label"><span class="required">*</span> اسم المشروع</label>
                         <input type="text" name="title" class="ems-input" required placeholder="أدخل اسم المشروع">
-
                     </div>
 
-
-                    {{-- Description --}}
                     <div class="ems-form-group">
-
-                        <label>
-                            الوصف
-                        </label>
-
+                        <label class="ems-label">الوصف</label>
                         <textarea name="description" class="ems-input" rows="3" placeholder="تفاصيل وأهداف المشروع"></textarea>
-
                     </div>
 
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label class="ems-label">القسم / الدائرة</label>
+                            <select name="department_id" class="ems-input">
+                                <option value="">اختر القسم</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                    {{-- Department --}}
-                    <div class="ems-form-group">
-
-                        <label>
-                            القسم
-                        </label>
-
-                        <select name="department_id" class="ems-input">
-
-                            <option value="">
-                                اختر القسم
-                            </option>
-
-                            @foreach ($departments as $department)
-                                <option value="{{ $department->id }}">
-                                    {{ $department->name }}
-                                </option>
-                            @endforeach
-
-                        </select>
-
+                        <div class="ems-form-group">
+                            <label class="ems-label">المسؤول عن المشروع</label>
+                            <select name="owner_employee_id" class="ems-input">
+                                <option value="">اختر المسؤول</option>
+                                @foreach ($employees as $employee)
+                                    <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
+                            <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}" required>
+                        </div>
 
-                    {{-- Owner --}}
-                    <div class="ems-form-group">
-
-                        <label>
-                            المسؤول عن المشروع
-                        </label>
-
-                        <select name="owner_employee_id" class="ems-input">
-
-                            <option value="">
-                                اختر المسؤول
-                            </option>
-
-                            @foreach ($employees as $employee)
-                                <option value="{{ $employee->id }}">
-                                    {{ $employee->full_name }}
-                                </option>
-                            @endforeach
-
-                        </select>
-
+                        <div class="ems-form-group">
+                            <label class="ems-label">تاريخ الانتهاء المتوقع</label>
+                            <input type="date" name="end_date" class="ems-input">
+                        </div>
                     </div>
 
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label class="ems-label"><span class="required">*</span> الحالة</label>
+                            <select name="status" class="ems-input" required>
+                                <option value="in_progress">قيد التنفيذ</option>
+                                <option value="in_review">قيد المراجعة</option>
+                                <option value="completed">مكتمل</option>
+                                <option value="on_hold">متوقف</option>
+                            </select>
+                        </div>
 
-                    {{-- Start Date --}}
-                    <div class="ems-form-group">
-
-                        <label>
-                            تاريخ البداية
-                        </label>
-
-                        <input type="date" name="start_date" class="ems-input" required>
-
+                        <div class="ems-form-group">
+                            <label class="ems-label">نسبة الإنجاز (%)</label>
+                            <input type="number" name="completion_percentage" class="ems-input" min="0" max="100" value="0">
+                        </div>
                     </div>
-
-
-                    {{-- End Date --}}
-                    <div class="ems-form-group">
-
-                        <label>
-                            تاريخ الانتهاء المتوقع
-                        </label>
-
-                        <input type="date" name="end_date" class="ems-input">
-
-                    </div>
-
-
-                    {{-- Status --}}
-                    <div class="ems-form-group">
-
-                        <label>
-                            الحالة
-                        </label>
-
-                        <select name="status" class="ems-input" required>
-                            <option value="in_progress">
-                                قيد التنفيذ
-                            </option>
-
-                            <option value="in_review">
-                                قيد المراجعة
-                            </option>
-
-                            <option value="completed">
-                                مكتمل
-                            </option>
-
-                            <option value="on_hold">
-                                متوقف
-                            </option>
-                        </select>
-
-                    </div>
-
-
-                    {{-- Progress --}}
-                    <div class="ems-form-group">
-
-                        <label>
-                            نسبة الإنجاز
-                        </label>
-
-                        <input type="number" name="completion_percentage" class="ems-input" min="0"
-                            max="100" value="0">
-
-                    </div>
-
                 </div>
-
 
                 <div class="ems-modal-footer">
-
-                    <button type="button" class="ems-btn" onclick="closeModal('modal-add-project')">
-                        إلغاء
-                    </button>
-
-                    <button type="submit" class="ems-btn ems-btn-primary">
-                        حفظ المشروع
-                    </button>
-
+                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-project')">إلغاء</button>
+                    <button type="submit" class="ems-btn ems-btn-primary">حفظ المشروع</button>
                 </div>
-
             </form>
-
         </div>
-
     </div>
 
 
     {{-- Edit Project Modal --}}
-    <div class="ems-modal" id="modal-edit-project" style="display: none;">
-
-        <div class="ems-modal-content">
-
+    <div class="ems-modal-overlay" id="modal-edit-project">
+        <div class="ems-modal">
             <div class="ems-modal-header">
-
-                <h3>
-                    تعديل المشروع
-                </h3>
-
-                <button type="button" onclick="closeModal('modal-edit-project')" class="ems-modal-close">
-                    &times;
-                </button>
-
+                <div class="ems-modal-title">تعديل بيانات المشروع</div>
+                <button type="button" onclick="closeModal('modal-edit-project')" class="ems-modal-close">✕</button>
             </div>
 
-
             <form id="editProjectForm" method="POST">
-
                 @csrf
                 @method('PUT')
 
                 <div class="ems-modal-body">
-
                     <div class="ems-form-group">
-                        <label>اسم المشروع</label>
-
+                        <label class="ems-label"><span class="required">*</span> اسم المشروع</label>
                         <input type="text" id="edit_title" name="title" class="ems-input" required>
                     </div>
 
-
                     <div class="ems-form-group">
-                        <label>الوصف</label>
-
+                        <label class="ems-label">الوصف</label>
                         <textarea id="edit_description" name="description" class="ems-input" rows="3"></textarea>
                     </div>
 
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label class="ems-label">القسم / الدائرة</label>
+                            <select id="edit_department_id" name="department_id" class="ems-input">
+                                <option value="">اختر القسم</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                    <div class="ems-form-group">
-                        <label>القسم</label>
-
-                        <select id="edit_department_id" name="department_id" class="ems-input">
-                            <option value="">
-                                اختر القسم
-                            </option>
-
-                            @foreach ($departments as $department)
-                                <option value="{{ $department->id }}">
-                                    {{ $department->name }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <div class="ems-form-group">
+                            <label class="ems-label">المسؤول عن المشروع</label>
+                            <select id="edit_owner_employee_id" name="owner_employee_id" class="ems-input">
+                                <option value="">اختر المسؤول</option>
+                                @foreach ($employees as $employee)
+                                    <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
+                            <input type="date" id="edit_start_date" name="start_date" class="ems-input" required>
+                        </div>
 
-                    <div class="ems-form-group">
-                        <label>المسؤول</label>
-
-                        <select id="edit_owner_employee_id" name="owner_employee_id" class="ems-input">
-                            <option value="">
-                                اختر المسؤول
-                            </option>
-
-                            @foreach ($employees as $employee)
-                                <option value="{{ $employee->id }}">
-                                    {{ $employee->full_name }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <div class="ems-form-group">
+                            <label class="ems-label">تاريخ الانتهاء</label>
+                            <input type="date" id="edit_end_date" name="end_date" class="ems-input">
+                        </div>
                     </div>
 
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label class="ems-label">تاريخ الانتهاء الفعلي</label>
+                            <input type="date" id="edit_actual_end_date" name="actual_end_date" class="ems-input">
+                        </div>
 
-                    <div class="ems-form-group">
-                        <label>تاريخ البداية</label>
-
-                        <input type="date" id="edit_start_date" name="start_date" class="ems-input" required>
+                        <div class="ems-form-group">
+                            <label class="ems-label"><span class="required">*</span> الحالة</label>
+                            <select id="edit_status" name="status" class="ems-input" required>
+                                <option value="in_progress">قيد التنفيذ</option>
+                                <option value="in_review">قيد المراجعة</option>
+                                <option value="completed">مكتمل</option>
+                                <option value="on_hold">متوقف</option>
+                            </select>
+                        </div>
                     </div>
 
-
                     <div class="ems-form-group">
-                        <label>تاريخ الانتهاء</label>
-
-                        <input type="date" id="edit_end_date" name="end_date" class="ems-input">
-                    </div>
-
-
-                    <div class="ems-form-group">
-                        <label>تاريخ الانتهاء الفعلي</label>
-
-                        <input type="date" id="edit_actual_end_date" name="actual_end_date" class="ems-input">
-                    </div>
-
-
-                    <div class="ems-form-group">
-                        <label>الحالة</label>
-
-                        <select id="edit_status" name="status" class="ems-input" required>
-                            <option value="in_progress">قيد التنفيذ</option>
-                            <option value="in_review">قيد المراجعة</option>
-                            <option value="completed">مكتمل</option>
-                            <option value="on_hold">متوقف</option>
-                        </select>
-                    </div>
-
-
-                    <div class="ems-form-group">
-                        <label>نسبة الإنجاز</label>
-
+                        <label class="ems-label">نسبة الإنجاز (%)</label>
                         <input type="number" id="edit_completion_percentage" name="completion_percentage"
                             class="ems-input" min="0" max="100" step="0.01" required>
                     </div>
-
                 </div>
-
 
                 <div class="ems-modal-footer">
-
-                    <button type="button" class="ems-btn" onclick="closeModal('modal-edit-project')">
-                        إلغاء
-                    </button>
-
-                    <button type="submit" class="ems-btn ems-btn-primary">
-                        حفظ التعديلات
-                    </button>
-
+                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-edit-project')">إلغاء</button>
+                    <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
                 </div>
-
             </form>
-
         </div>
-
     </div>
 
 
@@ -733,33 +608,7 @@
         ->all(),
 );
 
-
-        function openModal(id) {
-
-            const modal = document.getElementById(id);
-
-            if (!modal) {
-                return;
-            }
-
-            modal.style.display = 'flex';
-        }
-
-
-        function closeModal(id) {
-
-            const modal = document.getElementById(id);
-
-            if (!modal) {
-                return;
-            }
-
-            modal.style.display = 'none';
-        }
-
-
         function openEditProjectModal(projectId) {
-
             const project = projectsData.find(
                 item => Number(item.id) === Number(projectId)
             );
@@ -768,53 +617,23 @@
                 return;
             }
 
-
             const form = document.getElementById('editProjectForm');
-
             if (form) {
                 form.action = "{{ url('/projects') }}/" + project.id;
             }
 
-
-            document.getElementById('edit_title').value =
-                project.title ?? '';
-
-            document.getElementById('edit_description').value =
-                project.description ?? '';
-
-            document.getElementById('edit_department_id').value =
-                project.department_id ?? '';
-
-            document.getElementById('edit_owner_employee_id').value =
-                project.owner_employee_id ?? '';
-
-            document.getElementById('edit_start_date').value =
-                project.start_date ?? '';
-
-            document.getElementById('edit_end_date').value =
-                project.end_date ?? '';
-
-            document.getElementById('edit_actual_end_date').value =
-                project.actual_end_date ?? '';
-
-            document.getElementById('edit_status').value =
-                project.status ?? 'in_progress';
-
-            document.getElementById('edit_completion_percentage').value =
-                project.completion_percentage ?? 0;
-
+            document.getElementById('edit_title').value = project.title ?? '';
+            document.getElementById('edit_description').value = project.description ?? '';
+            document.getElementById('edit_department_id').value = project.department_id ?? '';
+            document.getElementById('edit_owner_employee_id').value = project.owner_employee_id ?? '';
+            document.getElementById('edit_start_date').value = project.start_date ?? '';
+            document.getElementById('edit_end_date').value = project.end_date ?? '';
+            document.getElementById('edit_actual_end_date').value = project.actual_end_date ?? '';
+            document.getElementById('edit_status').value = project.status ?? 'in_progress';
+            document.getElementById('edit_completion_percentage').value = project.completion_percentage ?? 0;
 
             openModal('modal-edit-project');
         }
-
-
-        window.addEventListener('click', function(event) {
-
-            if (event.target.classList.contains('ems-modal')) {
-                event.target.style.display = 'none';
-            }
-
-        });
     </script>
 
 @endsection
