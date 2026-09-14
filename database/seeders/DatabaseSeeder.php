@@ -46,7 +46,7 @@ class DatabaseSeeder extends Seeder
             [
                 'employee_id' => $adminEmployee->id,
                 'username' => 'admin',
-                'password' => Hash::make('Passw0rd!'),
+                'password' => Hash::make('password123'),
                 'is_active' => true,
             ]
         );
