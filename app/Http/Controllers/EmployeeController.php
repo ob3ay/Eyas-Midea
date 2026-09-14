@@ -2,40 +2,68 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Department;
-use App\Models\Employee;
-use App\Models\User;
 use App\Models\AttendanceCorrectionRequest;
 use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
+use App\Models\Department;
+use App\Models\Employee;
 use App\Models\PerformanceEvaluation;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class EmployeeController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $user = $request->user();
         $scope = $this->authorizeScope('employees.view');
 
-        $employees = $this->scopedEmployeesQuery($user, $scope)
+        $employeeQuery = $this->scopedEmployeesQuery($user, $scope);
+        $search = $request->string('search')->trim()->toString();
+        $departmentId = $request->integer('department_id');
+        $employmentStatus = $request->string('employment_status')->toString();
+
+        $filteredQuery = (clone $employeeQuery)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('full_name', 'like', "%{$search}%")
+                        ->orWhere('employee_code', 'like', "%{$search}%")
+                        ->orWhere('national_id', 'like', "%{$search}%")
+                        ->orWhere('position', 'like', "%{$search}%");
+                });
+            })
+            ->when($departmentId > 0, fn($query) => $query->where('department_id', $departmentId))
+            ->when(
+                in_array($employmentStatus, ['active', 'inactive', 'on_leave'], true),
+                fn($query) => $query->where('employment_status', $employmentStatus)
+            );
+
+        $employees = $filteredQuery
             ->with(['department', 'section', 'user'])
             ->orderByDesc('hire_date')
-            ->get();
+            ->orderBy('full_name')
+            ->paginate(10)
+            ->withQueryString();
 
-        $totalCount = $employees->count();
-        $activeCount = $employees->where('employment_status', 'active')->count();
-        $onLeaveCount = $employees->where('employment_status', 'on_leave')->count();
-        $departmentCount = Department::count();
+        $totalCount = (clone $employeeQuery)->count();
+        $activeCount = (clone $employeeQuery)->where('employment_status', 'active')->count();
+        $onLeaveCount = (clone $employeeQuery)->where('employment_status', 'on_leave')->count();
+        $departmentCount = (clone $employeeQuery)->whereNotNull('department_id')->distinct('department_id')->count('department_id');
 
         $nextEmployeeCode = 'EMP-' . str_pad((Employee::max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT);
-        $departments = Department::orderBy('name')->get();
+        $departments = $scope === 'organization'
+            ? Department::with('sections')->orderBy('name')->get()
+            : Department::with('sections')
+            ->whereKey($user->employee?->department_id)
+            ->orderBy('name')
+            ->get();
 
         $canCreate = $user->hasPermission('employees.create');
         $canUpdate = $user->hasPermission('employees.update');
@@ -52,9 +80,11 @@ class EmployeeController extends Controller
             'canCreate',
             'canUpdate',
             'canDelete',
+            'search',
+            'departmentId',
+            'employmentStatus',
         ));
     }
-
 
     public function show(Employee $employee)
     {
@@ -275,8 +305,6 @@ class EmployeeController extends Controller
         ));
     }
 
-
-
     public function store(Request $request): RedirectResponse
     {
         $user = $request->user();
@@ -290,6 +318,13 @@ class EmployeeController extends Controller
             'email' => ['required', 'email', 'max:150', 'unique:users,email'],
             'phone' => ['required', 'string', 'max:25'],
             'department_id' => ['required', 'integer', Rule::exists('departments', 'id')],
+            'section_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('sections', 'id')->where(
+                    fn($query) => $query->where('department_id', $request->integer('department_id'))
+                ),
+            ],
             'job_title' => ['required', 'string', 'max:100'],
             'hire_date' => ['required', 'date'],
         ]);
@@ -304,6 +339,7 @@ class EmployeeController extends Controller
             'full_name' => trim($data['first_name'] . ' ' . $data['last_name']),
             'phone' => $data['phone'],
             'department_id' => $data['department_id'],
+            'section_id' => $data['section_id'] ?? null,
             'position' => $data['job_title'],
             'hire_date' => $data['hire_date'],
             'employment_status' => 'active',
@@ -332,10 +368,20 @@ class EmployeeController extends Controller
             'full_name' => ['required', 'string', 'max:200'],
             'position' => ['nullable', 'string', 'max:100'],
             'department_id' => ['required', 'integer', Rule::exists('departments', 'id')],
-            'section_id' => ['nullable', 'integer', Rule::exists('sections', 'id')],
+            'section_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('sections', 'id')->where(
+                    fn($query) => $query->where('department_id', $request->integer('department_id'))
+                ),
+            ],
             'phone' => ['nullable', 'string', 'max:25'],
             'employment_status' => ['required', Rule::in(['active', 'inactive', 'on_leave'])],
         ]);
+
+        if ($this->isDepartmentOutsideScope($user, $data['department_id'])) {
+            abort(403, 'لا يمكنك إدارة موظفين خارج نطاق دائرتك.');
+        }
 
         $employee->update($data);
 
@@ -412,6 +458,17 @@ class EmployeeController extends Controller
         }
 
         return $query->where('department_id', $ownEmployee->department_id);
+    }
+
+    private function isDepartmentOutsideScope(User $user, int $departmentId): bool
+    {
+        $scope = $user->highestScopeFor('employees.update');
+
+        if ($scope === 'organization') {
+            return false;
+        }
+
+        return (int) $user->employee?->department_id !== $departmentId;
     }
 
     private function generateUniqueUsername(string $firstName, string $lastName): string

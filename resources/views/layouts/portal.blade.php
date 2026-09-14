@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'لوحة التحكم') | مجموعة إياس الإعلامية - EMS</title>
     <link rel="stylesheet" href="{{ asset('assets/css/portal.css') }}?v=1.2">
+    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     @stack('styles')
 </head>
 
@@ -266,7 +267,8 @@
 
                                 <!-- Profile -->
                                 @if (Route::has('employees.show') && $authUser->employee)
-                                    <a href="{{ route('employees.show', $authUser->employee->id) }}" class="ems-dropdown-item">
+                                    <a href="{{ route('employees.show', $authUser->employee->id) }}"
+                                        class="ems-dropdown-item">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                                             stroke="currentColor" stroke-width="2">
                                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
