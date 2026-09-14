@@ -46,40 +46,13 @@ class DatabaseSeeder extends Seeder
             [
                 'employee_id' => $adminEmployee->id,
                 'username' => 'admin',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make('Passw0rd!'),
                 'is_active' => true,
             ]
         );
-        $adminUser->update(['password' => Hash::make('password123')]);
-
         $superAdminRole = Role::where('name', 'SA')->first();
         if (! $adminUser->roles()->where('role_id', $superAdminRole->id)->exists()) {
             $adminUser->roles()->attach($superAdminRole->id);
-        }
-
-        $luayEmployee = Employee::firstOrCreate(
-            ['employee_code' => 'EMP-0000-L'],
-            [
-                'full_name' => 'لؤي مطر',
-                'department_id' => $adminDept->id,
-                'position' => 'Super Administrator',
-                'employment_status' => 'active',
-                'hire_date' => now(),
-            ]
-        );
-        $luayUser = User::firstOrCreate(
-            ['email' => 'luaymatar2001@gmail.com'],
-            [
-                'employee_id' => $luayEmployee->id,
-                'username' => 'luay',
-                'password' => Hash::make('password123'),
-                'is_active' => true,
-            ]
-        );
-        $luayUser->update(['password' => Hash::make('password123')]);
-
-        if (! $luayUser->roles()->where('role_id', $superAdminRole->id)->exists()) {
-            $luayUser->roles()->attach($superAdminRole->id);
         }
 
         // 3) الدوائر الأربعة الأساسية (حسب التصميم المعتمد)
@@ -246,6 +219,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             'SH' => [
+                // ملاحظة: عمود scope فيه 3 قيم بس، وبنعامل "department" هون كحدود القسم (section) بالكود
                 'employees.view' => 'department',
                 'tasks.view' => 'department',
                 'tasks.update' => 'department',
@@ -258,7 +232,6 @@ class DatabaseSeeder extends Seeder
                 'tasks.view' => 'self',
                 'tasks.update' => 'self',
                 'attendance.view' => 'self',
-                'attendance.create' => 'self',
                 'performance.view' => 'self',
             ],
 
@@ -266,8 +239,10 @@ class DatabaseSeeder extends Seeder
                 'employees.view' => 'self',
                 'tasks.view' => 'self',
                 'tasks.update' => 'self',
-                'attendance.view' => 'self',
-                'attendance.create' => 'self',
+                'attendance.view' => 'organization',
+                // TA (مساعد إداري) هو المستخدم الافتراضي المخوّل يسجل حضور/انصراف كل الموظفين.
+                // هاد بس مثال ابتدائي - السوبر أدمن يقدر يبدّله من مصفوفة الصلاحيات وقت ما بدو.
+                'attendance.create' => 'organization',
                 'performance.view' => 'self',
             ],
         ];

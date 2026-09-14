@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -89,18 +90,10 @@ Route::middleware(['web', 'auth'])->group(function () {
     });
 
     Route::prefix('attendance')->name('attendance.')->group(function () {
-        Route::get('/', function () {
-            return view('attendance.index');
-        })->name('index');
-        Route::post('/check-in', function () {
-            return back()->with('success', 'تم تسجيل الحضور');
-        })->name('checkin');
-        Route::post('/check-out', function () {
-            return back()->with('success', 'تم تسجيل الانصراف');
-        })->name('checkout');
-        Route::post('/manual-log', function () {
-            return back()->with('success', 'تم القيد اليدوي');
-        })->name('manual');
+        Route::get('/', [AttendanceController::class, 'index'])->name('index');
+        Route::post('/check-in', [AttendanceController::class, 'checkIn'])->name('checkin');
+        Route::post('/check-out', [AttendanceController::class, 'checkOut'])->name('checkout');
+        Route::post('/manual-log', [AttendanceController::class, 'manualLog'])->name('manual');
     });
 
     Route::prefix('performance')->name('performance.')->group(function () {
