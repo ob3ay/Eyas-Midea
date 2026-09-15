@@ -8,6 +8,21 @@
     <title>@yield('title', 'لوحة التحكم') | مجموعة إياس الإعلامية - EMS</title>
     <link rel="stylesheet" href="{{ asset('assets/css/portal.css') }}?v=1.2">
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
+
+    <!-- Google Cairo & Tajawal Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Alpine.js for Search Modal & Interactivity -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="{{ asset('assets/css/custom.css') }}">
     @stack('styles')
 </head>
 
@@ -143,6 +158,19 @@
                         </div>
                     </a>
                 @endif
+                @if (Route::has('reports.index'))
+                    <a href="{{ route('reports.index') }}"
+                        class="ems-nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+                        <div class="ems-nav-link-content">
+                            <svg class="ems-nav-icon" viewBox="0 0 24 24">
+                                <path d="M3 3h18v18H3z" />
+                                <path d="M3 9h18" />
+                                <path d="M9 21V9" />
+                            </svg>
+                            <span>التقارير التنفيذية</span>
+                        </div>
+                    </a>
+                @endif
 
                 @if (Route::has('users.index'))
                     <a href="{{ route('users.index') }}"
@@ -158,21 +186,7 @@
                 @endif
             </nav>
 
-            <!-- ودجت البصمة ومؤشر النظام -->
-            <div class="ems-sidebar-widget">
-                <div class="ems-sidebar-widget-header">
-                    <span style="font-weight: 700; font-size: 12px; color: var(--ems-text-main);">بصمة الحضور</span>
-                    <span class="ems-live-clock"
-                        style="font-family: var(--font-mono); font-weight: 700; font-size: 11px; color: var(--ems-gold-hover);">--:--:--</span>
-                </div>
-                <p style="font-size: 11.5px; color: var(--ems-text-muted); margin-bottom: 10px;">فترة الدوام: 09:00 ص -
-                    05:00 م</p>
-                <button class="ems-btn ems-btn-secondary ems-btn-sm" style="width: 100%;"
-                    onclick="openModal('modal-quick-attendance')">
-                    <span class="ems-status-dot"></span>
-                    <span>تسجيل بصمة الآن</span>
-                </button>
-            </div>
+           
 
             <div class="ems-sidebar-footer">
                 <span>مجموعة إياس الإعلامية</span>

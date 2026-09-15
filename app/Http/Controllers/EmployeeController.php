@@ -86,8 +86,9 @@ class EmployeeController extends Controller
         ));
     }
 
-    public function show(Employee $employee)
+    public function show(Request $request, Employee $employee)
     {
+        $this->authorizeScope('employees.view', $employee, $request->user());
         /*
     |--------------------------------------------------------------------------
     | بيانات الموظف الأساسية

@@ -19,9 +19,21 @@ class RolePermissionController extends Controller
             abort(403, 'ما عندك صلاحية إدارة الأدوار والصلاحيات.');
         }
 
+        if ($role->name === 'SA' && ! $user->hasRole('SA')) {
+            abort(403, 'لا يمكنك تعديل صلاحيات دور Super Admin.');
+        }
+
         $data = $request->validate([
             'scope' => ['nullable', Rule::in(['self', 'department', 'organization'])],
         ]);
+
+        if ($data['scope'] === 'organization' && ! $user->hasRole('SA')) {
+            abort(403, 'منح نطاق المؤسسة الكاملة متاح للسوبر أدمن فقط.');
+        }
+
+        if ($permission->key === 'settings.manage_permissions' && ! $user->hasRole('SA')) {
+            abort(403, 'لا يمكنك منح صلاحية إدارة الصلاحيات.');
+        }
 
         $oldScope = $role->permissions()->where('permissions.id', $permission->id)->first()?->pivot?->scope;
 

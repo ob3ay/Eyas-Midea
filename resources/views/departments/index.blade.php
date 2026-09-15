@@ -1,20 +1,6 @@
 @extends('layouts.portal')
 @section('title', 'الدوائر والأقسام')
 @section('content')
-    @php
-        $deptNumbers = $departments->map(function ($d) {
-            if (preg_match('/DEPT-(\d+)/i', $d->code ?? '', $m)) {
-                return (int) $m[1];
-            }
-            return 0;
-        });
-        $maxDeptNum = $deptNumbers->max() ?: $departments->count();
-        $nextDeptCode = 'DEPT-' . str_pad($maxDeptNum + 1, 2, '0', STR_PAD_LEFT);
-        $availableEmployees = \App\Models\Employee::where('employment_status', 'active')->orderBy('full_name')->get();
-        if ($availableEmployees->isEmpty()) {
-            $availableEmployees = \App\Models\Employee::orderBy('full_name')->get();
-        }
-    @endphp
     <div class="ems-page-header">
             <div class="ems-page-title-wrap">
                 <div class="ems-breadcrumb">
@@ -39,13 +25,20 @@
                     </svg>
                     <span>الهيكل التنظيمي الكامل</span>
                 </a>
-                <button class="ems-btn ems-btn-primary" onclick="openModal('modal-add-department')">
+                @can('edit-department')
+                    <button class="ems-btn ems-btn-secondary" onclick="openModal('modal-assign-employee')">
+                        <span>نقل / تعيين موظف</span>
+                    </button>
+                @endcan
+                @can('create-department')
+                    <button class="ems-btn ems-btn-primary" onclick="openModal('modal-add-department')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
                     <span>إضافة دائرة جديدة</span>
-                </button>
+                    </button>
+                @endcan
             </div>
         </div>
 
@@ -112,8 +105,12 @@
                     <div>
                         <div class="ems-dept-meta">
                             <div>
-                                <div class="ems-dept-meta-item-label">عدد الموظفين</div>
-                                <div class="ems-dept-meta-item-val">{{ $department->employees_count }}</div>
+                                <div class="ems-dept-meta-item-label">الموظفون / الحسابات</div>
+                                <div class="ems-dept-meta-item-val">{{ $department->employees_count }} / {{ $department->users_count }}</div>
+                            </div>
+                            <div>
+                                <div class="ems-dept-meta-item-label">الحالة</div>
+                                <div class="ems-dept-meta-item-val">{{ $department->is_active ? 'نشطة' : 'غير نشطة' }}</div>
                             </div>
                             <div>
                                 <div class="ems-dept-meta-item-label">عدد الأقسام</div>
@@ -123,7 +120,11 @@
                                 <div class="ems-dept-meta-item-label">المدير المسؤول</div>
                                 <div
                                     style="font-size: 11px; font-weight: 700; color: var(--ems-gold-hover); margin-top: 2px;">
-                                    {{ $department->manager->full_name ?? 'غير محدد' }}</div>
+                                    {{ $department->manager->full_name ?? 'غير محدد' }}
+                                    @if ($department->manager?->user)
+                                        <small>({{ $department->manager->user->username }})</small>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                         <div style="display: flex; gap: 6px; align-items: center;">
@@ -133,6 +134,7 @@
                                 <span>استعراض الهيكل</span>
                                 <span style="font-size: 14px;">←</span>
                             </a>
+                            @can('edit-department', $department)
                             <button type="button" class="ems-btn ems-btn-icon ems-btn-sm" title="تعديل الدائرة"
                                 onclick="openEditDepartmentModal({{ json_encode([
                                     'id' => $department->id,
@@ -145,6 +147,8 @@
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                                 </svg>
                             </button>
+                            @endcan
+                            @can('delete', $department)
                             <form action="{{ route('departments.destroy', $department->id) }}" method="POST"
                                 onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف دائرة ({{ $department->name }})؟');" style="margin: 0; display: inline;">
                                 @csrf
@@ -157,6 +161,7 @@
                                     </svg>
                                 </button>
                             </form>
+                            @endcan
                         </div>
                     </div>
                 </div>
@@ -179,13 +184,15 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="ems-badge badge-completed">{{ $sections->count() }} وحدات تخصصية</span>
-                    <button type="button" class="ems-btn ems-btn-primary ems-btn-sm" onclick="openModal('modal-add-section')">
+                    @can('create-section')
+                        <button type="button" class="ems-btn ems-btn-primary ems-btn-sm" onclick="openModal('modal-add-section')">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="12" y1="5" x2="12" y2="19" />
                             <line x1="5" y1="12" x2="19" y2="12" />
                         </svg>
                         <span>إضافة قسم جديد</span>
-                    </button>
+                        </button>
+                    @endcan
                 </div>
             </div>
 
@@ -212,10 +219,11 @@
                                     <td><strong style="color: var(--ems-text-main);">{{ $section->name }}</strong></td>
                                     <td>{{ $section->department->name ?? '-' }}</td>
                                     <td>{{ $section->head->full_name ?? 'غير محدد' }}</td>
-                                    <td>{{ $section->employees_count }} موظف</td>
-                                    <td><span class="ems-badge badge-completed">نشط</span></td>
+                                    <td>{{ $section->employees_count }} موظف / {{ $section->users_count }} حساب</td>
+                                    <td><span class="ems-badge {{ $section->is_active ? 'badge-completed' : '' }}">{{ $section->is_active ? 'نشط' : 'غير نشط' }}</span></td>
                                     <td style="text-align: center;">
                                         <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                            @can('edit-section', $section)
                                             <button class="ems-btn ems-btn-icon" title="تعديل"
                                                 onclick="openEditSectionModal({{ json_encode([
                                                     'id' => $section->id,
@@ -229,6 +237,8 @@
                                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                                                 </svg>
                                             </button>
+                                            @endcan
+                                            @can('delete', $section)
                                             <form action="{{ route('sections.destroy', $section->id) }}" method="POST"
                                                 onsubmit="return confirm('هل أنت متأكد من حذف قسم ({{ $section->name }})؟');" style="margin: 0; display: inline;">
                                                 @csrf
@@ -241,6 +251,7 @@
                                                     </svg>
                                                 </button>
                                             </form>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>
@@ -473,6 +484,55 @@
             </form>
         </div>
     </div>
+
+    @can('edit-department')
+        <div class="ems-modal-overlay" id="modal-assign-employee">
+            <div class="ems-modal">
+                <div class="ems-modal-header">
+                    <div class="ems-modal-title">نقل أو تعيين موظف إلى دائرة وقسم</div>
+                    <button class="ems-modal-close" onclick="closeModal('modal-assign-employee')">✕</button>
+                </div>
+                <form id="assignEmployeeForm" method="POST">
+                    @csrf
+                    <div class="ems-modal-body">
+                        <div class="ems-form-group">
+                            <label for="assignment_employee_id" class="ems-label">الموظف / حساب المستخدم</label>
+                            <select id="assignment_employee_id" name="employee_id" class="ems-select" required>
+                                <option value="">-- اختر موظفاً --</option>
+                                @foreach ($availableEmployees as $employee)
+                                    <option value="{{ $employee->id }}">{{ $employee->full_name }}{{ $employee->user ? ' — ' . $employee->user->username : '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="ems-form-row">
+                            <div class="ems-form-group">
+                                <label for="assignment_department_id" class="ems-label">الدائرة</label>
+                                <select id="assignment_department_id" name="department_id" class="ems-select" required>
+                                    @foreach ($departments as $department)
+                                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="ems-form-group">
+                                <label for="assignment_section_id" class="ems-label">القسم</label>
+                                <select id="assignment_section_id" name="section_id" class="ems-select">
+                                    <option value="">بدون قسم</option>
+                                    @foreach ($sections as $section)
+                                        <option value="{{ $section->id }}" data-department="{{ $section->department_id }}">{{ $section->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ems-modal-footer">
+                        <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-assign-employee')">إلغاء</button>
+                        <button type="submit" class="ems-btn ems-btn-primary">حفظ التعيين</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endcan
+
 @endsection
 
 @push('scripts')
@@ -528,6 +588,26 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        const assignmentDepartment = document.getElementById('assignment_department_id');
+        const assignmentSection = document.getElementById('assignment_section_id');
+        const assignmentForm = document.getElementById('assignEmployeeForm');
+
+        function filterAssignmentSections() {
+            const departmentId = assignmentDepartment?.value;
+            assignmentSection?.querySelectorAll('option[data-department]').forEach((option) => {
+                option.hidden = option.dataset.department !== departmentId;
+            });
+            if (assignmentSection?.selectedOptions[0]?.hidden) {
+                assignmentSection.value = '';
+            }
+        }
+
+        assignmentDepartment?.addEventListener('change', filterAssignmentSections);
+        assignmentForm?.addEventListener('submit', () => {
+            assignmentForm.action = "{{ url('departments/employees') }}/" + document.getElementById('assignment_employee_id').value + "/assign";
+        });
+        filterAssignmentSections();
+
         const secInput = document.getElementById('new_section_input');
         if (secInput) {
             secInput.addEventListener('keydown', (e) => {

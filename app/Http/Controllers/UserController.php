@@ -25,10 +25,15 @@ class UserController extends Controller
 
         $roles = Role::with('permissions')->orderBy('display_name')->get();
         $permissions = Permission::orderBy('display_name')->get();
-        $employees = Employee::whereDoesntHave('user')->orderBy('full_name')->get();
+        $employees = Employee::whereDoesntHave('user')
+            ->when($scope !== 'organization', function ($query) use ($user) {
+                $query->where('department_id', $user->employee?->department_id ?? 0);
+            })
+            ->orderBy('full_name')
+            ->get();
 
         $superAdmin = $users->first(function ($u) {
-            return $u->roles->contains(fn($role) => $role->name === 'SA');
+            return $u->roles->contains(fn ($role) => $role->name === 'SA');
         });
 
         $canCreate = $user->hasPermission('users.create');
@@ -52,7 +57,7 @@ class UserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $user = $request->user();
-        $this->authorizeScope('users.create');
+        $scope = $this->authorizeScope('users.create');
 
         $data = $request->validate([
             'employee_id' => ['required', 'exists:employees,id', 'unique:users,employee_id'],
@@ -62,6 +67,10 @@ class UserController extends Controller
             'roles' => ['nullable', 'array'],
             'roles.*' => ['exists:roles,id'],
         ]);
+
+        $employee = Employee::findOrFail($data['employee_id']);
+        $this->assertEmployeeWithinScope($user, $employee, $scope);
+        $this->assertAssignableRoles($user, $data['roles'] ?? []);
 
         $newUser = User::create([
             'employee_id' => $data['employee_id'],
@@ -81,7 +90,11 @@ class UserController extends Controller
     public function update(Request $request, User $targetUser): RedirectResponse
     {
         $user = $request->user();
-        $this->authorizeScope('users.update', $targetUser, $user);
+        $scope = $this->authorizeScope('users.update', $targetUser, $user);
+
+        if ($targetUser->hasRole('SA') && ! $user->hasRole('SA')) {
+            abort(403, 'لا يمكنك تعديل حساب Super Admin.');
+        }
 
         $data = $request->validate([
             'employee_id' => ['required', 'exists:employees,id', Rule::unique('users', 'employee_id')->ignore($targetUser->id)],
@@ -91,6 +104,10 @@ class UserController extends Controller
             'roles' => ['nullable', 'array'],
             'roles.*' => ['exists:roles,id'],
         ]);
+
+        $employee = Employee::findOrFail($data['employee_id']);
+        $this->assertEmployeeWithinScope($user, $employee, $scope);
+        $this->assertAssignableRoles($user, $data['roles'] ?? []);
 
         $targetUser->employee_id = $data['employee_id'];
         $targetUser->username = $data['username'];
@@ -117,6 +134,10 @@ class UserController extends Controller
 
         if ($targetUser->id === $user->id) {
             return back()->with('error', 'ما فيك تحذف حسابك الخاص وأنت مسجل دخول فيه.');
+        }
+
+        if ($targetUser->hasRole('SA') && ! $user->hasRole('SA')) {
+            abort(403, 'لا يمكنك حذف حساب Super Admin.');
         }
 
         $targetUser->delete();
@@ -177,9 +198,48 @@ class UserController extends Controller
         }
 
         if ($user->hasRole('SH')) {
-            return $query->whereHas('employee', fn($q) => $q->where('section_id', $ownEmployee->section_id));
+            return $query->whereHas('employee', fn ($q) => $q->where('section_id', $ownEmployee->section_id));
         }
 
-        return $query->whereHas('employee', fn($q) => $q->where('department_id', $ownEmployee->department_id));
+        return $query->whereHas('employee', fn ($q) => $q->where('department_id', $ownEmployee->department_id));
+    }
+
+    private function assertEmployeeWithinScope(User $user, Employee $employee, string $scope): void
+    {
+        if ($scope === 'organization') {
+            return;
+        }
+
+        $ownEmployee = $user->employee;
+        if (! $ownEmployee || $employee->department_id !== $ownEmployee->department_id) {
+            abort(403, 'لا يمكنك إدارة حساب موظف خارج نطاق دائرتك.');
+        }
+
+        if ($scope === 'self' && $employee->id !== $ownEmployee->id) {
+            abort(403, 'يمكنك إدارة حسابك الشخصي فقط.');
+        }
+    }
+
+    private function assertAssignableRoles(User $user, array $roleIds): void
+    {
+        if (! $user->hasPermission('settings.manage_permissions') || $user->hasRole('SA')) {
+            return;
+        }
+
+        $roles = Role::with('permissions')->whereIn('id', $roleIds)->get();
+        if ($roles->contains(fn (Role $role) => $role->name === 'SA')) {
+            abort(403, 'لا يمكنك إسناد دور Super Admin.');
+        }
+
+        $hasElevatedPermission = $roles->contains(function (Role $role): bool {
+            return $role->permissions->contains(function ($permission): bool {
+                return $permission->pivot->scope === 'organization'
+                    || $permission->key === 'settings.manage_permissions';
+            });
+        });
+
+        if ($hasElevatedPermission) {
+            abort(403, 'لا يمكنك إسناد صلاحيات على مستوى المؤسسة أو إدارة الصلاحيات.');
+        }
     }
 }

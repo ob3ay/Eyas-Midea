@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\User;
 
 class Employee extends Model
 {
@@ -56,8 +55,14 @@ class Employee extends Model
     {
         return $this->hasMany(Employee::class, 'manager_employee_id');
     }
+
     public function user(): HasOne
     {
         return $this->hasOne(User::class);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('employment_status', 'active');
     }
 }

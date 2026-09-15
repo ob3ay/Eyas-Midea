@@ -25,8 +25,7 @@ class DashboardController extends Controller
 
         // 2) بطاقة المشاريع
         $projectCount = Project::count();
-        $activeProjectsCount = Project::where('status', 'Active')->count();
-
+        $activeProjectsCount = Project::whereIn('status', ['in_progress', 'in_review'])->count();
         // 3) بطاقة المهام
         $taskCount = Task::count();
         $underReviewCount = Task::where('status', 'Under Review')->count();
@@ -41,7 +40,7 @@ class DashboardController extends Controller
 
         // 5) أبرز 3 مشاريع نشطة (لعرضها بشريط التقدم)
         $activeProjects = Project::with('department')
-            ->where('status', 'Active')
+            ->whereIn('status', ['in_progress', 'in_review'])
             ->orderByDesc('completion_percentage')
             ->limit(3)
             ->get();
