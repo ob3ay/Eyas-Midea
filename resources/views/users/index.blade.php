@@ -182,7 +182,9 @@
             {{-- Permissions Matrix --}}
             <div class="bg-white rounded-2xl border border-slate-200 mb-6 overflow-hidden">
 
-                <div class="px-5 py-4 border-b border-slate-200">
+                <div class="px-5 py-4 border-b border-slate-200 flex justify-between">
+                  
+                  <div>
                     <h2 class="font-bold text-slate-800">
                         مصفوفة الصلاحيات
                     </h2>
@@ -191,6 +193,16 @@
                         الصلاحيات المرتبطة بكل دور ونطاقها
                     </p>
                 </div>
+                <form action="">
+                    <select class="bg-slate-800 text-xs rounded-lg  px-3 py-2  text-white" onchange="this.form.submit()">
+                        <option value="">اختر دور</option>
+                        @foreach ($permissions as $permission)
+                            <option value="{{ $permission->id }}">{{ $permission->display_name ?: $permission->key }}</option>
+                        @endforeach
+                    </select>
+                </form>
+                  </div>
+
 
                 @if ($roles->count() && $permissions->count())
                     <div class="overflow-x-auto">

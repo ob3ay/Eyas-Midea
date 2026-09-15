@@ -17,7 +17,8 @@
         </div>
         <div class="ems-page-actions">
             @if ($canCreate)
-                <button class="ems-btn ems-btn-primary" onclick="openModal('modal-add-employee')">
+              <!-- زر إضافة موظف -->
+                <button class="ems-btn ems-btn-primary" id="btn-add-employee" type="button">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
@@ -27,6 +28,187 @@
             @endif
         </div>
     </div>
+
+
+
+    
+<!-- Modal إضافة موظف -->
+<div class="ems-modal-overlay" id="modal-add-employee">
+    <div class="ems-modal">
+
+        <!-- Header -->
+        <div class="ems-modal-header">
+            <div class="ems-modal-title">
+                إضافة موظف جديد لكادر مجموعة إياس الإعلامية
+            </div>
+
+            <button
+                type="button"
+                class="ems-modal-close"
+                id="close-add-employee"
+                aria-label="إغلاق">
+                ✕
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form
+            action="#"
+            method="POST"
+            id="addEmployeeForm">
+
+            <div class="ems-modal-body">
+
+                <!-- الرقم الوظيفي + الدائرة -->
+                <div class="ems-form-row">
+
+                    <div class="ems-form-group">
+                        <label for="emp_code" class="ems-label">
+                            <span class="required">*</span>
+                            الرقم الوظيفي
+                        </label>
+
+                        <input
+                            type="text"
+                            id="emp_code"
+                            name="emp_code"
+                            class="ems-input"
+                            value="36"
+                            required
+                            readonly
+                            style="background-color: var(--ems-surface-alt); font-weight: bold;">
+                    </div>
+
+                    <div class="ems-form-group">
+                        <label for="department_id" class="ems-label">
+                            <span class="required">*</span>
+                            الدائرة الإدارية
+                        </label>
+
+                        <select
+                            id="department_id"
+                            name="department_id"
+                            class="ems-select"
+                            required>
+
+                            <option value="1">
+                                الإدارة العليا والتنفيذية
+                            </option>
+
+                            <option value="2">
+                                دائرة الإعلام
+                            </option>
+
+                            <option value="3" selected>
+                                دائرة البرمجة والتقنية
+                            </option>
+
+                            <option value="4">
+                                دائرة التسويق والعلاقات العامة
+                            </option>
+
+                        </select>
+                    </div>
+
+                </div>
+
+
+                <!-- الاسم + المسمى الوظيفي -->
+                <div class="ems-form-row">
+
+                    <div class="ems-form-group">
+                        <label for="first_name" class="ems-label">
+                            <span class="required">*</span>
+                            الاسم الكامل للموظف
+                        </label>
+
+                        <input
+                            type="text"
+                            id="first_name"
+                            name="first_name"
+                            class="ems-input"
+                            placeholder="مثال: يزن البيطار"
+                            required>
+                    </div>
+
+                    <div class="ems-form-group">
+                        <label for="job_title" class="ems-label">
+                            <span class="required">*</span>
+                            المسمى الوظيفي
+                        </label>
+
+                        <input
+                            type="text"
+                            id="job_title"
+                            name="job_title"
+                            class="ems-input"
+                            placeholder="مثال: مطور ويب وواجهات"
+                            required>
+                    </div>
+
+                </div>
+
+
+                <!-- البريد + الهاتف -->
+                <div class="ems-form-row">
+
+                    <div class="ems-form-group">
+                        <label for="email" class="ems-label">
+                            <span class="required">*</span>
+                            البريد المؤسسي
+                        </label>
+
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            class="ems-input"
+                            placeholder="username@eyasmedia.com"
+                            required>
+                    </div>
+
+                    <div class="ems-form-group">
+                        <label for="phone" class="ems-label">
+                            <span class="required">*</span>
+                            رقم الهاتف المحمول
+                        </label>
+
+                        <input
+                            type="tel"
+                            id="phone"
+                            name="phone"
+                            class="ems-input"
+                            placeholder="+970 59 000 0000"
+                            required>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Footer -->
+            <div class="ems-modal-footer">
+
+                <button
+                    type="button"
+                    class="ems-btn ems-btn-secondary"
+                    id="cancel-add-employee">
+                    إلغاء
+                </button>
+
+                <button
+                    type="submit"
+                    class="ems-btn ems-btn-primary">
+                    حفظ واعتماد الموظف
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
 
     {{-- نموذج البحث والفلاتر --}}
     <form method="GET" action="{{ route('employees.index') }}" class="ems-card" style="margin-bottom: 18px;">
@@ -235,6 +417,11 @@
                                     <span class="ems-badge {{ $status['class'] }}">{{ $status['text'] }}</span>
                                 </td>
                                 <td style="text-align: center;">
+                                    <div style="display:flex; justify-content:center; gap:6px;">
+
+                                    <a href="{{ route('employees.show', $employee) }}" class="ems-btn ems-btn-icon bg-blue-500 text-white" title="عرض التفاصيل">
+                                        <i class="fa fa-eye"></i>
+                                    </a>
                                     @if ($canUpdate)
                                         @php
                                             $employeeData = [
@@ -248,7 +435,7 @@
                                                 'update_url' => route('employees.update', $employee),
                                             ];
                                         @endphp
-                                        <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
+                                        <button type="button" class="ems-btn ems-btn-icon bg-green-500 text-white" title="تعديل"
                                             onclick='openEditEmployeeModal(@json($employeeData))'>
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                 stroke-width="2">
@@ -263,7 +450,7 @@
                                             style="display:inline;" onsubmit="return confirm('هل تريد حذف هذا الموظف؟');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="ems-btn ems-btn-icon" title="حذف">
+                                            <button type="submit" class="ems-btn ems-btn-icon bg-red-500 text-white" title="حذف">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                     stroke-width="2">
                                                     <polyline points="3 6 5 6 21 6" />
@@ -273,6 +460,8 @@
                                             </button>
                                         </form>
                                     @endif
+                                    </div>
+
                                 </td>
                             </tr>
                         @empty
@@ -520,5 +709,64 @@
                 }
             }
         </script>
+
+
+
     @endif
+
+     <!-- نافذة إضافة موظف جديد -->
+  <div class="ems-modal-overlay" id="modal-add-employee">
+    <div class="ems-modal">
+      <div class="ems-modal-header">
+        <div class="ems-modal-title">إضافة موظف جديد لكادر مجموعة إياس الإعلامية</div>
+        <button class="ems-modal-close" onclick="closeModal('modal-add-employee')">✕</button>
+      </div>
+      <form action="#" method="POST" id="addEmployeeForm" onsubmit="event.preventDefault(); showToast('تمت إضافة الموظف بنجاح وتوليد الرقم الوظيفي التالي في النظام', 'success'); closeModal('modal-add-employee');">
+        <div class="ems-modal-body">
+          <div class="ems-form-row">
+            <div class="ems-form-group">
+              <label for="emp_code" class="ems-label"><span class="required">*</span> الرقم الوظيفي</label>
+              <input type="text" id="emp_code" name="emp_code" class="ems-input" value="36" required readonly style="background-color: var(--ems-surface-alt); font-weight: bold;">
+            </div>
+            <div class="ems-form-group">
+              <label for="department_id" class="ems-label"><span class="required">*</span> الدائرة الإدارية</label>
+              <select id="department_id" name="department_id" class="ems-select" required>
+                <option value="1">الإدارة العليا والتنفيذية</option>
+                <option value="2">دائرة الإعلام</option>
+                <option value="3" selected>دائرة البرمجة والتقنية</option>
+                <option value="4">دائرة التسويق والعلاقات العامة</option>
+              </select>
+            </div>
+          </div>
+          <div class="ems-form-row">
+            <div class="ems-form-group">
+              <label for="first_name" class="ems-label"><span class="required">*</span> الاسم الكامل للموظف</label>
+              <input type="text" id="first_name" name="first_name" class="ems-input" placeholder="مثال: يزن البيطار" required>
+            </div>
+            <div class="ems-form-group">
+              <label for="job_title" class="ems-label"><span class="required">*</span> المسمى الوظيفي</label>
+              <input type="text" id="job_title" name="job_title" class="ems-input" placeholder="مثال: مطور ويب وواجهات" required>
+            </div>
+          </div>
+          <div class="ems-form-row">
+            <div class="ems-form-group">
+              <label for="email" class="ems-label"><span class="required">*</span> البريد المؤسسي</label>
+              <input type="email" id="email" name="email" class="ems-input" placeholder="username@eyasmedia.com" required>
+            </div>
+            <div class="ems-form-group">
+              <label for="phone" class="ems-label"><span class="required">*</span> رقم الهاتف المحمول</label>
+              <input type="tel" id="phone" name="phone" class="ems-input" placeholder="+970 59 000 0000" required>
+            </div>
+          </div>
+        </div>
+        <div class="ems-modal-footer">
+          <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-employee')">إلغاء</button>
+          <button type="submit" class="ems-btn ems-btn-primary">حفظ واعتماد الموظف</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  
 @endsection

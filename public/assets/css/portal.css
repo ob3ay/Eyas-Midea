@@ -842,13 +842,25 @@ img, svg {
 }
 
 .ems-table td {
-  padding: 16px 20px;
-  font-size: 13.5px;
-  color: var(--ems-text-main);
+
+  padding: 12px 20px;
   border-bottom: 1px solid var(--ems-border-light);
-  vertical-align: middle;
-  background-color: #ffffff;
-  transition: background-color 0.15s ease;
+
+  color: var(--ems-text-main);
+  font-size: 13.5px;
+  transition: background-color 0.15s ease; 
+
+  
+
+}
+
+.ems-table-actions {
+  /* padding: 12px 20px; */
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-items: center;
 }
 
 .ems-table tbody tr:hover td {

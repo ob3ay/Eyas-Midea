@@ -107,6 +107,83 @@ function closeModal(id) {
   }
 }
 
+
+// اضافة موظف جديد 
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    const addEmployeeBtn = document.getElementById('btn-add-employee');
+    const modal = document.getElementById('modal-add-employee');
+    const closeBtn = document.getElementById('close-add-employee');
+    const cancelBtn = document.getElementById('cancel-add-employee');
+    const form = document.getElementById('addEmployeeForm');
+
+
+    // فتح المودال
+    addEmployeeBtn.addEventListener('click', function () {
+        modal.classList.add('active');
+
+        // وضع المؤشر مباشرة على الاسم
+        setTimeout(() => {
+            document.getElementById('first_name').focus();
+        }, 100);
+    });
+
+
+    // إغلاق المودال
+    function closeAddEmployeeModal() {
+        modal.classList.remove('active');
+    }
+
+
+    // زر X
+    closeBtn.addEventListener('click', closeAddEmployeeModal);
+
+
+    // زر إلغاء
+    cancelBtn.addEventListener('click', closeAddEmployeeModal);
+
+
+    // إغلاق عند الضغط على الخلفية
+    modal.addEventListener('click', function (event) {
+
+        if (event.target === modal) {
+            closeAddEmployeeModal();
+        }
+
+    });
+
+
+    // إغلاق باستخدام زر ESC
+    document.addEventListener('keydown', function (event) {
+
+        if (event.key === 'Escape' && modal.classList.contains('active')) {
+            closeAddEmployeeModal();
+        }
+
+    });
+
+
+    // منع الإرسال مؤقتًا أثناء اختبار الواجهة
+    form.addEventListener('submit', function (event) {
+
+        event.preventDefault();
+
+        showToast(
+            'تمت إضافة الموظف بنجاح وتوليد الرقم الوظيفي التالي في النظام',
+            'success'
+        );
+
+        closeAddEmployeeModal();
+
+        // تنظيف النموذج بعد الحفظ
+        form.reset();
+
+    });
+
+});
+
+
 /* القائمة الجانبية للشاشات الصغيرة (Mobile Sidebar) */
 function toggleSidebar() {
   const sidebar = document.querySelector('.ems-sidebar');
