@@ -78,6 +78,27 @@ function openModal(id) {
   }
 }
 
+
+// Add Users Modal
+
+ // Modal Dialog Handlers
+  window.openModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+  };
+
+
+  window.closeModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+  };
+
 function closeModal(id) {
   const modal = document.getElementById(id);
   if (modal) {

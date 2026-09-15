@@ -532,6 +532,7 @@
             </div>
 
             <form @submit.prevent="addNewMember()" class="space-y-4 text-xs">
+                @csrf
                 <div>
                     <label class="block text-slate-700 font-bold mb-1.5">الاسم الكامل:</label>
                     <input type="text" x-model="newMemberData.name" required placeholder="مثال: م. أحمد السعيد" class="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#c5a059] text-xs">
