@@ -97,12 +97,13 @@
         @endif
 
         <!-- بطاقات إحصائيات الدوام (ديناميكية) -->
+        <!-- بطاقات إحصائيات الدوام (ديناميكية) -->
         <div class="ems-stats-grid">
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">نسبة الالتزام بالدوام</span>
                     <span class="ems-stat-value" style="color: #10b981;">{{ $attendanceRate }}%</span>
-                    <span class="ems-stat-subtext">{{ $presentCount }} من أصل {{ $totalEmployees }} موظفاً</span>
+                    <span class="ems-stat-subtext">{{ ($viewScope ?? '') === 'self' ? $presentCount . ' يوم حضور مسجل' : $presentCount . ' من أصل ' . $totalEmployees . ' موظفاً' }}</span>
                 </div>
                 <div class="ems-stat-icon" style="background-color: #dcfce7; border-color: #bbf7d0; color: #15803d;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -115,7 +116,7 @@
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">حضور في الوقت المحدد</span>
                     <span class="ems-stat-value">{{ $onTimeCount }}</span>
-                    <span class="ems-stat-subtext">قبل أو عند الساعة 10:00 ص</span>
+                    <span class="ems-stat-subtext">{{ ($viewScope ?? '') === 'self' ? 'أيام الالتزام بموعد الدوام' : 'قبل أو عند الساعة 10:00 ص' }}</span>
                 </div>
                 <div class="ems-stat-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -127,9 +128,9 @@
 
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
-                    <span class="ems-stat-label">حالات تأخير اليوم</span>
+                    <span class="ems-stat-label">{{ ($viewScope ?? '') === 'self' ? 'مرات التأخير' : 'حالات تأخير اليوم' }}</span>
                     <span class="ems-stat-value" style="color: #d97706;">{{ $lateCount }}</span>
-                    <span class="ems-stat-subtext">بعد الساعة 10:00 ص</span>
+                    <span class="ems-stat-subtext">{{ ($viewScope ?? '') === 'self' ? 'مرات التأخير المسجلة' : 'بعد الساعة 10:00 ص' }}</span>
                 </div>
                 <div class="ems-stat-icon" style="background-color: #fef3c7; border-color: #fde68a; color: #b45309;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -143,7 +144,7 @@
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">إجازات ومهمات عمل</span>
                     <span class="ems-stat-value" style="color: #6d28d9;">{{ $leaveCount }}</span>
-                    <span class="ems-stat-subtext">مسجلة لليوم الحالي</span>
+                    <span class="ems-stat-subtext">{{ ($viewScope ?? '') === 'self' ? 'أيام الإجازات المسجلة' : 'مسجلة لليوم الحالي' }}</span>
                 </div>
                 <div class="ems-stat-icon" style="background-color: #ede9fe; border-color: #ddd6fe; color: #6d28d9;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -155,7 +156,7 @@
             </div>
         </div>
 
-        <!-- جدول الحضور والانصراف اليومي (ديناميكي) -->
+        <!-- جدول الحضور والانصراف (ديناميكي) -->
         <div class="ems-card">
             <div class="ems-card-header">
                 <div class="ems-card-title">
@@ -164,7 +165,7 @@
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                     </svg>
-                    <span>سجل الحضور اليومي - اليوم: {{ today()->translatedFormat('l d F Y') }}</span>
+                    <span>{{ ($viewScope ?? '') === 'self' ? 'سجل دوامي وحضوري (آخر 30 يوماً)' : 'سجل الحضور اليومي - اليوم: ' . today()->translatedFormat('l d F Y') }}</span>
                 </div>
                 <span class="ems-badge badge-gold">{{ $records->count() }} سجل</span>
             </div>
@@ -174,8 +175,12 @@
                     <table class="ems-table" id="attendanceTable">
                         <thead>
                             <tr>
-                                <th>الموظف</th>
-                                <th>الدائرة</th>
+                                @if (($viewScope ?? '') === 'self')
+                                    <th>اليوم والتاريخ</th>
+                                @else
+                                    <th>الموظف</th>
+                                    <th>الدائرة</th>
+                                @endif
                                 <th>وقت الحضور (In)</th>
                                 <th>وقت الانصراف (Out)</th>
                                 <th>ساعات العمل</th>
@@ -204,20 +209,28 @@
                             @forelse ($records as $index => $record)
                                 @php $status = $statusMeta[$record->status] ?? ['label' => $record->status, 'class' => '']; @endphp
                                 <tr>
-                                    <td>
-                                        <div style="display: flex; align-items: center; gap: 10px;">
-                                            <div class="ems-avatar"
-                                                style="width: 32px; height: 32px; font-size: 12px; background: {{ $avatarColors[$index % count($avatarColors)] }};">
-                                                {{ mb_substr($record->employee->full_name ?? '-', 0, 1) }}</div>
-                                            <div>
-                                                <strong
-                                                    style="color: var(--ems-text-main);">{{ $record->employee->full_name ?? '-' }}</strong>
-                                                <div style="font-size: 11px; color: var(--ems-text-muted);">
-                                                    {{ $record->employee->position ?? '' }}</div>
+                                    @if (($viewScope ?? '') === 'self')
+                                        <td>
+                                            <strong style="color: var(--ems-text-main);">
+                                                {{ $record->date ? \Carbon\Carbon::parse($record->date)->translatedFormat('l, d F Y') : '-' }}
+                                            </strong>
+                                        </td>
+                                    @else
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 10px;">
+                                                <div class="ems-avatar"
+                                                    style="width: 32px; height: 32px; font-size: 12px; background: {{ $avatarColors[$index % count($avatarColors)] }};">
+                                                    {{ mb_substr($record->employee->full_name ?? '-', 0, 1) }}</div>
+                                                <div>
+                                                    <strong
+                                                        style="color: var(--ems-text-main);">{{ $record->employee->full_name ?? '-' }}</strong>
+                                                    <div style="font-size: 11px; color: var(--ems-text-muted);">
+                                                        {{ $record->employee->position ?? '' }}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td>{{ $record->employee->department->name ?? '-' }}</td>
+                                        </td>
+                                        <td>{{ $record->employee->department->name ?? '-' }}</td>
+                                    @endif
                                     <td><span
                                             style="font-family: var(--font-mono); font-weight: 700; color: {{ $record->status === 'Late' ? '#b45309' : '#15803d' }};">{{ $record->check_in_time?->format('h:i A') ?? '--:--' }}</span>
                                     </td>
@@ -231,8 +244,9 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" style="text-align:center; color: var(--ems-text-muted);">ما في
-                                        سجلات حضور لليوم بعد.</td>
+                                    <td colspan="{{ ($viewScope ?? '') === 'self' ? 5 : 6 }}" style="text-align:center; color: var(--ems-text-muted);">
+                                        ما في سجلات حضور مسجلة بعد.
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>

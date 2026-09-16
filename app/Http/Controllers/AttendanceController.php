@@ -22,17 +22,34 @@ class AttendanceController extends Controller
 
         $today = today();
 
-        $records = $this->scopedQuery($user, $viewScope)
-            ->with(['employee.department'])
-            ->whereDate('date', $today)
-            ->get();
+        if ($viewScope === 'self') {
+            // للموظف العادي: نعرض سجله الكامل التراكمي (آخر 30 يوم)
+            $records = $this->scopedQuery($user, $viewScope)
+                ->with(['employee.department'])
+                ->orderByDesc('date')
+                ->limit(30)
+                ->get();
 
-        $totalEmployees = Employee::where('employment_status', 'active')->count();
-        $presentCount = $records->whereIn('status', ['Present', 'Late'])->count();
-        $onTimeCount = $records->where('status', 'Present')->count();
-        $lateCount = $records->where('status', 'Late')->count();
-        $leaveCount = $records->where('status', 'Leave')->count();
-        $attendanceRate = $totalEmployees > 0 ? round(($presentCount / $totalEmployees) * 100, 1) : 0;
+            $totalEmployees = 1;
+            $presentCount = $records->whereIn('status', ['Present', 'Late'])->count();
+            $onTimeCount = $records->where('status', 'Present')->where('late_minutes', 0)->count();
+            $lateCount = $records->where('status', 'Late')->count();
+            $leaveCount = $records->where('status', 'Leave')->count();
+            $totalRecorded = $records->count();
+            $attendanceRate = $totalRecorded > 0 ? round(($presentCount / $totalRecorded) * 100, 1) : 100;
+        } else {
+            $records = $this->scopedQuery($user, $viewScope)
+                ->with(['employee.department'])
+                ->whereDate('date', $today)
+                ->get();
+
+            $totalEmployees = Employee::where('employment_status', 'active')->count();
+            $presentCount = $records->whereIn('status', ['Present', 'Late'])->count();
+            $onTimeCount = $records->where('status', 'Present')->count();
+            $lateCount = $records->where('status', 'Late')->count();
+            $leaveCount = $records->where('status', 'Leave')->count();
+            $attendanceRate = $totalEmployees > 0 ? round(($presentCount / $totalEmployees) * 100, 1) : 0;
+        }
 
         // قوائم الموظفين اللي هاد المستخدم (لو عنده صلاحية attendance.create) يقدر يسجلهم اليوم
         $checkedInEmployeeIds = [];
@@ -75,6 +92,7 @@ class AttendanceController extends Controller
             'checkedInNotOutEmployees',
             'canCreate',
             'canUpdate',
+            'viewScope',
         ));
     }
 

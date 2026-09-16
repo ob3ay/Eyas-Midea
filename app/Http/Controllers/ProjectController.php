@@ -17,7 +17,7 @@ class ProjectController extends Controller
         $scope = $this->authorizeScope('projects.view');
 
         $projects = $this->scopedProjectsQuery($user, $scope)
-            ->with(['department', 'owner', 'members', 'tasks'])
+            ->with(['department', 'owner', 'members', 'tasks.assignee'])
             ->latest()
             ->get();
 
@@ -189,7 +189,12 @@ class ProjectController extends Controller
         }
 
         if ($scope === 'self') {
-            return $query->where('owner_employee_id', $ownEmployee->id);
+            return $query->where(function ($q) use ($ownEmployee) {
+                $q->where('owner_employee_id', $ownEmployee->id)
+                    ->orWhereHas('members', function ($memberQuery) use ($ownEmployee) {
+                        $memberQuery->where('employees.id', $ownEmployee->id);
+                    });
+            });
         }
 
         return $query->where('department_id', $ownEmployee->department_id);

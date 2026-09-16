@@ -44,6 +44,7 @@ class PerformanceController extends Controller
             $onTimeRate = $totalTasksWithDueDate > 0 ? round(($onTimeTasks / $totalTasksWithDueDate) * 100, 1) : null;
 
             $latestEvaluation = PerformanceEvaluation::where('employee_id', $employee->id)
+                ->with('evaluator')
                 ->latest('evaluation_date')
                 ->first();
 

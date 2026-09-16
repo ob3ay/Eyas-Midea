@@ -57,9 +57,15 @@
                     </div>
                 </a>
 
+                @php
+                    $user = auth()->user();
+                    $isSelfEmployee = $user && $user->highestScopeFor('employees.view') === 'self';
+                    $canViewStaff = $user && in_array($user->highestScopeFor('employees.view'), ['department', 'organization']);
+                @endphp
+
                 <div class="ems-nav-group-title">الإدارة والتشغيل</div>
 
-                @if (Route::has('employees.index'))
+                @if ($canViewStaff && Route::has('employees.index'))
                     <a href="{{ route('employees.index') }}"
                         class="ems-nav-link {{ request()->routeIs('employees.*') ? 'active' : '' }}">
                         <div class="ems-nav-link-content">
@@ -77,7 +83,7 @@
                     </a>
                 @endif
 
-                @if (Route::has('departments.index'))
+                @if ($user?->hasPermission('departments.view') && Route::has('departments.index'))
                     <a href="{{ route('departments.index') }}"
                         class="ems-nav-link {{ request()->routeIs('departments.*') ? 'active' : '' }}">
                         <div class="ems-nav-link-content">
@@ -98,7 +104,7 @@
                     </a>
                 @endif
 
-                @if (Route::has('projects.index'))
+                @if ($user?->hasPermission('projects.view') && Route::has('projects.index'))
                     <a href="{{ route('projects.index') }}"
                         class="ems-nav-link {{ request()->routeIs('projects.*') ? 'active' : '' }}">
                         <div class="ems-nav-link-content">
@@ -114,7 +120,7 @@
                     </a>
                 @endif
 
-                @if (Route::has('tasks.index'))
+                @if ($user?->hasPermission('tasks.view') && Route::has('tasks.index'))
                     <a href="{{ route('tasks.index') }}"
                         class="ems-nav-link {{ request()->routeIs('tasks.*') ? 'active' : '' }}">
                         <div class="ems-nav-link-content">
@@ -130,9 +136,11 @@
                     </a>
                 @endif
 
-                <div class="ems-nav-group-title">المتابعة والرقابة</div>
+                @if ($user?->hasPermission('attendance.view') || $user?->hasPermission('performance.view') || $user?->hasPermission('reports.view') || $user?->hasPermission('users.view'))
+                    <div class="ems-nav-group-title">المتابعة والرقابة</div>
+                @endif
 
-                @if (Route::has('attendance.index'))
+                @if ($user?->hasPermission('attendance.view') && Route::has('attendance.index'))
                     <a href="{{ route('attendance.index') }}"
                         class="ems-nav-link {{ request()->routeIs('attendance.*') ? 'active' : '' }}">
                         <div class="ems-nav-link-content">
@@ -140,12 +148,12 @@
                                 <circle cx="12" cy="12" r="10" />
                                 <polyline points="12 6 12 12 16 14" />
                             </svg>
-                            <span>الحضور والانصراف</span>
+                            <span>{{ $isSelfEmployee ? 'سجل دوامي وحضوري' : 'الحضور والانصراف' }}</span>
                         </div>
                     </a>
                 @endif
 
-                @if (Route::has('performance.index'))
+                @if ($user?->hasPermission('performance.view') && Route::has('performance.index'))
                     <a href="{{ route('performance.index') }}"
                         class="ems-nav-link {{ request()->routeIs('performance.*') ? 'active' : '' }}">
                         <div class="ems-nav-link-content">
@@ -154,11 +162,27 @@
                                 <path d="M18 20V4" />
                                 <path d="M6 20v-4" />
                             </svg>
-                            <span>الأداء والإنجاز</span>
+                            <span>{{ $isSelfEmployee ? 'تقييم أدائي' : 'الأداء والإنجاز' }}</span>
                         </div>
                     </a>
                 @endif
-                @if (Route::has('reports.index'))
+
+                @if (Route::has('requests.index'))
+                    <a href="{{ route('requests.index') }}"
+                        class="ems-nav-link {{ request()->routeIs('requests.*') ? 'active' : '' }}">
+                        <div class="ems-nav-link-content">
+                            <svg class="ems-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                            <span>{{ $isSelfEmployee ? 'طلباتي والخدمة الذاتية' : 'طلبات الموظفين' }}</span>
+                        </div>
+                    </a>
+                @endif
+
+                @if ($user?->hasPermission('reports.view') && Route::has('reports.index'))
                     <a href="{{ route('reports.index') }}"
                         class="ems-nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
                         <div class="ems-nav-link-content">
@@ -172,7 +196,7 @@
                     </a>
                 @endif
 
-                @if (Route::has('users.index'))
+                @if ($user?->hasPermission('users.view') && Route::has('users.index'))
                     <a href="{{ route('users.index') }}"
                         class="ems-nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
                         <div class="ems-nav-link-content">
@@ -217,13 +241,15 @@
                 </div>
 
                 <div class="ems-topbar-end">
-                    <button class="ems-icon-btn" onclick="openModal('modal-quick-attendance')" title="تسجيل الحضور">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                    </button>
+                    @if (auth()->user()?->hasPermission('attendance.create'))
+                        <button class="ems-icon-btn" onclick="openModal('modal-quick-attendance')" title="تسجيل الحضور">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                        </button>
+                    @endif
 
                     <button class="ems-icon-btn" title="الإشعارات">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -295,7 +321,7 @@
 
 
                                 <!-- Roles -->
-                                @if (count($userRoles) > 0)
+                                @if ($authUser?->hasPermission('users.view') && count($userRoles) > 0)
 
                                     <div class="ems-dropdown-item"
                                         style="cursor: default; flex-direction: column; align-items: flex-start; gap: 6px;">
@@ -417,7 +443,7 @@
         </div>
     </div>
 
-    <div id="ems-toast-container"></div>
+    <div id="ems-toast-container" class="ems-toast-container"></div>
     <script src="{{ asset('assets/js/portal.js') }}"></script>
     @stack('scripts')
 </body>

@@ -11,84 +11,151 @@
                 مرحباً بك{{ $primaryRoleName ? '، ' . $primaryRoleName : '' }}: {{ $welcomeName }}
             </h1>
             <p style="font-size: 13.5px; color: #94a3b8; max-width: 600px;">
-                نظرة تنفيذية شاملة على سير العمليات والإنتاج وشؤون الكوادر في مجموعة إياس الإعلامية بكافة دوائرها التخصصية.
+                @if ($isEmployee ?? false)
+                    متابعة مباشرة لمهامك ومشاريعك وسجل دوامك وتقييم أدائك في مجموعة إياس الإعلامية.
+                @else
+                    نظرة تنفيذية شاملة على سير العمليات والإنتاج وشؤون الكوادر في مجموعة إياس الإعلامية بكافة دوائرها التخصصية.
+                @endif
             </p>
         </div>
 
         <div style="display: flex; align-items: center; gap: 12px;">
-            <a href="{{ route('projects.index') }}" class="ems-btn ems-btn-primary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>مشروع جديد</span>
-            </a>
+            @if (auth()->user()?->hasPermission('projects.create'))
+                <a href="{{ route('projects.index') }}" class="ems-btn ems-btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>مشروع جديد</span>
+                </a>
+            @endif
             <a href="{{ route('tasks.index') }}" class="ems-btn ems-btn-secondary"
                 style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff;">
-                <span>متابعة المهام ({{ $taskCount }})</span>
+                <span>{{ ($isEmployee ?? false) ? 'متابعة مهامي' : 'متابعة المهام' }} ({{ $taskCount }})</span>
             </a>
         </div>
     </div>
 
     <!-- 4 بطاقات إحصائية رئيسية -->
     <div class="ems-stats-grid">
-        <div class="ems-stat-card">
-            <div class="ems-stat-info">
-                <span class="ems-stat-label">إجمالي الكادر والقيادة</span>
-                <span class="ems-stat-value">{{ $employeeCount }}</span>
-                <span class="ems-stat-subtext" style="color: #10b981;">{{ $departmentCount }} دوائر تخصصية رئيسية</span>
+        @if ($isEmployee ?? false)
+            <!-- كروت مخصصة للموظف -->
+            <div class="ems-stat-card">
+                <div class="ems-stat-info">
+                    <span class="ems-stat-label">مهامي النشطة</span>
+                    <span class="ems-stat-value">{{ $myActiveTasksCount }}</span>
+                    <span class="ems-stat-subtext" style="color: #6d28d9;">{{ $underReviewCount }} مهام قيد المراجعة</span>
+                </div>
+                <div class="ems-stat-icon" style="background-color: #ede9fe; border-color: #ddd6fe; color: #6d28d9;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m9 11 3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>
+                </div>
             </div>
-            <div class="ems-stat-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-            </div>
-        </div>
 
-        <div class="ems-stat-card">
-            <div class="ems-stat-info">
-                <span class="ems-stat-label">المشاريع البرمجية والإعلامية</span>
-                <span class="ems-stat-value">{{ $projectCount }}</span>
-                <span class="ems-stat-subtext" style="color: #d97706;">{{ $activeProjectsCount }} مشاريع قيد التطوير</span>
+            <div class="ems-stat-card">
+                <div class="ems-stat-info">
+                    <span class="ems-stat-label">مشاريعي الحالية</span>
+                    <span class="ems-stat-value">{{ $projectCount }}</span>
+                    <span class="ems-stat-subtext" style="color: #d97706;">{{ $activeProjectsCount }} مشاريع قيد التطوير</span>
+                </div>
+                <div class="ems-stat-icon" style="background-color: #fef3c7; border-color: #fde68a; color: #b45309;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 8 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+                    </svg>
+                </div>
             </div>
-            <div class="ems-stat-icon" style="background-color: #fef3c7; border-color: #fde68a; color: #b45309;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path
-                        d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 8 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-                </svg>
-            </div>
-        </div>
 
-        <div class="ems-stat-card">
-            <div class="ems-stat-info">
-                <span class="ems-stat-label">المهام في دورة العمل</span>
-                <span class="ems-stat-value">{{ $taskCount }}</span>
-                <span class="ems-stat-subtext" style="color: #6d28d9;">{{ $underReviewCount }} مهام قيد المراجعة</span>
+            <div class="ems-stat-card">
+                <div class="ems-stat-info">
+                    <span class="ems-stat-label">سجل دوامي هذا الشهر</span>
+                    <span class="ems-stat-value" style="color: #10b981;">{{ $presentThisMonthCount }} يوم</span>
+                    <span class="ems-stat-subtext">{{ $todayAttendance ? 'حاضر اليوم' : 'بانتظار تسجيل اليوم' }}</span>
+                </div>
+                <div class="ems-stat-icon" style="background-color: #dcfce7; border-color: #bbf7d0; color: #15803d;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                </div>
             </div>
-            <div class="ems-stat-icon" style="background-color: #ede9fe; border-color: #ddd6fe; color: #6d28d9;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="m9 11 3 3L22 4" />
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </svg>
-            </div>
-        </div>
 
-        <div class="ems-stat-card">
-            <div class="ems-stat-info">
-                <span class="ems-stat-label">نسبة الالتزام بالدوام اليوم</span>
-                <span class="ems-stat-value" style="color: #10b981;">{{ $attendanceRate }}%</span>
-                <span class="ems-stat-subtext">{{ $presentTodayCount }} حاضراً في الميدان والمقر</span>
+            <div class="ems-stat-card">
+                <div class="ems-stat-info">
+                    <span class="ems-stat-label">تقييم أدائي الأخير</span>
+                    <span class="ems-stat-value" style="color: #c5a059;">{{ $latestEvaluation ? $latestEvaluation->score . '%' : 'قيد التقييم' }}</span>
+                    <span class="ems-stat-subtext">{{ $latestEvaluation ? 'الفترة: ' . $latestEvaluation->period : 'تقييم رسمي معتمد' }}</span>
+                </div>
+                <div class="ems-stat-icon" style="background-color: rgba(197, 160, 89, 0.15); border-color: rgba(197, 160, 89, 0.3); color: #c5a059;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20V10" />
+                        <path d="M18 20V4" />
+                        <path d="M6 20v-4" />
+                    </svg>
+                </div>
             </div>
-            <div class="ems-stat-icon" style="background-color: #dcfce7; border-color: #bbf7d0; color: #15803d;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                </svg>
+        @else
+            <!-- كروت الإدارة العامة -->
+            <div class="ems-stat-card">
+                <div class="ems-stat-info">
+                    <span class="ems-stat-label">إجمالي الكادر والقيادة</span>
+                    <span class="ems-stat-value">{{ $employeeCount }}</span>
+                    <span class="ems-stat-subtext" style="color: #10b981;">{{ $departmentCount }} دوائر تخصصية رئيسية</span>
+                </div>
+                <div class="ems-stat-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                </div>
             </div>
-        </div>
+
+            <div class="ems-stat-card">
+                <div class="ems-stat-info">
+                    <span class="ems-stat-label">المشاريع البرمجية والإعلامية</span>
+                    <span class="ems-stat-value">{{ $projectCount }}</span>
+                    <span class="ems-stat-subtext" style="color: #d97706;">{{ $activeProjectsCount }} مشاريع قيد التطوير</span>
+                </div>
+                <div class="ems-stat-icon" style="background-color: #fef3c7; border-color: #fde68a; color: #b45309;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 8 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+                    </svg>
+                </div>
+            </div>
+
+            <div class="ems-stat-card">
+                <div class="ems-stat-info">
+                    <span class="ems-stat-label">المهام في دورة العمل</span>
+                    <span class="ems-stat-value">{{ $taskCount }}</span>
+                    <span class="ems-stat-subtext" style="color: #6d28d9;">{{ $underReviewCount }} مهام قيد المراجعة</span>
+                </div>
+                <div class="ems-stat-icon" style="background-color: #ede9fe; border-color: #ddd6fe; color: #6d28d9;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m9 11 3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>
+                </div>
+            </div>
+
+            <div class="ems-stat-card">
+                <div class="ems-stat-info">
+                    <span class="ems-stat-label">نسبة الالتزام بالدوام اليوم</span>
+                    <span class="ems-stat-value" style="color: #10b981;">{{ $attendanceRate }}%</span>
+                    <span class="ems-stat-subtext">{{ $presentTodayCount }} حاضراً في الميدان والمقر</span>
+                </div>
+                <div class="ems-stat-icon" style="background-color: #dcfce7; border-color: #bbf7d0; color: #15803d;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                </div>
+            </div>
+        @endif
     </div>
 
     <div class="ems-two-columns">

@@ -61,6 +61,11 @@ class Employee extends Model
         return $this->hasOne(User::class);
     }
 
+    public function requests(): HasMany
+    {
+        return $this->hasMany(EmployeeRequest::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('employment_status', 'active');

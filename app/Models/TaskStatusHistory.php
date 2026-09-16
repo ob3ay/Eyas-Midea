@@ -10,6 +10,8 @@ class TaskStatusHistory extends Model
 {
     use HasFactory;
 
+    protected $table = 'task_status_history';
+
     const CREATED_AT = 'changed_at';
     const UPDATED_AT = null;
 

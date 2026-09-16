@@ -2,11 +2,16 @@
 
 namespace Database\Seeders;
 
+use App\Models\AttendanceRecord;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeRequest;
+use App\Models\PerformanceEvaluation;
 use App\Models\Permission;
+use App\Models\Project;
 use App\Models\Role;
 use App\Models\Section;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -131,6 +136,37 @@ class DatabaseSeeder extends Seeder
         $secCampaigns->update(['section_head_employee_id' => $createdEmployees['EMP-0011']->id]);
         $secPr->update(['section_head_employee_id' => $createdEmployees['EMP-0012']->id]);
 
+        // 6.1) حساب تجريبي للموظف (Employee - Role: EMP)
+        $empRecord = Employee::firstOrCreate(
+            ['employee_code' => 'EMP-1001'],
+            [
+                'full_name' => 'عمر خالد',
+                'national_id' => '1098765432',
+                'department_id' => $dept3->id,
+                'section_id' => $secWeb->id,
+                'position' => 'مطور واجهات ومواقع (Frontend Developer)',
+                'phone' => '0599123456',
+                'employment_status' => 'active',
+                'hire_date' => now()->subMonths(6)->toDateString(),
+            ]
+        );
+
+        $empUser = User::firstOrCreate(
+            ['email' => 'employee@eyasmedia.com'],
+            [
+                'employee_id' => $empRecord->id,
+                'username' => 'employee',
+                'password' => Hash::make('password123'),
+                'is_active' => true,
+            ]
+        );
+        $empUser->update(['password' => Hash::make('password123')]);
+
+        $empRole = Role::where('name', 'EMP')->first();
+        if ($empRole && ! $empUser->roles()->where('role_id', $empRole->id)->exists()) {
+            $empUser->roles()->attach($empRole->id);
+        }
+
         // 7) صلاحيات كل موديولات النظام (EMS Modules) وربطها بالأدوار بنطاقات مختلفة
         //    المفهوم: Role (دور) + Permission (ماذا يستطيع أن يفعل) + Scope (أين):
         //    self=بياناته فقط / department=دائرته أو قسمه / organization=كل المؤسسة
@@ -233,6 +269,7 @@ class DatabaseSeeder extends Seeder
                 'tasks.update' => 'self',
                 'attendance.view' => 'self',
                 'performance.view' => 'self',
+                'projects.view' => 'self',
             ],
 
             'TA' => [
@@ -252,15 +289,148 @@ class DatabaseSeeder extends Seeder
             if (! $role) {
                 continue;
             }
+            $syncData = [];
             foreach ($permsWithScope as $permKey => $scope) {
                 if (! isset($permissionModels[$permKey])) {
                     continue;
                 }
-                $role->permissions()->syncWithoutDetaching([
-                    $permissionModels[$permKey]->id => ['scope' => $scope],
-                ]);
+                $syncData[$permissionModels[$permKey]->id] = ['scope' => $scope];
             }
+            $role->permissions()->sync($syncData);
         }
+
+        // 8) بذر بيانات تجريبية مرتبطة بالموظف (مشاريع ومهام وسجل حضور وتقييم)
+        $project1 = Project::firstOrCreate(
+            ['title' => 'تطوير المنصة الإعلامية والبوابة الرقمية'],
+            [
+                'description' => 'مشروع إعادة تصميم وتطوير المنصة الرقمية التفاعلية لمجموعة إياس الإعلامية.',
+                'department_id' => $dept3->id,
+                'owner_employee_id' => $createdEmployees['EMP-0007']->id,
+                'start_date' => now()->subMonth()->toDateString(),
+                'end_date' => now()->addMonths(2)->toDateString(),
+                'status' => 'in_progress',
+                'completion_percentage' => 45.0,
+            ]
+        );
+
+        $project2 = Project::firstOrCreate(
+            ['title' => 'تطبيق الهواتف الذكية لمجموعة إياس'],
+            [
+                'description' => 'تطوير تطبيق الهواتف الذكية لبث المحتوى الإخباري والتقارير المرئية.',
+                'department_id' => $dept3->id,
+                'owner_employee_id' => $createdEmployees['EMP-0008']->id,
+                'start_date' => now()->subWeeks(2)->toDateString(),
+                'end_date' => now()->addMonths(3)->toDateString(),
+                'status' => 'in_progress',
+                'completion_percentage' => 20.0,
+            ]
+        );
+
+        if (! $project1->members()->where('employees.id', $empRecord->id)->exists()) {
+            $project1->members()->attach($empRecord->id, ['role_in_project' => 'مطور واجهات']);
+        }
+        if (! $project2->members()->where('employees.id', $empRecord->id)->exists()) {
+            $project2->members()->attach($empRecord->id, ['role_in_project' => 'تكامل واجهات API']);
+        }
+
+        // مهام مسندة للموظف
+        Task::firstOrCreate(
+            ['title' => 'بناء وتنسيق القوالب الرئيسية للبوابة الإعلامية', 'assignee_employee_id' => $empRecord->id],
+            [
+                'description' => 'تطوير صفحات البوابة وتوافقها مع مختلف الشاشات والأجهزة اللوحية.',
+                'project_id' => $project1->id,
+                'created_by' => $createdEmployees['EMP-0007']->id,
+                'priority' => 'High',
+                'due_datetime' => now()->addDays(3),
+                'status' => 'In Progress',
+                'completion_percentage' => 60.0,
+            ]
+        );
+
+        Task::firstOrCreate(
+            ['title' => 'ربط واجهات تسجيل الدخول والملف الشخصي', 'assignee_employee_id' => $empRecord->id],
+            [
+                'description' => 'تنفيذ منطق عرض بيانات الملف الشخصي والتحقق من الصلاحيات.',
+                'project_id' => $project1->id,
+                'created_by' => $createdEmployees['EMP-0007']->id,
+                'priority' => 'Medium',
+                'due_datetime' => now()->addDays(7),
+                'status' => 'To-Do',
+                'completion_percentage' => 0,
+            ]
+        );
+
+        Task::firstOrCreate(
+            ['title' => 'تصميم مكونات واجهة المستخدم في تطبيق الهاتف', 'assignee_employee_id' => $empRecord->id],
+            [
+                'description' => 'إعداد مكونات UI التفاعلية المتوافقة مع هوية المنصة.',
+                'project_id' => $project2->id,
+                'created_by' => $createdEmployees['EMP-0008']->id,
+                'priority' => 'Urgent',
+                'due_datetime' => now()->addDays(1),
+                'status' => 'Under Review',
+                'completion_percentage' => 90.0,
+            ]
+        );
+
+        // سجلات حضور وانصراف سابقة للموظف (مسجلة بواسطة الأدمن)
+        $pastDates = [
+            ['daysAgo' => 3, 'in' => '08:55:00', 'out' => '16:05:00', 'status' => 'Present', 'late' => 0],
+            ['daysAgo' => 2, 'in' => '09:15:00', 'out' => '16:00:00', 'status' => 'Late', 'late' => 15],
+            ['daysAgo' => 1, 'in' => '08:50:00', 'out' => '16:10:00', 'status' => 'Present', 'late' => 0],
+        ];
+        foreach ($pastDates as $log) {
+            $logDate = now()->subDays($log['daysAgo'])->toDateString();
+            AttendanceRecord::firstOrCreate(
+                ['employee_id' => $empRecord->id, 'date' => $logDate],
+                [
+                    'check_in_time' => $logDate . ' ' . $log['in'],
+                    'check_out_time' => $logDate . ' ' . $log['out'],
+                    'status' => $log['status'],
+                    'work_minutes' => 420,
+                    'late_minutes' => $log['late'],
+                    'recorded_by' => $adminUser->id,
+                ]
+            );
+        }
+
+        // تقييم أداء تجريبي للموظف
+        PerformanceEvaluation::firstOrCreate(
+            ['employee_id' => $empRecord->id, 'period' => '2026-Q1'],
+            [
+                'evaluator_user_id' => $adminUser->id,
+                'evaluation_date' => now()->subWeeks(2)->toDateString(),
+                'score' => 92.5,
+                'notes' => 'أداء متميز في الالتزام بمواعيد تسليم واجهات المشاريع، ودقة عالية في المعايير التصميمية.',
+                'is_finalized' => true,
+            ]
+        );
+
+        // طلبات إدارية ومالية تجريبية للموظف (طلباتي والخدمة الذاتية)
+        EmployeeRequest::firstOrCreate(
+            ['employee_id' => $empRecord->id, 'title' => 'طلب إجازة سنوية اعتيادية'],
+            [
+                'type' => 'leave',
+                'reason' => 'إجازة سنوية للاستراحة وتجديد النشاط بعد تسليم المرحلة الأولى من البوابة الرقمية.',
+                'start_date' => now()->addDays(10)->toDateString(),
+                'end_date' => now()->addDays(14)->toDateString(),
+                'days_count' => 5,
+                'status' => 'approved',
+                'reviewed_by' => $adminUser->id,
+                'reviewed_at' => now()->subDay(),
+                'admin_notes' => 'تمت الموافقة على الإجازة مع تمنياتنا بإجازة سعيدة. تم التنسيق مع رئيس القسم.',
+            ]
+        );
+
+        EmployeeRequest::firstOrCreate(
+            ['employee_id' => $empRecord->id, 'title' => 'طلب سلفة راتب شهر سبتمبر'],
+            [
+                'type' => 'advance',
+                'reason' => 'طلب سلفة مالية لتغطية التزامات عائلية طارئة، مع الموافقة على خصمها من الراتب القادم.',
+                'amount' => 1500.00,
+                'status' => 'pending',
+            ]
+        );
     }
 
     private function allPermissionsAtScope(array $permissionKeys, string $scope): array

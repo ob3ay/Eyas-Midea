@@ -64,6 +64,78 @@ class DashboardController extends Controller
             ->limit(4)
             ->get();
 
+        $isEmployee = $user->hasRole('EMP') || $user->highestScopeFor('employees.view') === 'self';
+        $latestEvaluation = null;
+        $todayAttendance = null;
+        $presentThisMonthCount = 0;
+        $lateThisMonthCount = 0;
+        $myActiveTasksCount = 0;
+
+        if ($isEmployee && $user->employee_id) {
+            $empId = $user->employee_id;
+
+            // مهام الموظف
+            $myTasks = Task::where('assignee_employee_id', $empId)->get();
+            $taskCount = $myTasks->count();
+            $myActiveTasksCount = $myTasks->whereIn('status', ['To-Do', 'In Progress', 'Under Review'])->count();
+            $underReviewCount = $myTasks->where('status', 'Under Review')->count();
+
+            // مشاريع الموظف
+            $myProjectsQuery = Project::whereHas('members', fn($q) => $q->where('employees.id', $empId));
+            $projectCount = $myProjectsQuery->count();
+            $activeProjectsCount = (clone $myProjectsQuery)->whereIn('status', ['in_progress', 'in_review'])->count();
+
+            // سجل حضور الموظف هذا الشهر
+            $attendanceThisMonth = \App\Models\AttendanceRecord::where('employee_id', $empId)
+                ->whereMonth('date', now()->month)
+                ->whereYear('date', now()->year)
+                ->get();
+            $presentThisMonthCount = $attendanceThisMonth->whereIn('status', ['Present', 'Late'])->count();
+            $lateThisMonthCount = $attendanceThisMonth->where('status', 'Late')->count();
+
+            // حالة تسجيل الحضور اليوم
+            $todayAttendance = \App\Models\AttendanceRecord::where('employee_id', $empId)
+                ->whereDate('date', today())
+                ->first();
+
+            // آخر تقييم أداء
+            $latestEvaluation = \App\Models\PerformanceEvaluation::where('employee_id', $empId)
+                ->latest('evaluation_date')
+                ->first();
+
+            // أبرز مشاريع الموظف
+            $activeProjects = (clone $myProjectsQuery)
+                ->with('department')
+                ->whereIn('status', ['in_progress', 'in_review'])
+                ->orderByDesc('completion_percentage')
+                ->limit(3)
+                ->get();
+
+            // توزيع مهام الموظف
+            $taskStatusCounts = Task::where('assignee_employee_id', $empId)
+                ->selectRaw('status, count(*) as total')
+                ->whereIn('status', array_keys($taskStages))
+                ->groupBy('status')
+                ->pluck('total', 'status');
+
+            // أنشطة خاصة بالموظف
+            $recentActivities = AuditLog::with('user.employee')
+                ->where(function ($q) use ($user, $empId) {
+                    $q->where('user_id', $user->id)
+                      ->orWhere(function ($sub) use ($empId) {
+                          $sub->where('entity_type', 'Task')
+                              ->whereIn('entity_id', Task::where('assignee_employee_id', $empId)->pluck('id'));
+                      });
+                })
+                ->latest('created_at')
+                ->limit(4)
+                ->get();
+
+            if ($recentActivities->isEmpty()) {
+                $recentActivities = AuditLog::with('user.employee')->latest('created_at')->limit(4)->get();
+            }
+        }
+
         return view('dashboard', compact(
             'welcomeName',
             'primaryRoleName',
@@ -79,6 +151,12 @@ class DashboardController extends Controller
             'taskStages',
             'taskStatusCounts',
             'recentActivities',
+            'isEmployee',
+            'latestEvaluation',
+            'todayAttendance',
+            'presentThisMonthCount',
+            'lateThisMonthCount',
+            'myActiveTasksCount',
         ));
     }
 }

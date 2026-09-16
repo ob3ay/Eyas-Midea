@@ -146,12 +146,25 @@
                                         @endif
                                     </td>
                                     <td style="text-align: center;">
-                                        @if ($row->evaluation && $row->evaluation->notes)
-                                            <button class="ems-btn ems-btn-icon" title="ملاحظات التقييم"
-                                                onclick="showToast({{ Js::from($row->evaluation->notes) }}, 'info')">
+                                        @if ($row->evaluation)
+                                            <button type="button" class="ems-btn ems-btn-icon" title="عرض تفاصيل التقييم"
+                                                onclick="showEvaluationDetails({{ Js::from([
+                                                    'employee_name' => $row->employee->full_name,
+                                                    'employee_code' => $row->employee->employee_code,
+                                                    'position' => $row->employee->position ?? '-',
+                                                    'department' => ($row->employee->department?->name ?? '-') . ($row->employee->section ? ' - ' . $row->employee->section->name : ''),
+                                                    'period' => $row->evaluation->period,
+                                                    'date' => $row->evaluation->evaluation_date?->translatedFormat('d F Y') ?? $row->evaluation->evaluation_date?->format('Y-m-d'),
+                                                    'score' => (float) $row->evaluation->score,
+                                                    'grade' => $grade ?? '-',
+                                                    'evaluator' => $row->evaluation->evaluator?->username ?? 'الإدارة',
+                                                    'notes' => $row->evaluation->notes ?? 'لا توجد ملاحظات إضافية مسجلة.',
+                                                    'completed_tasks' => $row->completed_tasks,
+                                                    'on_time_rate' => $row->on_time_rate !== null ? $row->on_time_rate . '%' : 'غير محدد',
+                                                ]) }})">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                     stroke-width="2">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                                                     <circle cx="12" cy="12" r="3" />
                                                 </svg>
                                             </button>
@@ -225,4 +238,107 @@
             </div>
         </div>
     @endif
+
+    {{-- View Evaluation Modal --}}
+    <div class="ems-modal-overlay" id="modal-view-evaluation">
+        <div class="ems-modal" style="max-width: 580px;">
+            <div class="ems-modal-header">
+                <div class="ems-modal-title" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--ems-gold-hover);">
+                        <path d="M12 20V10" />
+                        <path d="M18 20V4" />
+                        <path d="M6 20v-4" />
+                    </svg>
+                    <span>تقرير وتفاصيل تقييم الأداء</span>
+                </div>
+                <button type="button" class="ems-modal-close" onclick="closeModal('modal-view-evaluation')">✕</button>
+            </div>
+
+            <div class="ems-modal-body" style="padding: 24px;">
+
+                {{-- Employee Info Banner --}}
+                <div style="background: var(--ems-surface-alt, #f8fafc); border: 1px solid var(--ems-border, #e2e8f0); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h4 id="eval_emp_name" style="margin: 0 0 4px 0; font-size: 16px; font-weight: 800; color: var(--ems-text-main);"></h4>
+                        <div id="eval_emp_meta" style="font-size: 12px; color: var(--ems-text-muted);"></div>
+                    </div>
+                    <span class="ems-badge badge-gold" id="eval_period_badge"></span>
+                </div>
+
+                {{-- Big Score Card --}}
+                <div style="background: linear-gradient(135deg, rgba(197, 160, 89, 0.1), rgba(197, 160, 89, 0.03)); border: 1px solid var(--ems-gold-light, #e2d2b4); border-radius: 14px; padding: 18px; text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 12px; font-weight: 700; color: var(--ems-gold-hover); margin-bottom: 4px;">
+                        النتيجة والتقييم المعتمد
+                    </div>
+                    <div id="eval_score_val" style="font-size: 38px; font-weight: 900; font-family: var(--font-mono); color: var(--ems-text-main); line-height: 1.1;"></div>
+                    <div style="display: flex; justify-content: center; margin-top: 6px;">
+                        <span id="eval_grade_badge" class="ems-badge badge-completed" style="font-size: 12px; padding: 4px 14px;"></span>
+                    </div>
+
+                    <div class="ems-progress" style="height: 8px; max-width: 260px; margin: 12px auto 0; border-radius: 999px;">
+                        <div id="eval_progress_bar" class="ems-progress-bar" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                {{-- Detail Grid --}}
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+                    <div style="background: var(--ems-surface-alt, #f8fafc); border: 1px solid var(--ems-border); border-radius: 10px; padding: 12px;">
+                        <div style="font-size: 11px; color: var(--ems-text-muted); margin-bottom: 4px;">تاريخ الاعتماد</div>
+                        <strong id="eval_date_val" style="font-size: 13px; color: var(--ems-text-main);"></strong>
+                    </div>
+
+                    <div style="background: var(--ems-surface-alt, #f8fafc); border: 1px solid var(--ems-border); border-radius: 10px; padding: 12px;">
+                        <div style="font-size: 11px; color: var(--ems-text-muted); margin-bottom: 4px;">المسؤول المقيّم</div>
+                        <strong id="eval_evaluator_val" style="font-size: 13px; color: var(--ems-text-main);"></strong>
+                    </div>
+
+                    <div style="background: var(--ems-surface-alt, #f8fafc); border: 1px solid var(--ems-border); border-radius: 10px; padding: 12px;">
+                        <div style="font-size: 11px; color: var(--ems-text-muted); margin-bottom: 4px;">المهام المنجزة</div>
+                        <strong id="eval_tasks_val" style="font-size: 13px; color: var(--ems-text-main);"></strong>
+                    </div>
+
+                    <div style="background: var(--ems-surface-alt, #f8fafc); border: 1px solid var(--ems-border); border-radius: 10px; padding: 12px;">
+                        <div style="font-size: 11px; color: var(--ems-text-muted); margin-bottom: 4px;">الالتزام بالموعد</div>
+                        <strong id="eval_ontime_val" style="font-size: 13px; color: var(--ems-text-main);"></strong>
+                    </div>
+                </div>
+
+                {{-- Notes Section --}}
+                <div style="border: 1px solid var(--ems-border); border-radius: 12px; padding: 14px 16px; background: var(--ems-surface);">
+                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--ems-text-main); margin-bottom: 8px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--ems-gold-hover);">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span>ملاحظات وتوصيات التقييم الإداري:</span>
+                    </div>
+                    <p id="eval_notes_val" style="margin: 0; font-size: 13px; line-height: 1.7; color: var(--ems-text-main); white-space: pre-line; background: var(--ems-surface-alt, #f8fafc); padding: 12px; border-radius: 8px; border-right: 3px solid var(--ems-gold);"></p>
+                </div>
+
+            </div>
+
+            <div class="ems-modal-footer" style="display: flex; justify-content: flex-end;">
+                <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-view-evaluation')">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    @push('scripts')
+        <script>
+            function showEvaluationDetails(data) {
+                document.getElementById('eval_emp_name').textContent = data.employee_name || '';
+                document.getElementById('eval_emp_meta').textContent = (data.position || '') + ' (' + (data.employee_code || '') + ') • ' + (data.department || '');
+                document.getElementById('eval_period_badge').textContent = data.period || 'الفترة الحالية';
+                document.getElementById('eval_score_val').textContent = (data.score !== undefined && data.score !== null ? data.score + '%' : '--');
+                document.getElementById('eval_grade_badge').textContent = data.grade || 'معتمد';
+                document.getElementById('eval_progress_bar').style.width = Math.min(100, Math.max(0, data.score || 0)) + '%';
+                document.getElementById('eval_date_val').textContent = data.date || '-';
+                document.getElementById('eval_evaluator_val').textContent = data.evaluator || 'الإدارة العامة';
+                document.getElementById('eval_tasks_val').textContent = (data.completed_tasks || 0) + ' مهمة مكتملة';
+                document.getElementById('eval_ontime_val').textContent = data.on_time_rate || 'لا توجد بيانات';
+                document.getElementById('eval_notes_val').textContent = data.notes || 'لا توجد ملاحظات إضافية مسجلة على هذا التقييم.';
+
+                openModal('modal-view-evaluation');
+            }
+        </script>
+    @endpush
 @endsection

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * مجموعة إياس الإعلامية - Portal Scripts
  */
 
@@ -74,38 +74,23 @@ function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) {
     modal.classList.add('active');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
     document.body.style.overflow = 'hidden';
   }
 }
-
-
-// Add Users Modal
-
- // Modal Dialog Handlers
-  window.openModal = function(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-      modal.classList.remove("hidden");
-      modal.classList.add("flex");
-    }
-  };
-
-
-  window.closeModal = function(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-      modal.classList.add("hidden");
-      modal.classList.remove("flex");
-    }
-  };
+window.openModal = openModal;
 
 function closeModal(id) {
   const modal = document.getElementById(id);
   if (modal) {
     modal.classList.remove('active');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
     document.body.style.overflow = '';
   }
 }
+window.closeModal = closeModal;
 
 /* القائمة الجانبية للشاشات الصغيرة (Mobile Sidebar) */
 function toggleSidebar() {

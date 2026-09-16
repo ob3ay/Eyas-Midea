@@ -31,14 +31,16 @@
             </div>
 
             <div class="ems-page-actions">
-                <button type="button" class="ems-btn ems-btn-primary" onclick="openModal('modal-add-project')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
+                @if ($canCreate)
+                    <button type="button" class="ems-btn ems-btn-primary" onclick="openModal('modal-add-project')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
 
-                    <span>مشروع جديد</span>
-                </button>
+                        <span>مشروع جديد</span>
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -338,53 +340,175 @@
                                             gap: 4px;
                                         ">
 
-                                            {{-- Tasks --}}
-                                            <a href="{{ route('tasks.index', ['project_id' => $project->id]) }}"
-                                                class="ems-btn ems-btn-icon" title="المهام">
+                                            {{-- View Tasks Accordion --}}
+                                            <button type="button" class="ems-btn ems-btn-icon" title="عرض مهام المشروع ({{ $project->tasks->count() }})"
+                                                onclick="toggleProjectTasks({{ $project->id }})" id="btn-tasks-{{ $project->id }}" style="transition: all .2s ease;">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                     stroke-width="2">
-                                                    <path d="m9 11 3 3L22 4"></path>
-                                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11">
-                                                    </path>
-                                                </svg>
-                                            </a>
-
-
-                                            {{-- Edit --}}
-                                            <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
-                                                onclick="openEditProjectModal({{ $project->id }})">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2">
-                                                    <path d="M12 20h9"></path>
-                                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
                                                 </svg>
                                             </button>
 
-
-                                            {{-- Delete --}}
-                                            <form action="{{ route('projects.destroy', $project->id) }}" method="POST"
-                                                onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
-                                                style="display: inline;">
-                                                @csrf
-                                                @method('DELETE')
-
-                                                <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
-                                                    style="color: #ef4444;">
+                                            @if ($canUpdate)
+                                                {{-- Edit --}}
+                                                <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
+                                                    onclick="openEditProjectModal({{ $project->id }})">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                         stroke-width="2">
-                                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                                        <path
-                                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                                                        </path>
+                                                        <path d="M12 20h9"></path>
+                                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
                                                     </svg>
                                                 </button>
+                                            @endif
 
-                                            </form>
+                                            @if ($canDelete)
+                                                {{-- Delete --}}
+                                                <form action="{{ route('projects.destroy', $project->id) }}" method="POST"
+                                                    onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
+                                                    style="display: inline;">
+                                                    @csrf
+                                                    @method('DELETE')
+
+                                                    <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
+                                                        style="color: #ef4444;">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path
+                                                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            @endif
 
                                         </div>
 
                                     </td>
 
+                                </tr>
+
+                                {{-- Project Tasks Accordion Row --}}
+                                <tr id="project-tasks-row-{{ $project->id }}" class="project-tasks-row" style="display: none; background: #fdfbf7;">
+                                    <td colspan="8" style="padding: 16px 20px; border-bottom: 2px solid var(--ems-gold-light, #e2d2b4);">
+                                        <div style="background: var(--ems-surface, #ffffff); border: 1px solid var(--ems-border, #e5e7eb); border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                                                <div style="display: flex; align-items: center; gap: 10px;">
+                                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(197, 160, 89, 0.15); display: flex; align-items: center; justify-content: center; color: var(--ems-gold-hover, #a8823b);">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                                            <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                                                            <path d="m9 12 2 2 4-4"></path>
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--ems-text-main);">
+                                                            مهام مشروع: {{ $project->title }}
+                                                        </h4>
+                                                        <span style="font-size: 12px; color: var(--ems-text-muted);">
+                                                            إجمالي المهام المسجلة: <strong>{{ $project->tasks->count() }}</strong> مهمة
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <a href="{{ route('tasks.index', ['project_id' => $project->id]) }}" class="ems-btn ems-btn-sm ems-btn-secondary" style="font-size: 12px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px;">
+                                                    <span>فتح في لوحة المهام</span>
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                                        <polyline points="15 3 21 3 21 9"></polyline>
+                                                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                                                    </svg>
+                                                </a>
+                                            </div>
+
+                                            @if ($project->tasks->count() > 0)
+                                                <div class="ems-table-responsive" style="margin: 0;">
+                                                    <table class="ems-table" style="font-size: 13px; margin: 0;">
+                                                        <thead>
+                                                            <tr style="background: var(--ems-surface-alt, #f9fafb);">
+                                                                <th style="padding: 8px 12px;">المهمة</th>
+                                                                <th style="padding: 8px 12px;">المسؤول</th>
+                                                                <th style="padding: 8px 12px;">الأولوية</th>
+                                                                <th style="padding: 8px 12px;">الحالة</th>
+                                                                <th style="padding: 8px 12px;">الإنجاز</th>
+                                                                <th style="padding: 8px 12px;">تاريخ الاستحقاق</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @php
+                                                                $taskStatusMap = [
+                                                                    'Draft' => ['label' => 'مسودة', 'class' => 'badge-draft'],
+                                                                    'To-Do' => ['label' => 'قيد الانتظار', 'class' => 'badge-danger'],
+                                                                    'In Progress' => ['label' => 'قيد التنفيذ', 'class' => 'badge-progress'],
+                                                                    'Under Review' => ['label' => 'قيد المراجعة', 'class' => 'badge-review'],
+                                                                    'Completed' => ['label' => 'مكتملة', 'class' => 'badge-completed'],
+                                                                    'Rejected' => ['label' => 'مرفوضة', 'class' => 'badge-danger'],
+                                                                ];
+                                                                $taskPriorityMap = [
+                                                                    'Low' => ['label' => 'منخفضة', 'class' => 'badge-completed'],
+                                                                    'Medium' => ['label' => 'متوسطة', 'class' => 'badge-gold'],
+                                                                    'High' => ['label' => 'عالية', 'class' => 'badge-danger'],
+                                                                    'Urgent' => ['label' => 'عاجلة', 'class' => 'badge-danger'],
+                                                                ];
+                                                            @endphp
+                                                            @foreach ($project->tasks as $task)
+                                                                @php
+                                                                    $st = $taskStatusMap[$task->status] ?? ['label' => $task->status, 'class' => ''];
+                                                                    $pr = $taskPriorityMap[$task->priority] ?? ['label' => $task->priority, 'class' => ''];
+                                                                    $isMyTask = auth()->user()?->employee_id === $task->assignee_employee_id;
+                                                                @endphp
+                                                                <tr style="{{ $isMyTask ? 'background: rgba(197, 160, 89, 0.05);' : '' }}">
+                                                                    <td style="padding: 10px 12px;">
+                                                                        <div style="font-weight: 700; color: var(--ems-text-main);">
+                                                                            {{ $task->title }}
+                                                                            @if ($isMyTask)
+                                                                                <span class="ems-badge badge-gold" style="font-size: 10px; padding: 2px 6px; margin-right: 6px;">مهمتي</span>
+                                                                            @endif
+                                                                        </div>
+                                                                        @if ($task->description)
+                                                                            <div style="font-size: 11px; color: var(--ems-text-muted); margin-top: 3px;">
+                                                                                {{ Str::limit($task->description, 65) }}
+                                                                            </div>
+                                                                        @endif
+                                                                    </td>
+                                                                    <td style="padding: 10px 12px; color: var(--ems-text-main);">
+                                                                        {{ $task->assignee?->full_name ?? 'غير مسند' }}
+                                                                    </td>
+                                                                    <td style="padding: 10px 12px;">
+                                                                        <span class="ems-badge {{ $pr['class'] }}" style="font-size: 11px;">
+                                                                            {{ $pr['label'] }}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td style="padding: 10px 12px;">
+                                                                        <span class="ems-badge {{ $st['class'] }}" style="font-size: 11px;">
+                                                                            {{ $st['label'] }}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td style="padding: 10px 12px;">
+                                                                        <div style="display: flex; align-items: center; gap: 8px; min-width: 90px;">
+                                                                            <div class="ems-progress" style="height: 5px; flex-grow: 1;">
+                                                                                <div class="ems-progress-bar {{ $task->completion_percentage >= 100 ? 'success' : '' }}" style="width: {{ min(100, $task->completion_percentage ?? 0) }}%;"></div>
+                                                                            </div>
+                                                                            <span style="font-size: 11px; font-weight: 700; font-family: var(--font-mono);">
+                                                                                {{ round($task->completion_percentage ?? 0) }}%
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td style="padding: 10px 12px; font-size: 12px; color: var(--ems-text-muted);">
+                                                                        {{ $task->due_datetime ? $task->due_datetime->format('Y-m-d') : '-' }}
+                                                                    </td>
+                                                                </tr>
+                                                            @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            @else
+                                                <div style="text-align: center; padding: 20px; color: var(--ems-text-muted); font-size: 13px;">
+                                                    لا توجد مهام مسندة لهذا المشروع حالياً.
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </td>
                                 </tr>
 
                             @empty
@@ -414,176 +538,181 @@
     </div>
 
 
-    {{-- Add Project Modal --}}
-    <div class="ems-modal-overlay" id="modal-add-project">
-        <div class="ems-modal">
-            <div class="ems-modal-header">
-                <div class="ems-modal-title">إضافة مشروع جديد</div>
-                <button type="button" onclick="closeModal('modal-add-project')" class="ems-modal-close">✕</button>
+    @if ($canCreate)
+        {{-- Add Project Modal --}}
+        <div class="ems-modal-overlay" id="modal-add-project">
+            <div class="ems-modal">
+                <div class="ems-modal-header">
+                    <div class="ems-modal-title">إضافة مشروع جديد</div>
+                    <button type="button" onclick="closeModal('modal-add-project')" class="ems-modal-close">✕</button>
+                </div>
+
+                <form action="{{ route('projects.store') }}" method="POST">
+                    @csrf
+                    <div class="ems-modal-body">
+                        <div class="ems-form-group">
+                            <label class="ems-label"><span class="required">*</span> اسم المشروع</label>
+                            <input type="text" name="title" class="ems-input" required placeholder="أدخل اسم المشروع">
+                        </div>
+
+                        <div class="ems-form-group">
+                            <label class="ems-label">الوصف</label>
+                            <textarea name="description" class="ems-input" rows="3" placeholder="تفاصيل وأهداف المشروع"></textarea>
+                        </div>
+
+                        <div class="ems-form-row">
+                            <div class="ems-form-group">
+                                <label class="ems-label">القسم / الدائرة</label>
+                                <select name="department_id" class="ems-input">
+                                    <option value="">اختر القسم</option>
+                                    @foreach ($departments as $department)
+                                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="ems-form-group">
+                                <label class="ems-label">المسؤول عن المشروع</label>
+                                <select name="owner_employee_id" class="ems-input">
+                                    <option value="">اختر المسؤول</option>
+                                    @foreach ($employees as $employee)
+                                        <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="ems-form-row">
+                            <div class="ems-form-group">
+                                <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
+                                <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}" required>
+                            </div>
+
+                            <div class="ems-form-group">
+                                <label class="ems-label">تاريخ الانتهاء المتوقع</label>
+                                <input type="date" name="end_date" class="ems-input">
+                            </div>
+                        </div>
+
+                        <div class="ems-form-row">
+                            <div class="ems-form-group">
+                                <label class="ems-label"><span class="required">*</span> الحالة</label>
+                                <select name="status" class="ems-input" required>
+                                    <option value="in_progress">قيد التنفيذ</option>
+                                    <option value="in_review">قيد المراجعة</option>
+                                    <option value="completed">مكتمل</option>
+                                    <option value="on_hold">متوقف</option>
+                                </select>
+                            </div>
+
+                            <div class="ems-form-group">
+                                <label class="ems-label">نسبة الإنجاز (%)</label>
+                                <input type="number" name="completion_percentage" class="ems-input" min="0" max="100"
+                                    value="0" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ems-modal-footer">
+                        <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-project')">إلغاء</button>
+                        <button type="submit" class="ems-btn ems-btn-primary">حفظ المشروع</button>
+                    </div>
+                </form>
             </div>
+        </div>
+    @endif
 
-            <form action="{{ route('projects.store') }}" method="POST">
-                @csrf
-                <div class="ems-modal-body">
-                    <div class="ems-form-group">
-                        <label class="ems-label"><span class="required">*</span> اسم المشروع</label>
-                        <input type="text" name="title" class="ems-input" required placeholder="أدخل اسم المشروع">
-                    </div>
 
-                    <div class="ems-form-group">
-                        <label class="ems-label">الوصف</label>
-                        <textarea name="description" class="ems-input" rows="3" placeholder="تفاصيل وأهداف المشروع"></textarea>
-                    </div>
+    @if ($canUpdate)
+        {{-- Edit Project Modal --}}
+        <div class="ems-modal-overlay" id="modal-edit-project">
+            <div class="ems-modal">
+                <div class="ems-modal-header">
+                    <div class="ems-modal-title">تعديل بيانات المشروع</div>
+                    <button type="button" onclick="closeModal('modal-edit-project')" class="ems-modal-close">✕</button>
+                </div>
 
-                    <div class="ems-form-row">
+                <form id="editProjectForm" method="POST">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="ems-modal-body">
                         <div class="ems-form-group">
-                            <label class="ems-label">القسم / الدائرة</label>
-                            <select name="department_id" class="ems-input">
-                                <option value="">اختر القسم</option>
-                                @foreach ($departments as $department)
-                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                                @endforeach
-                            </select>
+                            <label class="ems-label"><span class="required">*</span> اسم المشروع</label>
+                            <input type="text" id="edit_title" name="title" class="ems-input" required>
                         </div>
 
                         <div class="ems-form-group">
-                            <label class="ems-label">المسؤول عن المشروع</label>
-                            <select name="owner_employee_id" class="ems-input">
-                                <option value="">اختر المسؤول</option>
-                                @foreach ($employees as $employee)
-                                    <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
-                            <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}" required>
+                            <label class="ems-label">الوصف</label>
+                            <textarea id="edit_description" name="description" class="ems-input" rows="3"></textarea>
                         </div>
 
-                        <div class="ems-form-group">
-                            <label class="ems-label">تاريخ الانتهاء المتوقع</label>
-                            <input type="date" name="end_date" class="ems-input">
-                        </div>
-                    </div>
+                        <div class="ems-form-row">
+                            <div class="ems-form-group">
+                                <label class="ems-label">القسم / الدائرة</label>
+                                <select id="edit_department_id" name="department_id" class="ems-input">
+                                    <option value="">اختر القسم</option>
+                                    @foreach ($departments as $department)
+                                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label class="ems-label"><span class="required">*</span> الحالة</label>
-                            <select name="status" class="ems-input" required>
-                                <option value="in_progress">قيد التنفيذ</option>
-                                <option value="in_review">قيد المراجعة</option>
-                                <option value="completed">مكتمل</option>
-                                <option value="on_hold">متوقف</option>
-                            </select>
+                            <div class="ems-form-group">
+                                <label class="ems-label">المسؤول عن المشروع</label>
+                                <select id="edit_owner_employee_id" name="owner_employee_id" class="ems-input">
+                                    <option value="">اختر المسؤول</option>
+                                    @foreach ($employees as $employee)
+                                        <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="ems-form-row">
+                            <div class="ems-form-group">
+                                <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
+                                <input type="date" id="edit_start_date" name="start_date" class="ems-input" required>
+                            </div>
+
+                            <div class="ems-form-group">
+                                <label class="ems-label">تاريخ الانتهاء</label>
+                                <input type="date" id="edit_end_date" name="end_date" class="ems-input">
+                            </div>
+                        </div>
+
+                        <div class="ems-form-row">
+                            <div class="ems-form-group">
+                                <label class="ems-label">تاريخ الانتهاء الفعلي</label>
+                                <input type="date" id="edit_actual_end_date" name="actual_end_date" class="ems-input">
+                            </div>
+
+                            <div class="ems-form-group">
+                                <label class="ems-label"><span class="required">*</span> الحالة</label>
+                                <select id="edit_status" name="status" class="ems-input" required>
+                                    <option value="in_progress">قيد التنفيذ</option>
+                                    <option value="in_review">قيد المراجعة</option>
+                                    <option value="completed">مكتمل</option>
+                                    <option value="on_hold">متوقف</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="ems-form-group">
                             <label class="ems-label">نسبة الإنجاز (%)</label>
-                            <input type="number" name="completion_percentage" class="ems-input" min="0" max="100" value="0">
+                            <input type="number" id="edit_completion_percentage" name="completion_percentage"
+                                class="ems-input" min="0" max="100" step="0.01" required>
                         </div>
                     </div>
-                </div>
 
-                <div class="ems-modal-footer">
-                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-project')">إلغاء</button>
-                    <button type="submit" class="ems-btn ems-btn-primary">حفظ المشروع</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-
-    {{-- Edit Project Modal --}}
-    <div class="ems-modal-overlay" id="modal-edit-project">
-        <div class="ems-modal">
-            <div class="ems-modal-header">
-                <div class="ems-modal-title">تعديل بيانات المشروع</div>
-                <button type="button" onclick="closeModal('modal-edit-project')" class="ems-modal-close">✕</button>
+                    <div class="ems-modal-footer">
+                        <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-edit-project')">إلغاء</button>
+                        <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
+                    </div>
+                </form>
             </div>
-
-            <form id="editProjectForm" method="POST">
-                @csrf
-                @method('PUT')
-
-                <div class="ems-modal-body">
-                    <div class="ems-form-group">
-                        <label class="ems-label"><span class="required">*</span> اسم المشروع</label>
-                        <input type="text" id="edit_title" name="title" class="ems-input" required>
-                    </div>
-
-                    <div class="ems-form-group">
-                        <label class="ems-label">الوصف</label>
-                        <textarea id="edit_description" name="description" class="ems-input" rows="3"></textarea>
-                    </div>
-
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label class="ems-label">القسم / الدائرة</label>
-                            <select id="edit_department_id" name="department_id" class="ems-input">
-                                <option value="">اختر القسم</option>
-                                @foreach ($departments as $department)
-                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="ems-form-group">
-                            <label class="ems-label">المسؤول عن المشروع</label>
-                            <select id="edit_owner_employee_id" name="owner_employee_id" class="ems-input">
-                                <option value="">اختر المسؤول</option>
-                                @foreach ($employees as $employee)
-                                    <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
-                            <input type="date" id="edit_start_date" name="start_date" class="ems-input" required>
-                        </div>
-
-                        <div class="ems-form-group">
-                            <label class="ems-label">تاريخ الانتهاء</label>
-                            <input type="date" id="edit_end_date" name="end_date" class="ems-input">
-                        </div>
-                    </div>
-
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label class="ems-label">تاريخ الانتهاء الفعلي</label>
-                            <input type="date" id="edit_actual_end_date" name="actual_end_date" class="ems-input">
-                        </div>
-
-                        <div class="ems-form-group">
-                            <label class="ems-label"><span class="required">*</span> الحالة</label>
-                            <select id="edit_status" name="status" class="ems-input" required>
-                                <option value="in_progress">قيد التنفيذ</option>
-                                <option value="in_review">قيد المراجعة</option>
-                                <option value="completed">مكتمل</option>
-                                <option value="on_hold">متوقف</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="ems-form-group">
-                        <label class="ems-label">نسبة الإنجاز (%)</label>
-                        <input type="number" id="edit_completion_percentage" name="completion_percentage"
-                            class="ems-input" min="0" max="100" step="0.01" required>
-                    </div>
-                </div>
-
-                <div class="ems-modal-footer">
-                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-edit-project')">إلغاء</button>
-                    <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
-                </div>
-            </form>
         </div>
-    </div>
+    @endif
 
 
     {{-- JavaScript --}}
@@ -633,6 +762,28 @@
             document.getElementById('edit_completion_percentage').value = project.completion_percentage ?? 0;
 
             openModal('modal-edit-project');
+        }
+
+        function toggleProjectTasks(projectId) {
+            const row = document.getElementById('project-tasks-row-' + projectId);
+            const btn = document.getElementById('btn-tasks-' + projectId);
+            if (!row) return;
+
+            if (row.style.display === 'none' || row.style.display === '') {
+                row.style.display = 'table-row';
+                if (btn) {
+                    btn.style.background = 'var(--ems-gold-light, #e2d2b4)';
+                    btn.style.color = 'var(--ems-gold-hover, #a8823b)';
+                    btn.style.borderColor = 'var(--ems-gold, #c5a059)';
+                }
+            } else {
+                row.style.display = 'none';
+                if (btn) {
+                    btn.style.background = '';
+                    btn.style.color = '';
+                    btn.style.borderColor = '';
+                }
+            }
         }
     </script>
 

@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReportController;
@@ -77,6 +78,13 @@ Route::middleware(['web', 'auth', 'active.user'])->group(function () {
         Route::get('/', [PerformanceController::class, 'index'])->name('index');
         Route::post('/evaluate', [PerformanceController::class, 'evaluate'])->name('evaluate');
     });
+
+    Route::prefix('requests')->name('requests.')->group(function () {
+        Route::get('/', [EmployeeRequestController::class, 'index'])->name('index');
+        Route::post('/', [EmployeeRequestController::class, 'store'])->name('store');
+        Route::post('/{employeeRequest}/cancel', [EmployeeRequestController::class, 'cancel'])->name('cancel');
+    });
+
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
 
     Route::prefix('users')->name('users.')->group(function () {
