@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -79,7 +80,7 @@ class TaskController extends Controller
         ));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, NotificationService $notifications): RedirectResponse
     {
         $user = $request->user();
         $scope = $this->authorizeScope('tasks.create');
@@ -112,12 +113,19 @@ class TaskController extends Controller
             $validated['completed_at'] = now();
         }
 
-        Task::create($validated);
+        $task = Task::create($validated);
+        $notifications->createForEmployee(
+            $task->assignee_employee_id,
+            'task_assigned',
+            'تم إسناد مهمة جديدة',
+            "تم إسناد المهمة «{$task->title}» إليك.",
+            $task,
+        );
 
         return redirect()->route('tasks.index')->with('success', 'تم إنشاء المهمة بنجاح');
     }
 
-    public function update(Request $request, Task $task): RedirectResponse
+    public function update(Request $request, Task $task, NotificationService $notifications): RedirectResponse
     {
         $user = $request->user();
         $scope = $this->authorizeScope('tasks.update', $task, $user);
@@ -151,11 +159,18 @@ class TaskController extends Controller
         }
 
         $task->update($validated);
+        $notifications->createForEmployee(
+            $task->assignee_employee_id,
+            'task_updated',
+            'تم تحديث مهمة',
+            "تم تحديث المهمة «{$task->title}».",
+            $task,
+        );
 
         return redirect()->route('tasks.index')->with('success', 'تم تحديث المهمة بنجاح');
     }
 
-    public function updateState(Request $request, Task $task): JsonResponse
+    public function updateState(Request $request, Task $task, NotificationService $notifications): JsonResponse
     {
         $user = $request->user();
         $this->authorizeScope('tasks.update', $task, $user);
@@ -179,6 +194,13 @@ class TaskController extends Controller
             'completion_percentage' => $progress,
             'completed_at' => $completedAt,
         ]);
+        $notifications->createForEmployee(
+            $task->assignee_employee_id,
+            'task_status_changed',
+            'تغيرت حالة مهمة',
+            "تغيرت حالة المهمة «{$task->title}» إلى {$task->status}.",
+            $task,
+        );
 
         return response()->json([
             'success' => true,

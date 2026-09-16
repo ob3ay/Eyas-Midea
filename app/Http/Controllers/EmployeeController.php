@@ -13,6 +13,7 @@ use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -57,7 +58,8 @@ class EmployeeController extends Controller
         $onLeaveCount = (clone $employeeQuery)->where('employment_status', 'on_leave')->count();
         $departmentCount = (clone $employeeQuery)->whereNotNull('department_id')->distinct('department_id')->count('department_id');
 
-        $nextEmployeeCode = 'EMP-' . str_pad((Employee::max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT);
+        $nextEmployeeCode = 'EMP-' . str_pad((Employee::withTrashed()->max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT);
+
         $departments = $scope === 'organization'
             ? Department::with('sections')->orderBy('name')->get()
             : Department::with('sections')
@@ -334,28 +336,35 @@ class EmployeeController extends Controller
             abort(403, 'فيك تضيف موظفين بدائرتك بس.');
         }
 
-        $employee = Employee::create([
-            'employee_code' => $data['emp_code'] ?? null,
-            'national_id' => $data['national_id'],
-            'full_name' => trim($data['first_name'] . ' ' . $data['last_name']),
-            'phone' => $data['phone'],
-            'department_id' => $data['department_id'],
-            'section_id' => $data['section_id'] ?? null,
-            'position' => $data['job_title'],
-            'hire_date' => $data['hire_date'],
-            'employment_status' => 'active',
-        ]);
-
         $username = $this->generateUniqueUsername($data['first_name'], $data['last_name']);
-        $temporaryPassword = Str::random(10);
+        $temporaryPassword = "password123";
 
-        User::create([
-            'employee_id' => $employee->id,
-            'username' => $username,
-            'email' => $data['email'],
-            'password' => Hash::make($temporaryPassword),
-            'is_active' => true,
-        ]);
+        // إحاطة إنشاء الموظف وحساب الدخول بمعاملة واحدة: إما الاثنين ينحفظوا مع بعض
+        // بنجاح، أو يترجع كل شي كأنه ما صار (بدل ما يضل موظف "يتيم" بدون حساب
+        // لو صار خطأ غير متوقع بين الخطوتين).
+        $employee = DB::transaction(function () use ($data, $username, $temporaryPassword) {
+            $employee = Employee::create([
+                'employee_code' => $data['emp_code'] ?? null,
+                'national_id' => $data['national_id'],
+                'full_name' => trim($data['first_name'] . ' ' . $data['last_name']),
+                'phone' => $data['phone'],
+                'department_id' => $data['department_id'],
+                'section_id' => $data['section_id'] ?? null,
+                'position' => $data['job_title'],
+                'hire_date' => $data['hire_date'],
+                'employment_status' => 'active',
+            ]);
+
+            User::create([
+                'employee_id' => $employee->id,
+                'username' => $username,
+                'email' => $data['email'],
+                'password' => Hash::make($temporaryPassword),
+                'is_active' => true,
+            ]);
+
+            return $employee;
+        });
 
         return back()->with('success', "تم حفظ بيانات الموظف بنجاح. بيانات الدخول: {$username} / كلمة سر مؤقتة: {$temporaryPassword}");
     }

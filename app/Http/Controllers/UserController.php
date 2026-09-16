@@ -7,6 +7,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -33,7 +34,7 @@ class UserController extends Controller
             ->get();
 
         $superAdmin = $users->first(function ($u) {
-            return $u->roles->contains(fn ($role) => $role->name === 'SA');
+            return $u->roles->contains(fn($role) => $role->name === 'SA');
         });
 
         $canCreate = $user->hasPermission('users.create');
@@ -127,6 +128,37 @@ class UserController extends Controller
         return back()->with('success', 'تم تحديث حساب المستخدم بنجاح');
     }
 
+    public function updateRole(Request $request, User $targetUser): JsonResponse
+    {
+        $user = $request->user();
+        $this->authorizeScope('users.update', $targetUser, $user);
+
+        if (! $user->hasPermission('settings.manage_permissions')) {
+            abort(403, 'لا تملك صلاحية إدارة أدوار المستخدمين.');
+        }
+
+        if ($targetUser->hasRole('SA') && ! $user->hasRole('SA')) {
+            abort(403, 'لا يمكنك تعديل دور Super Admin.');
+        }
+
+        $data = $request->validate([
+            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')],
+        ]);
+
+        $this->assertAssignableRoles($user, [$data['role_id']]);
+
+        $role = Role::findOrFail($data['role_id']);
+        $targetUser->roles()->sync([$role->id]);
+
+        return response()->json([
+            'message' => 'تم تحديث دور المستخدم بنجاح.',
+            'role' => [
+                'id' => $role->id,
+                'name' => $role->display_name ?: $role->name,
+            ],
+        ]);
+    }
+
     public function destroy(Request $request, User $targetUser): RedirectResponse
     {
         $user = $request->user();
@@ -198,10 +230,10 @@ class UserController extends Controller
         }
 
         if ($user->hasRole('SH')) {
-            return $query->whereHas('employee', fn ($q) => $q->where('section_id', $ownEmployee->section_id));
+            return $query->whereHas('employee', fn($q) => $q->where('section_id', $ownEmployee->section_id));
         }
 
-        return $query->whereHas('employee', fn ($q) => $q->where('department_id', $ownEmployee->department_id));
+        return $query->whereHas('employee', fn($q) => $q->where('department_id', $ownEmployee->department_id));
     }
 
     private function assertEmployeeWithinScope(User $user, Employee $employee, string $scope): void
@@ -227,7 +259,7 @@ class UserController extends Controller
         }
 
         $roles = Role::with('permissions')->whereIn('id', $roleIds)->get();
-        if ($roles->contains(fn (Role $role) => $role->name === 'SA')) {
+        if ($roles->contains(fn(Role $role) => $role->name === 'SA')) {
             abort(403, 'لا يمكنك إسناد دور Super Admin.');
         }
 

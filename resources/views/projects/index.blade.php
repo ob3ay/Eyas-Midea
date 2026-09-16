@@ -31,14 +31,16 @@
             </div>
 
             <div class="ems-page-actions">
-                <button type="button" class="ems-btn ems-btn-primary" onclick="openModal('modal-add-project')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
+                @if ($canCreate)
+                    <button type="button" class="ems-btn ems-btn-primary" onclick="openModal('modal-add-project')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
 
-                    <span>مشروع جديد</span>
-                </button>
+                        <span>مشروع جديد</span>
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -351,35 +353,40 @@
 
 
                                             {{-- Edit --}}
-                                            <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
-                                                onclick="openEditProjectModal({{ $project->id }})">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2">
-                                                    <path d="M12 20h9"></path>
-                                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
-                                                </svg>
-                                            </button>
+                                            @if ($canUpdate)
+                                                <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
+                                                    onclick="openEditProjectModal({{ $project->id }})">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2">
+                                                        <path d="M12 20h9"></path>
+                                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endif
 
 
                                             {{-- Delete --}}
-                                            <form action="{{ route('projects.destroy', $project->id) }}" method="POST"
-                                                onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
-                                                style="display: inline;">
-                                                @csrf
-                                                @method('DELETE')
+                                            @if ($canDelete)
+                                                <form action="{{ route('projects.destroy', $project->id) }}"
+                                                    method="POST"
+                                                    onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
+                                                    style="display: inline;">
+                                                    @csrf
+                                                    @method('DELETE')
 
-                                                <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
-                                                    style="color: #ef4444;">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                        stroke-width="2">
-                                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                                        <path
-                                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                                                        </path>
-                                                    </svg>
-                                                </button>
+                                                    <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
+                                                        style="color: #ef4444;">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path
+                                                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
 
-                                            </form>
+                                                </form>
+                                            @endif
 
                                         </div>
 
@@ -460,7 +467,8 @@
                     <div class="ems-form-row">
                         <div class="ems-form-group">
                             <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
-                            <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}" required>
+                            <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}"
+                                required>
                         </div>
 
                         <div class="ems-form-group">
@@ -482,13 +490,15 @@
 
                         <div class="ems-form-group">
                             <label class="ems-label">نسبة الإنجاز (%)</label>
-                            <input type="number" name="completion_percentage" class="ems-input" min="0" max="100" value="0">
+                            <input type="number" name="completion_percentage" class="ems-input" min="0"
+                                max="100" value="0">
                         </div>
                     </div>
                 </div>
 
                 <div class="ems-modal-footer">
-                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-project')">إلغاء</button>
+                    <button type="button" class="ems-btn ems-btn-secondary"
+                        onclick="closeModal('modal-add-project')">إلغاء</button>
                     <button type="submit" class="ems-btn ems-btn-primary">حفظ المشروع</button>
                 </div>
             </form>
@@ -578,7 +588,8 @@
                 </div>
 
                 <div class="ems-modal-footer">
-                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-edit-project')">إلغاء</button>
+                    <button type="button" class="ems-btn ems-btn-secondary"
+                        onclick="closeModal('modal-edit-project')">إلغاء</button>
                     <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
                 </div>
             </form>

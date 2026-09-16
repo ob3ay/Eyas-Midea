@@ -103,7 +103,7 @@ class User extends Authenticatable
             ->join('permissions', 'role_permissions.permission_id', '=', 'permissions.id')
             ->where('permissions.key', $permissionKey)
             ->pluck('role_permissions.scope')
-            ->filter(fn ($scope) => in_array($scope, ['self', 'department', 'organization'], true))
+            ->filter(fn($scope) => in_array($scope, ['self', 'department', 'organization'], true))
             ->values()
             ->all();
 
@@ -113,7 +113,7 @@ class User extends Authenticatable
             return null;
         }
 
-        usort($scopes, fn ($a, $b) => $priority[$b] <=> $priority[$a]);
+        usort($scopes, fn($a, $b) => $priority[$b] <=> $priority[$a]);
 
         return $scopes[0];
     }

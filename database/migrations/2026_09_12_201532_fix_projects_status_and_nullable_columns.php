@@ -11,6 +11,8 @@ return new class extends Migration
         Schema::table('projects', function (Blueprint $table) {
             $table->dropForeign(['department_id']);
             $table->dropForeign(['owner_employee_id']);
+            $table->dropIndex('projects_status_end_date_index');
+            $table->dropIndex('projects_department_id_status_index');
         });
 
         Schema::table('projects', function (Blueprint $table) {
@@ -44,6 +46,8 @@ return new class extends Migration
             $table->foreignId('owner_employee_id')->after('department_id')->constrained('employees')->restrictOnDelete();
             $table->date('end_date')->after('start_date');
             $table->enum('status', ['Draft', 'Active', 'On Hold', 'Completed', 'Cancelled'])->default('Draft')->after('actual_end_date');
+            $table->index(['status', 'end_date']);
+            $table->index(['department_id', 'status']);
         });
     }
 };

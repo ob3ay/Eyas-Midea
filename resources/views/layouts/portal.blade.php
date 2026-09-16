@@ -16,7 +16,9 @@
         href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap"
         rel="stylesheet">
 
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css" integrity="sha512-QeR2VH+lsBE5LSAe1Q5EnTBbe7XTBubt8dG93Y7gidSgdMCr8nVqKcfKAMyN96SV8KDbZVTDXChatu5G2KQGzg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css"
+        integrity="sha512-QeR2VH+lsBE5LSAe1Q5EnTBbe7XTBubt8dG93Y7gidSgdMCr8nVqKcfKAMyN96SV8KDbZVTDXChatu5G2KQGzg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -187,7 +189,7 @@
                 @endif
             </nav>
 
-           
+
 
             <div class="ems-sidebar-footer">
                 <span>مجموعة إياس الإعلامية</span>
@@ -226,14 +228,32 @@
                         </svg>
                     </button>
 
-                    <button class="ems-icon-btn" title="الإشعارات">
+                    <button class="ems-icon-btn" id="notifications-toggle" type="button" title="الإشعارات"
+                        aria-label="الإشعارات" aria-expanded="false">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                         </svg>
-                        <span class="badge-dot"></span>
+                        <span class="badge-dot {{ $notificationsUnreadCount > 0 ? '' : 'hidden' }}"
+                            id="notifications-badge">{{ $notificationsUnreadCount }}</span>
                     </button>
+                    <div id="notifications-panel"
+                        class="hidden absolute left-6 top-16 z-40 w-[min(92vw,390px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                            <div>
+                                <h2 class="font-bold text-slate-800">الإشعارات</h2>
+                                <p class="text-xs text-slate-500">آخر التنبيهات الخاصة بحسابك</p>
+                            </div>
+                            <button type="button" id="notifications-read-all"
+                                class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+                                تعليم الكل كمقروء
+                            </button>
+                        </div>
+                        <div id="notifications-list" class="max-h-96 overflow-y-auto p-2">
+                            <div class="px-3 py-8 text-center text-sm text-slate-400">جارٍ تحميل الإشعارات...</div>
+                        </div>
+                    </div>
                     <!-- بيانات المستخدم الحركية -->
                     @php
                         $authUser = auth()->user();
@@ -420,10 +440,181 @@
 
     <div id="ems-toast-container"></div>
 
-    <script src="{{ asset('assets/js/portal.js') }}"></script>
+    <script src="{{ asset('assets/js/oldPortal.js') }}?v=3.0"></script>
+    <script>
+        (() => {
+            const toggle = document.getElementById('notifications-toggle');
+            const panel = document.getElementById('notifications-panel');
+            const list = document.getElementById('notifications-list');
+            const badge = document.getElementById('notifications-badge');
+            const readAllButton = document.getElementById('notifications-read-all');
+            let loaded = false;
+            let requestInFlight = false;
+
+            if (!toggle || !panel || !list) {
+                return;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            function setBadge(count) {
+                const normalizedCount = Number(count) || 0;
+                badge.textContent = normalizedCount > 99 ? '99+' : normalizedCount;
+                badge.classList.toggle('hidden', normalizedCount === 0);
+            }
+
+            function escapeHtml(value) {
+                return String(value ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+
+            function renderNotifications(notifications) {
+                if (!notifications.length) {
+                    list.innerHTML =
+                        '<div class="px-3 py-8 text-center text-sm text-slate-400">لا توجد إشعارات حالياً.</div>';
+                    return;
+                }
+
+                list.innerHTML = notifications.map((notification) => `
+                    <button type="button" data-notification-id="${notification.id}"
+                        data-notification-url="${escapeHtml(notification.url || '')}"
+                        class="notification-item flex w-full gap-3 rounded-xl p-3 text-right transition
+                            ${notification.read ? 'bg-white' : 'bg-indigo-50/70'} hover:bg-slate-50">
+                        <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full
+                            ${notification.read ? 'bg-slate-200' : 'bg-indigo-500'}"></span>
+                        <span class="min-w-0">
+                            <span class="block truncate text-sm font-semibold text-slate-800">${escapeHtml(notification.title)}</span>
+                            <span class="mt-1 block text-xs leading-5 text-slate-500">${escapeHtml(notification.message)}</span>
+                            <span class="mt-1 block text-[11px] text-slate-400">${escapeHtml(notification.created_at || '')}</span>
+                        </span>
+                    </button>
+                `).join('');
+
+                list.querySelectorAll('.notification-item').forEach((item) => {
+                    item.addEventListener('click', () => markAsRead(item));
+                });
+            }
+
+            async function loadNotifications() {
+                if (requestInFlight) {
+                    return;
+                }
+
+                requestInFlight = true;
+                list.innerHTML = '<div class="px-3 py-8 text-center text-sm text-slate-400">جارٍ التحميل...</div>';
+
+                try {
+                    const response = await fetch('{{ route('notifications.index') }}', {
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                    });
+                    const payload = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'تعذر تحميل الإشعارات.');
+                    }
+
+                    renderNotifications(payload.notifications || []);
+                    setBadge(payload.unread_count);
+                    loaded = true;
+                } catch (error) {
+                    list.innerHTML =
+                        `<div class="px-3 py-8 text-center text-sm text-red-600">${escapeHtml(error.message)}</div>`;
+                } finally {
+                    requestInFlight = false;
+                }
+            }
+
+            async function markAsRead(item) {
+                const notificationId = item.dataset.notificationId;
+                item.disabled = true;
+
+                try {
+                    const response = await fetch(`{{ url('/notifications') }}/${notificationId}/read`, {
+                        method: 'PATCH',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                    });
+                    const payload = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'تعذر تحديث حالة الإشعار.');
+                    }
+
+                    setBadge(payload.unread_count);
+                    item.classList.remove('bg-indigo-50/70');
+                    item.classList.add('bg-white');
+
+                    if (item.dataset.notificationUrl) {
+                        window.location.href = item.dataset.notificationUrl;
+                    }
+                } catch (error) {
+                    item.disabled = false;
+                    if (typeof showToast === 'function') {
+                        showToast(error.message, 'error');
+                    }
+                }
+            }
+
+            toggle.addEventListener('click', () => {
+                const isOpen = !panel.classList.contains('hidden');
+                panel.classList.toggle('hidden', isOpen);
+                toggle.setAttribute('aria-expanded', String(!isOpen));
+
+                if (!isOpen && !loaded) {
+                    loadNotifications();
+                }
+            });
+
+            readAllButton?.addEventListener('click', async () => {
+                readAllButton.disabled = true;
+
+                try {
+                    const response = await fetch('{{ route('notifications.read-all') }}', {
+                        method: 'PATCH',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                    });
+                    const payload = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'تعذر تحديث الإشعارات.');
+                    }
+
+                    setBadge(payload.unread_count);
+                    await loadNotifications();
+                } catch (error) {
+                    if (typeof showToast === 'function') {
+                        showToast(error.message, 'error');
+                    }
+                } finally {
+                    readAllButton.disabled = false;
+                }
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!panel.contains(event.target) && !toggle.contains(event.target)) {
+                    panel.classList.add('hidden');
+                    toggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        })();
+    </script>
     @stack('scripts')
 
-    
+
 </body>
 
 </html>
