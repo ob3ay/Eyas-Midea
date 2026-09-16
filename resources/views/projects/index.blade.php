@@ -352,35 +352,39 @@
 
 
                                             {{-- Edit --}}
-                                            <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
-                                                onclick="openEditProjectModal({{ $project->id }})">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2">
-                                                    <path d="M12 20h9"></path>
-                                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
-                                                </svg>
-                                            </button>
+                                            @if ($canUpdate)
+                                                <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
+                                                    onclick="openEditProjectModal({{ $project->id }})">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2">
+                                                        <path d="M12 20h9"></path>
+                                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endif
 
 
                                             {{-- Delete --}}
-                                            <form action="{{ route('projects.destroy', $project->id) }}" method="POST"
-                                                onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
-                                                style="display: inline;">
-                                                @csrf
-                                                @method('DELETE')
+                                            @if ($canDelete)
+                                                <form action="{{ route('projects.destroy', $project->id) }}" method="POST"
+                                                    onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
+                                                    style="display: inline;">
+                                                    @csrf
+                                                    @method('DELETE')
 
-                                                <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
-                                                    style="color: #ef4444;">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                        stroke-width="2">
-                                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                                        <path
-                                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                                                        </path>
-                                                    </svg>
-                                                </button>
+                                                    <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
+                                                        style="color: #ef4444;">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path
+                                                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                            </path>
+                                                        </svg>
+                                                    </button>
 
-                                            </form>
+                                                </form>
+                                            @endif
 
                                         </div>
 
@@ -618,6 +622,7 @@
             </form>
         </div>
     </div>
+    @endif
 
 
     @if ($canUpdate)
@@ -709,6 +714,7 @@
             </form>
         </div>
     </div>
+    @endif
 
 
     {{-- JavaScript --}}
@@ -733,6 +739,7 @@
         ->all(),
 );
 
+        @if ($canUpdate)
         function openEditProjectModal(projectId) {
             const project = projectsData.find(
                 item => Number(item.id) === Number(projectId)
@@ -759,6 +766,7 @@
 
             openModal('modal-edit-project');
         }
+        @endif
 
         function toggleProjectTasks(projectId) {
             const row = document.getElementById('project-tasks-row-' + projectId);

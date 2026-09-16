@@ -333,15 +333,12 @@ class EmployeeController extends Controller
         ]);
 
         if ($scope === 'department' && (int) $data['department_id'] !== (int) $user->employee?->department_id) {
-            abort(403, 'فيك تضيف موظفين بدائرتك بس.');
+            abort(403, 'لا تملك صلاحية إضافة موظفين إلا ضمن دائرتك.');
         }
 
         $username = $this->generateUniqueUsername($data['first_name'], $data['last_name']);
         $temporaryPassword = "password123";
 
-        // إحاطة إنشاء الموظف وحساب الدخول بمعاملة واحدة: إما الاثنين ينحفظوا مع بعض
-        // بنجاح، أو يترجع كل شي كأنه ما صار (بدل ما يضل موظف "يتيم" بدون حساب
-        // لو صار خطأ غير متوقع بين الخطوتين).
         $employee = DB::transaction(function () use ($data, $username, $temporaryPassword) {
             $employee = Employee::create([
                 'employee_code' => $data['emp_code'] ?? null,
@@ -366,7 +363,7 @@ class EmployeeController extends Controller
             return $employee;
         });
 
-        return back()->with('success', "تم حفظ بيانات الموظف بنجاح. بيانات الدخول: {$username} / كلمة سر مؤقتة: {$temporaryPassword}");
+        return back()->with('success', "تم حفظ بيانات الموظف بنجاح. بيانات الدخول: {$username} / كلمة المرور: {$temporaryPassword}");
     }
 
     public function update(Request $request, Employee $employee): RedirectResponse
@@ -395,7 +392,7 @@ class EmployeeController extends Controller
 
         $employee->update($data);
 
-        return back()->with('success', 'تم تحديث بيانات الموظف');
+        return back()->with('success', 'تم تحديث بيانات الموظف بنجاح');
     }
 
     public function destroy(Request $request, Employee $employee): RedirectResponse
@@ -404,12 +401,12 @@ class EmployeeController extends Controller
         $this->authorizeScope('employees.delete', $employee, $user);
 
         if ($employee->user()->exists()) {
-            return back()->with('error', 'ما فيك تحذف هاد الموظف، إله حساب دخول مرتبط فيه. عطّل الحساب أولاً من موديول المستخدمين.');
+            return back()->with('error', 'لا يمكن حذف هذا الموظف لوجود حساب مستخدم مرتبط به، يرجى تعطيل الحساب أولاً.');
         }
 
         $employee->delete();
 
-        return back()->with('success', 'تم حذف الموظف');
+        return back()->with('success', 'تم حذف الموظف بنجاح');
     }
 
     private function authorizeScope(string $permissionKey, ?Employee $target = null, ?User $user = null): string
@@ -418,7 +415,7 @@ class EmployeeController extends Controller
         $scope = $user->highestScopeFor($permissionKey);
 
         if ($scope === null) {
-            abort(403, 'ما عندك صلاحية لهاي العملية.');
+            abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
         if ($target !== null && $scope !== 'organization') {
@@ -429,16 +426,16 @@ class EmployeeController extends Controller
             }
 
             if ($scope === 'self' && $target->id !== $ownEmployee->id) {
-                abort(403, 'فيك تشوف/تعدل بياناتك الشخصية بس.');
+                abort(403, 'لا تملك صلاحية استعراض أو تعديل سوى بياناتك الشخصية.');
             }
 
             if ($scope === 'department') {
                 if ($user->hasRole('SH')) {
                     if ($target->section_id !== $ownEmployee->section_id) {
-                        abort(403, 'فيك تشوف/تعدل موظفين قسمك بس.');
+                        abort(403, 'لا تملك صلاحية استعراض أو تعديل سوى موظفي قسمك.');
                     }
                 } elseif ($target->department_id !== $ownEmployee->department_id) {
-                    abort(403, 'فيك تشوف/تعدل موظفين دائرتك بس.');
+                    abort(403, 'لا تملك صلاحية استعراض أو تعديل سوى موظفي دائرتك.');
                 }
             }
         }

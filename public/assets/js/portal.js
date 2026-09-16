@@ -80,12 +80,9 @@ function openModal(id) {
     modal.classList.add('active');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
-<<<<<<< HEAD
-window.openModal = openModal;
-=======
->>>>>>> 95aa68ac55e155884004a6c43a72820624174ece
 
 function closeModal(id) {
     const modal = document.getElementById(id);
@@ -94,8 +91,11 @@ function closeModal(id) {
     modal.classList.remove('active');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    modal.style.display = 'none';
     document.body.style.overflow = '';
 }
+
+window.openModal = openModal;
 window.closeModal = closeModal;
 
 /* القائمة الجانبية للشاشات الصغيرة (Mobile Sidebar) */
@@ -105,6 +105,7 @@ function toggleSidebar() {
         sidebar.classList.toggle('open');
     }
 }
+window.toggleSidebar = toggleSidebar;
 
 /* نظام الإشعارات السريعة (Toast Messages) */
 function showToast(message, type = 'success') {

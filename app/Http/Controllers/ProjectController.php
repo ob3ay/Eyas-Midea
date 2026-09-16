@@ -143,7 +143,7 @@ class ProjectController extends Controller
         $scope = $user->highestScopeFor($permissionKey);
 
         if ($scope === null) {
-            abort(403, 'ما عندك صلاحية لهاي العملية.');
+            abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
         if ($project !== null && $scope !== 'organization') {
@@ -154,11 +154,11 @@ class ProjectController extends Controller
             }
 
             if ($scope === 'self' && $project->owner_employee_id !== $ownEmployee->id) {
-                abort(403, 'فيك تدير المشاريع يلي إنت مسؤول عنها بس.');
+                abort(403, 'لا تملك صلاحية إدارة سوى المشاريع المسندة إليك.');
             }
 
             if ($scope === 'department' && $project->department_id !== $ownEmployee->department_id) {
-                abort(403, 'فيك تدير مشاريع دائرتك بس.');
+                abort(403, 'لا تملك صلاحية إدارة سوى مشاريع دائرتك.');
             }
         }
 
@@ -177,11 +177,11 @@ class ProjectController extends Controller
         }
 
         if ($scope === 'self' && $ownerEmployeeId !== $ownEmployee->id) {
-            abort(403, 'فيك تنشئ مشاريع تكون إنت المسؤول عنها بس.');
+            abort(403, 'لا تملك صلاحية إنشاء مشاريع إلا إذا كنت المسؤول عنها.');
         }
 
         if ($scope === 'department' && $departmentId !== $ownEmployee->department_id) {
-            abort(403, 'فيك تنشئ/تعدّل مشاريع بدائرتك بس.');
+            abort(403, 'لا تملك صلاحية إنشاء أو تعديل مشاريع خارج نطاق دائرتك.');
         }
     }
 

@@ -165,7 +165,7 @@ class UserController extends Controller
         $this->authorizeScope('users.delete', $targetUser, $user);
 
         if ($targetUser->id === $user->id) {
-            return back()->with('error', 'ما فيك تحذف حسابك الخاص وأنت مسجل دخول فيه.');
+            return back()->with('error', 'لا يمكن حذف الحساب الحالي أثناء تسجيل الدخول به.');
         }
 
         if ($targetUser->hasRole('SA') && ! $user->hasRole('SA')) {
@@ -174,7 +174,7 @@ class UserController extends Controller
 
         $targetUser->delete();
 
-        return back()->with('success', 'تم حذف حساب المستخدم');
+        return back()->with('success', 'تم حذف حساب المستخدم بنجاح');
     }
 
     private function authorizeScope(string $permissionKey, ?User $target = null, ?User $user = null): string
@@ -183,7 +183,7 @@ class UserController extends Controller
         $scope = $user->highestScopeFor($permissionKey);
 
         if ($scope === null) {
-            abort(403, 'ما عندك صلاحية لهاي العملية.');
+            abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
         if ($target !== null && $scope !== 'organization') {
@@ -191,20 +191,20 @@ class UserController extends Controller
             $targetEmployee = $target->employee;
 
             if (! $ownEmployee || ! $targetEmployee) {
-                abort(403, 'ما فيك تدير هاد الحساب.');
+                abort(403, 'غير مصرح لك بإدارة هذا الحساب.');
             }
 
             if ($scope === 'self' && $target->id !== $user->id) {
-                abort(403, 'فيك تدير حسابك الشخصي بس.');
+                abort(403, 'لا تملك صلاحية إدارة سوى حسابك الشخصي.');
             }
 
             if ($scope === 'department') {
                 if ($user->hasRole('SH')) {
                     if ($targetEmployee->section_id !== $ownEmployee->section_id) {
-                        abort(403, 'فيك تدير حسابات موظفين قسمك بس.');
+                        abort(403, 'لا تملك صلاحية إدارة سوى حسابات موظفي قسمك.');
                     }
                 } elseif ($targetEmployee->department_id !== $ownEmployee->department_id) {
-                    abort(403, 'فيك تدير حسابات موظفين دائرتك بس.');
+                    abort(403, 'لا تملك صلاحية إدارة سوى حسابات موظفي دائرتك.');
                 }
             }
         }

@@ -305,8 +305,12 @@
                                     style="
                                         font-size: 12px;
                                         margin-bottom: 7px;
+                                        color: var(--ems-text-muted);
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 4px;
                                     ">
-                                    📁
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 8 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
                                     {{ $task->project->title }}
                                 </div>
                             @endif
@@ -314,8 +318,8 @@
                             {{-- الموظف --}}
                             <div class="ems-task-footer">
 
-                                <span>
-                                    👤
+                                <span style="display: flex; align-items: center; gap: 4px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                     {{ $task->assignee?->full_name ?? 'غير مسند' }}
                                 </span>
 
@@ -323,9 +327,12 @@
                                     <span
                                         style="
                                             font-size: 11px;
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 3px;
                                             {{ $task->due_datetime->isPast() && $task->status !== 'Completed' ? 'color:#dc2626;font-weight:700;' : '' }}
                                         ">
-                                        📅
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
                                         {{ $task->due_datetime->format('d/m/Y H:i') }}
                                     </span>
                                 @endif

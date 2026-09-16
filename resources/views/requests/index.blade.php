@@ -149,10 +149,10 @@
                         <tbody>
                             @php
                                 $typeLabels = [
-                                    'leave' => ['label' => 'طلب إجازة', 'class' => 'badge-gold'],
-                                    'advance' => ['label' => 'طلب سلفة مالية', 'class' => 'badge-review'],
-                                    'certificate' => ['label' => 'تعريف راتب / شهادة', 'class' => 'badge-progress'],
-                                    'other' => ['label' => 'طلب عام / أخرى', 'class' => 'badge-draft'],
+                                    'leave' => ['label' => 'طلب إجازة', 'class' => 'badge-gold', 'icon' => ''],
+                                    'advance' => ['label' => 'طلب سلفة مالية', 'class' => 'badge-review', 'icon' => ''],
+                                    'certificate' => ['label' => 'تعريف راتب / شهادة', 'class' => 'badge-progress', 'icon' => ''],
+                                    'other' => ['label' => 'طلب عام / أخرى', 'class' => 'badge-draft', 'icon' => ''],
                                 ];
 
                                 $statusLabels = [
@@ -165,7 +165,7 @@
 
                             @forelse ($requests as $req)
                                 @php
-                                    $tInfo = $typeLabels[$req->type] ?? ['label' => $req->type, 'class' => ''];
+                                    $tInfo = $typeLabels[$req->type] ?? ['label' => $req->type, 'class' => '', 'icon' => ''];
                                     $sInfo = $statusLabels[$req->status] ?? ['label' => $req->status, 'class' => ''];
                                 @endphp
                                 <tr>
@@ -250,9 +250,9 @@
                                             <button type="button" class="ems-btn ems-btn-icon" title="عرض تفاصيل الطلب"
                                                 onclick="showRequestDetails({{ Js::from([
                                                     'id' => 'REQ-' . str_pad($req->id, 4, '0', STR_PAD_LEFT),
-                                                    'type_label' => $tInfo['label'],
-                                                    'type_class' => $tInfo['class'],
-                                                    'type_icon' => $tInfo['icon'],
+                                                    'type_label' => $tInfo['label'] ?? '',
+                                                    'type_class' => $tInfo['class'] ?? '',
+                                                    'type_icon' => $tInfo['icon'] ?? '',
                                                     'title' => $req->title,
                                                     'reason' => $req->reason ?? 'لا توجد تفاصيل إضافية مكتوبة.',
                                                     'start_date' => $req->start_date ? $req->start_date->format('Y-m-d') : null,

@@ -51,7 +51,6 @@ class AttendanceController extends Controller
             $attendanceRate = $totalEmployees > 0 ? round(($presentCount / $totalEmployees) * 100, 1) : 0;
         }
 
-        // قوائم الموظفين اللي هاد المستخدم (لو عنده صلاحية attendance.create) يقدر يسجلهم اليوم
         $checkedInEmployeeIds = [];
         $notCheckedInEmployees = collect();
         $checkedInNotOutEmployees = collect();
@@ -149,7 +148,7 @@ class AttendanceController extends Controller
         $record = AttendanceRecord::where('employee_id', $employee->id)->whereDate('date', today())->first();
 
         if (! $record || ! $record->check_in_time) {
-            return back()->with('error', "ما في تسجيل حضور لـ {$employee->full_name} اليوم أصلاً.");
+            return back()->with('error', "لا يوجد تسجيل حضور للموظف {$employee->full_name} اليوم.");
         }
         if ($record->check_out_time) {
             return back()->with('error', "تم تسجيل انصراف {$employee->full_name} مسبقاً.");
@@ -168,9 +167,6 @@ class AttendanceController extends Controller
             . ($isEarly ? ' (قبل نهاية الدوام الرسمي 04:00 م)' : ''));
     }
 
-    /**
-     * قيد يدوي/تصحيح (إجازة، غياب، تعديل وقت) - نفس صلاحية attendance.create.
-     */
     public function manualLog(Request $request): RedirectResponse
     {
         $user = $request->user();
@@ -203,7 +199,7 @@ class AttendanceController extends Controller
             ]
         );
 
-        return back()->with('success', "تم حفظ القيد اليدوي لـ {$employee->full_name} بنجاح");
+        return back()->with('success', "تم حفظ القيد اليدوي للموظف {$employee->full_name} بنجاح");
     }
 
     private function authorizeScope(string $permissionKey): string
@@ -212,15 +208,12 @@ class AttendanceController extends Controller
         $scope = $user->highestScopeFor($permissionKey);
 
         if ($scope === null) {
-            abort(403, 'ما عندك صلاحية لهاي العملية.');
+            abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
         return $scope;
     }
 
-    /**
-     * تأكد إنه الموظف المستهدف ضمن حدود نطاق صلاحية attendance.create يلي عند المستخدم.
-     */
     private function assertWithinScope($user, string $scope, Employee $employee): void
     {
         if ($scope === 'organization') {
@@ -234,15 +227,14 @@ class AttendanceController extends Controller
 
         if ($scope === 'self') {
             if ($employee->id !== $ownEmployee->id) {
-                abort(403, 'فيك تسجل دوامك الشخصي بس.');
+                abort(403, 'لا تملك صلاحية تسجيل الدوام سوى لحسابك الشخصي.');
             }
             return;
         }
 
-        // department
         $boundaryField = $user->hasRole('SH') ? 'section_id' : 'department_id';
         if ($employee->{$boundaryField} !== $ownEmployee->{$boundaryField}) {
-            abort(403, 'فيك تسجل دوام لموظفين ضمن نطاقك بس.');
+            abort(403, 'لا تملك صلاحية تسجيل الدوام إلا لموظفين ضمن نطاقك الإداري.');
         }
     }
 

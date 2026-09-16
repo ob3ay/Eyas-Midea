@@ -110,7 +110,7 @@ class PerformanceController extends Controller
         $scope = $user->highestScopeFor($permissionKey);
 
         if ($scope === null) {
-            abort(403, 'ما عندك صلاحية لهاي العملية.');
+            abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
         return $scope;
@@ -128,13 +128,13 @@ class PerformanceController extends Controller
         }
 
         if ($scope === 'self' && $employee->id !== $ownEmployee->id) {
-            abort(403, 'فيك تقيّم نفسك بس، وهاد أصلاً غير منطقي - راجع صلاحياتك.');
+            abort(403, 'غير مصرح لك بإجراء تقييم خارج نطاق الصلاحيات الممنوحة لك.');
         }
 
         if ($scope === 'department') {
             $boundaryField = $user->hasRole('SH') ? 'section_id' : 'department_id';
             if ($employee->{$boundaryField} !== $ownEmployee->{$boundaryField}) {
-                abort(403, 'فيك تقيّم موظفين ضمن نطاقك بس.');
+                abort(403, 'لا تملك صلاحية تقييم سوى الموظفين التابعين لنطاقك الإداري.');
             }
         }
     }

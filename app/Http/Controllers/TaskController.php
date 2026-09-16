@@ -230,7 +230,7 @@ class TaskController extends Controller
         $scope = $user->highestScopeFor($permissionKey);
 
         if ($scope === null) {
-            abort(403, 'ما عندك صلاحية لهاي العملية.');
+            abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
         if ($task !== null && $scope !== 'organization') {
@@ -240,13 +240,13 @@ class TaskController extends Controller
             }
 
             if ($scope === 'self' && $task->assignee_employee_id !== $ownEmployee->id) {
-                abort(403, 'فيك تدير المهام المسندة لك بس.');
+                abort(403, 'لا تملك صلاحية إدارة سوى المهام المسندة إليك.');
             }
 
             if ($scope === 'department') {
                 $assigneeDept = $task->assignee?->department_id;
                 if ($assigneeDept !== $ownEmployee->department_id) {
-                    abort(403, 'فيك تدير مهام موظفي دائرتك بس.');
+                    abort(403, 'لا تملك صلاحية إدارة سوى مهام موظفي دائرتك.');
                 }
             }
         }
@@ -266,11 +266,11 @@ class TaskController extends Controller
         }
 
         if ($scope === 'self' && $assignee->id !== $ownEmployee->id) {
-            abort(403, 'فيك تنشئ/تعدّل مهام لنفسك بس.');
+            abort(403, 'لا تملك صلاحية إنشاء أو تعديل مهام إلا لنفسك.');
         }
 
         if ($scope === 'department' && $assignee->department_id !== $ownEmployee->department_id) {
-            abort(403, 'فيك تسند مهام لموظفين دائرتك بس.');
+            abort(403, 'لا تملك صلاحية إسناد مهام إلا لموظفي دائرتك.');
         }
     }
 

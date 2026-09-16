@@ -108,12 +108,12 @@ class DepartmentController extends Controller
         Gate::authorize('delete', $department);
 
         if ($department->employees()->exists() || $department->sections()->exists()) {
-            return back()->with('error', 'ما فيك تحذف هاي الدائرة، فيه موظفين مرتبطين فيها.');
+            return back()->with('error', 'لا يمكن حذف هذه الدائرة لوجود أقسام أو موظفين مرتبطين بها.');
         }
 
         $department->delete();
 
-        return back()->with('success', 'تم حذف الدائرة');
+        return back()->with('success', 'تم حذف الدائرة بنجاح');
     }
 
     public function storeSection(StoreSectionRequest $request): RedirectResponse

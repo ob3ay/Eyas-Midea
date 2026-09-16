@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="rtl">
 
@@ -465,7 +466,179 @@
     </div>
 
     <div id="ems-toast-container"></div>
-    <script src="{{ asset('assets/js/portal.js') }}"></script>
+    <script src="{{ asset('assets/js/portal.js') }}?v=2.1"></script>
+    <script>
+        (() => {
+            const toggle = document.getElementById('notifications-toggle');
+            const panel = document.getElementById('notifications-panel');
+            const list = document.getElementById('notifications-list');
+            const badge = document.getElementById('notifications-badge');
+            const readAllButton = document.getElementById('notifications-read-all');
+            let loaded = false;
+            let requestInFlight = false;
+
+            if (!toggle || !panel || !list) {
+                return;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            function setBadge(count) {
+                if (!badge) return;
+                const normalizedCount = Number(count) || 0;
+                badge.textContent = normalizedCount > 99 ? '99+' : normalizedCount;
+                badge.classList.toggle('hidden', normalizedCount === 0);
+            }
+
+            function escapeHtml(value) {
+                return String(value ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+
+            function renderNotifications(notifications) {
+                if (!notifications.length) {
+                    list.innerHTML =
+                        '<div class="px-3 py-8 text-center text-sm text-slate-400">لا توجد إشعارات حالياً.</div>';
+                    return;
+                }
+
+                list.innerHTML = notifications.map((notification) => `
+                    <button type="button" data-notification-id="${notification.id}"
+                        data-notification-url="${escapeHtml(notification.url || '')}"
+                        class="notification-item flex w-full gap-3 rounded-xl p-3 text-right transition
+                            ${notification.read ? 'bg-white' : 'bg-indigo-50/70'} hover:bg-slate-50">
+                        <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full
+                            ${notification.read ? 'bg-slate-200' : 'bg-indigo-500'}"></span>
+                        <span class="min-w-0">
+                            <span class="block truncate text-sm font-semibold text-slate-800">${escapeHtml(notification.title)}</span>
+                            <span class="mt-1 block text-xs leading-5 text-slate-500">${escapeHtml(notification.message)}</span>
+                            <span class="mt-1 block text-[11px] text-slate-400">${escapeHtml(notification.created_at || '')}</span>
+                        </span>
+                    </button>
+                `).join('');
+
+                list.querySelectorAll('.notification-item').forEach((item) => {
+                    item.addEventListener('click', () => markAsRead(item));
+                });
+            }
+
+            async function loadNotifications() {
+                if (requestInFlight) {
+                    return;
+                }
+
+                requestInFlight = true;
+                list.innerHTML = '<div class="px-3 py-8 text-center text-sm text-slate-400">جارٍ التحميل...</div>';
+
+                try {
+                    const response = await fetch('{{ route('notifications.index') }}', {
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                    });
+                    const payload = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'تعذر تحميل الإشعارات.');
+                    }
+
+                    renderNotifications(payload.notifications || []);
+                    setBadge(payload.unread_count);
+                    loaded = true;
+                } catch (error) {
+                    list.innerHTML =
+                        `<div class="px-3 py-8 text-center text-sm text-red-600">${escapeHtml(error.message)}</div>`;
+                } finally {
+                    requestInFlight = false;
+                }
+            }
+
+            async function markAsRead(item) {
+                const notificationId = item.dataset.notificationId;
+                item.disabled = true;
+
+                try {
+                    const response = await fetch(`{{ url('/notifications') }}/${notificationId}/read`, {
+                        method: 'PATCH',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                    });
+                    const payload = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'تعذر تحديث حالة الإشعار.');
+                    }
+
+                    setBadge(payload.unread_count);
+                    item.classList.remove('bg-indigo-50/70');
+                    item.classList.add('bg-white');
+
+                    if (item.dataset.notificationUrl) {
+                        window.location.href = item.dataset.notificationUrl;
+                    }
+                } catch (error) {
+                    item.disabled = false;
+                    if (typeof showToast === 'function') {
+                        showToast(error.message, 'error');
+                    }
+                }
+            }
+
+            toggle.addEventListener('click', () => {
+                const isOpen = !panel.classList.contains('hidden');
+                panel.classList.toggle('hidden', isOpen);
+                toggle.setAttribute('aria-expanded', String(!isOpen));
+
+                if (!isOpen && !loaded) {
+                    loadNotifications();
+                }
+            });
+
+            readAllButton?.addEventListener('click', async () => {
+                readAllButton.disabled = true;
+
+                try {
+                    const response = await fetch('{{ route('notifications.read-all') }}', {
+                        method: 'PATCH',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                    });
+                    const payload = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'تعذر تحديث الإشعارات.');
+                    }
+
+                    setBadge(payload.unread_count);
+                    await loadNotifications();
+                } catch (error) {
+                    if (typeof showToast === 'function') {
+                        showToast(error.message, 'error');
+                    }
+                } finally {
+                    readAllButton.disabled = false;
+                }
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!panel.contains(event.target) && !toggle.contains(event.target)) {
+                    panel.classList.add('hidden');
+                    toggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        })();
+    </script>
     @stack('scripts')
 
 

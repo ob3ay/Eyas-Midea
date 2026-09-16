@@ -34,9 +34,6 @@ class LoginController extends Controller
 
     public function login(Request $request): RedirectResponse
     {
-        // ملاحظة: فورم الفرونت (resources/views/auth/login.blade.php) عم يبعت
-        // الحقل باسم "email" مش "username"، فمنقبله هيك ومنبحث فيه بعمود email.
-        // لو حبيت لاحقاً تدعم تسجيل الدخول بالـ username كمان، ضيف حقل بالفورم.
         $data = $request->validate([
             'email' => ['required', 'string'],
             'password' => ['required', 'string'],
@@ -44,26 +41,23 @@ class LoginController extends Controller
 
         $user = User::where('email', $data['email'])->first();
 
-        // المستخدم مش موجود أصلاً - ما منفرّق بالرسالة حتى ما نعطي معلومة لمهاجم محتمل
         if (! $user) {
             throw ValidationException::withMessages([
                 'email' => 'بيانات الدخول غير صحيحة.',
             ]);
         }
 
-        // الحساب مقفول مؤقتاً بسبب محاولات فاشلة متكررة
         if ($user->isLocked()) {
             $minutesLeft = now()->diffInMinutes($user->locked_until, false);
 
             throw ValidationException::withMessages([
-                'email' => "الحساب مقفل مؤقتاً بسبب محاولات دخول فاشلة متكررة. حاول بعد {$minutesLeft} دقيقة تقريباً.",
+                'email' => "الحساب مقفل مؤقتاً بسبب محاولات دخول فاشلة متكررة. يرجى المحاولة بعد {$minutesLeft} دقيقة.",
             ]);
         }
 
-        // الحساب موقوف من الإدارة (is_active = false)
         if (! $user->is_active) {
             throw ValidationException::withMessages([
-                'email' => 'هذا الحساب موقوف حالياً. تواصل مع الإدارة.',
+                'email' => 'هذا الحساب موقوف حالياً، يرجى التواصل مع الإدارة.',
             ]);
         }
 
