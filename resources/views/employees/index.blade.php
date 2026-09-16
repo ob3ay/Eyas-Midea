@@ -15,9 +15,12 @@
             <h1 class="ems-page-title">إدارة شؤون الموظفين والكوادر</h1>
             <p class="ems-page-subtitle">الهيكل الإداري الكامل والبيانات الوظيفية لكوادر مجموعة إياس الإعلامية</p>
         </div>
+        
         <div class="ems-page-actions">
             @if ($canCreate)
-                <button class="ems-btn ems-btn-primary" onclick="openModal('modal-add-employee')">
+                <!-- زر إضافة موظف -->
+                <button class="ems-btn ems-btn-primary" id="btn-add-employee" type="button"
+                    onclick="openModal('modal-add-employee')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
@@ -25,6 +28,170 @@
                     <span>إضافة موظف جديد</span>
                 </button>
             @endif
+        </div>
+    </div>
+
+
+
+
+    <!-- Modal إضافة موظف -->
+    <div class="ems-modal-overlay" id="modal-add-employee">
+        <div class="ems-modal">
+
+            <!-- Header -->
+            <div class="ems-modal-header">
+                <div class="ems-modal-title">
+                    إضافة موظف جديد لكادر مجموعة إياس الإعلامية
+                </div>
+
+                <button type="button" class="ems-modal-close" id="close-add-employee"
+                    onclick="closeModal('modal-add-employee')" aria-label="إغلاق">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Form -->
+            <form action="{{ route('employees.store') }}" method="POST" id="addEmployeeForm">
+                @csrf
+
+                <div class="ems-modal-body">
+
+                    <!-- الرقم الوظيفي + الدائرة -->
+                    <div class="ems-form-row">
+
+                        <div class="ems-form-group">
+                            <label for="emp_code" class="ems-label">
+                                <span class="required">*</span>
+                                الرقم الوظيفي
+                            </label>
+
+                            <input type="text" id="emp_code" name="emp_code" class="ems-input"
+                                value="{{ $nextEmployeeCode }}" required readonly
+                                style="background-color: var(--ems-surface-alt); font-weight: bold;">
+                        </div>
+
+                        <div class="ems-form-group">
+                            <label for="department_id" class="ems-label">
+                                <span class="required">*</span>
+                                الدائرة الإدارية
+                            </label>
+
+                            <select id="department_id" name="department_id" class="ems-select" required>
+
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}" @selected($loop->first)>
+                                        {{ $department->name }}
+                                    </option>
+                                @endforeach
+
+                            </select>
+                        </div>
+
+                    </div>
+
+
+                    <!-- الاسم + المسمى الوظيفي -->
+                    <div class="ems-form-row">
+
+                        <div class="ems-form-group">
+                            <label for="first_name" class="ems-label">
+                                <span class="required">*</span>
+                                الاسم الأول
+                            </label>
+
+                            <input type="text" id="first_name" name="first_name" class="ems-input"
+                                placeholder="مثال: يزن البيطار" required>
+                        </div>
+
+                        <div class="ems-form-group">
+                            <label for="last_name" class="ems-label">
+                                <span class="required">*</span>
+                                اسم العائلة
+                            </label>
+
+                            <input type="text" id="last_name" name="last_name" class="ems-input"
+                                placeholder="مثال: البيطار" required>
+                        </div>
+
+                    </div>
+
+                    <!-- الهوية والمسمى الوظيفي -->
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="national_id" class="ems-label">
+                                <span class="required">*</span>
+                                رقم الهوية
+                            </label>
+                            <input type="text" id="national_id" name="national_id" class="ems-input"
+                                placeholder="رقم الهوية الوطنية أو الإقامة" required>
+                        </div>
+
+                        <div class="ems-form-group">
+                            <label for="job_title" class="ems-label">
+                                <span class="required">*</span>
+                                المسمى الوظيفي
+                            </label>
+                            <input type="text" id="job_title" name="job_title" class="ems-input"
+                                placeholder="مثال: مطور ويب وواجهات" required>
+                        </div>
+                    </div>
+
+
+                    <!-- البريد + الهاتف -->
+                    <div class="ems-form-row">
+
+                        <div class="ems-form-group">
+                            <label for="email" class="ems-label">
+                                <span class="required">*</span>
+                                البريد المؤسسي
+                            </label>
+
+                            <input type="email" id="email" name="email" class="ems-input"
+                                placeholder="username@eyasmedia.com" required>
+                        </div>
+
+                        <div class="ems-form-group">
+                            <label for="phone" class="ems-label">
+                                <span class="required">*</span>
+                                رقم الهاتف المحمول
+                            </label>
+
+                            <input type="tel" id="phone" name="phone" class="ems-input"
+                                placeholder="+970 59 000 0000" required>
+                        </div>
+
+                    </div>
+
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label for="hire_date" class="ems-label">
+                                <span class="required">*</span>
+                                تاريخ التعيين
+                            </label>
+                            <input type="date" id="hire_date" name="hire_date" class="ems-input"
+                                value="{{ now()->format('Y-m-d') }}" required>
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- Footer -->
+                <div class="ems-modal-footer">
+
+                    <button type="button" class="ems-btn ems-btn-secondary" id="cancel-add-employee"
+                        onclick="closeModal('modal-add-employee')">
+                        إلغاء
+                    </button>
+
+                    <button type="submit" class="ems-btn ems-btn-primary">
+                        حفظ واعتماد الموظف
+                    </button>
+
+                </div>
+
+            </form>
+
         </div>
     </div>
 
@@ -235,44 +402,55 @@
                                     <span class="ems-badge {{ $status['class'] }}">{{ $status['text'] }}</span>
                                 </td>
                                 <td style="text-align: center;">
-                                    @if ($canUpdate)
-                                        @php
-                                            $employeeData = [
-                                                'id' => $employee->id,
-                                                'full_name' => $employee->full_name,
-                                                'position' => $employee->position,
-                                                'department_id' => $employee->department_id,
-                                                'section_id' => $employee->section_id,
-                                                'phone' => $employee->phone,
-                                                'employment_status' => $employee->employment_status,
-                                                'update_url' => route('employees.update', $employee),
-                                            ];
-                                        @endphp
-                                        <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
-                                            onclick='openEditEmployeeModal(@json($employeeData))'>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                stroke-width="2">
-                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                            </svg>
-                                        </button>
-                                    @endif
+                                    <div style="display:flex; justify-content:center; gap:6px;">
 
-                                    @if ($canDelete)
-                                        <form action="{{ route('employees.destroy', $employee) }}" method="POST"
-                                            style="display:inline;" onsubmit="return confirm('هل تريد حذف هذا الموظف؟');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="ems-btn ems-btn-icon" title="حذف">
+                                        <a href="{{ route('employees.show', $employee) }}"
+                                            class="ems-btn ems-btn-icon bg-blue-500 text-white" title="عرض التفاصيل">
+                                            <i class="fa fa-eye"></i>
+                                        </a>
+                                        @if ($canUpdate)
+                                            @php
+                                                $employeeData = [
+                                                    'id' => $employee->id,
+                                                    'full_name' => $employee->full_name,
+                                                    'position' => $employee->position,
+                                                    'department_id' => $employee->department_id,
+                                                    'section_id' => $employee->section_id,
+                                                    'phone' => $employee->phone,
+                                                    'employment_status' => $employee->employment_status,
+                                                    'update_url' => route('employees.update', $employee),
+                                                ];
+                                            @endphp
+                                            <button type="button" class="ems-btn ems-btn-icon bg-green-500 text-white"
+                                                title="تعديل"
+                                                onclick='openEditEmployeeModal(@json($employeeData))'>
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                     stroke-width="2">
-                                                    <polyline points="3 6 5 6 21 6" />
-                                                    <path
-                                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                                                 </svg>
                                             </button>
-                                        </form>
-                                    @endif
+                                        @endif
+
+                                        @if ($canDelete)
+                                            <form action="{{ route('employees.destroy', $employee) }}" method="POST"
+                                                style="display:inline;"
+                                                onsubmit="return confirm('هل تريد حذف هذا الموظف؟');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="ems-btn ems-btn-icon bg-red-500 text-white"
+                                                    title="حذف">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2">
+                                                        <polyline points="3 6 5 6 21 6" />
+                                                        <path
+                                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+
                                 </td>
                             </tr>
                         @empty
@@ -294,92 +472,6 @@
             عرض {{ $employees->firstItem() ?? 0 }} إلى {{ $employees->lastItem() ?? 0 }} من {{ $employees->total() }}
         </span>
         {{ $employees->links('pagination::simple-bootstrap-5') }}
-    </div>
-
-    {{-- نافذة إضافة موظف --}}
-    <div class="ems-modal-overlay" id="modal-add-employee">
-        <div class="ems-modal">
-            <div class="ems-modal-header">
-                <div class="ems-modal-title">إضافة موظف جديد لكادر مجموعة إياس الإعلامية</div>
-                <button class="ems-modal-close" onclick="closeModal('modal-add-employee')">✕</button>
-            </div>
-            <form action="{{ route('employees.store') }}" method="POST" id="addEmployeeForm">
-                @csrf
-                <div class="ems-modal-body">
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label for="emp_code" class="ems-label"><span class="required">*</span> الرقم الوظيفي</label>
-                            <input type="text" id="emp_code" name="emp_code" class="ems-input"
-                                value="{{ $nextEmployeeCode }}" required readonly
-                                style="background-color: var(--ems-surface-alt);">
-                        </div>
-                        <div class="ems-form-group">
-                            <label for="national_id" class="ems-label"><span class="required">*</span> رقم الهوية /
-                                الإقامة</label>
-                            <input type="text" id="national_id" name="national_id" class="ems-input"
-                                placeholder="مثال: 900123456" required>
-                        </div>
-                    </div>
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label for="first_name" class="ems-label"><span class="required">*</span> الاسم الأول</label>
-                            <input type="text" id="first_name" name="first_name" class="ems-input" required>
-                        </div>
-                        <div class="ems-form-group">
-                            <label for="last_name" class="ems-label"><span class="required">*</span> اسم العائلة</label>
-                            <input type="text" id="last_name" name="last_name" class="ems-input" required>
-                        </div>
-                    </div>
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label for="email" class="ems-label"><span class="required">*</span> البريد المؤسسي (لحساب
-                                الدخول)</label>
-                            <input type="email" id="email" name="email" class="ems-input" required
-                                placeholder="name@eyasmedia.com">
-                        </div>
-                        <div class="ems-form-group">
-                            <label for="phone" class="ems-label"><span class="required">*</span> رقم الهاتف</label>
-                            <input type="tel" id="phone" name="phone" class="ems-input" required>
-                        </div>
-                    </div>
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label for="department_id" class="ems-label"><span class="required">*</span> الدائرة
-                                الإدارية</label>
-                            <select id="department_id" name="department_id" class="ems-select" required>
-                                @foreach ($departments as $dept)
-                                    <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="ems-form-group">
-                            <label for="job_title" class="ems-label"><span class="required">*</span> المسمى
-                                الوظيفي</label>
-                            <input type="text" id="job_title" name="job_title" class="ems-input" required>
-                        </div>
-                    </div>
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label for="section_id" class="ems-label">القسم التخصصي</label>
-                            <select id="section_id" name="section_id" class="ems-select">
-                                <option value="">بدون قسم</option>
-                            </select>
-                        </div>
-                        <div class="ems-form-group">
-                            <label for="hire_date" class="ems-label"><span class="required">*</span> تاريخ
-                                التعيين</label>
-                            <input type="date" id="hire_date" name="hire_date" class="ems-input"
-                                value="{{ date('Y-m-d') }}" required>
-                        </div>
-                    </div>
-                </div>
-                <div class="ems-modal-footer">
-                    <button type="button" class="ems-btn ems-btn-secondary"
-                        onclick="closeModal('modal-add-employee')">إلغاء</button>
-                    <button type="submit" class="ems-btn ems-btn-primary">حفظ وبيانات الموظف</button>
-                </div>
-            </form>
-        </div>
     </div>
 
     {{-- نافذة تعديل موظف --}}
@@ -520,5 +612,8 @@
                 }
             }
         </script>
+
+
+
     @endif
 @endsection

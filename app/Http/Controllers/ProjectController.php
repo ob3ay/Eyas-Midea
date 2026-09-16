@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -56,7 +57,7 @@ class ProjectController extends Controller
         ));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, NotificationService $notifications): RedirectResponse
     {
         $user = $request->user();
         $scope = $this->authorizeScope('projects.create');
@@ -80,7 +81,16 @@ class ProjectController extends Controller
             $validated['completion_percentage'] = 100;
         }
 
-        Project::create($validated);
+        $project = Project::create($validated);
+        if ($project->owner_employee_id !== null) {
+            $notifications->createForEmployee(
+                $project->owner_employee_id,
+                'project_assigned',
+                'تم إسناد مشروع جديد',
+                "تم إسناد المشروع «{$project->title}» إليك.",
+                $project,
+            );
+        }
 
         return redirect()->route('projects.index')->with('success', 'تم إضافة المشروع بنجاح');
     }

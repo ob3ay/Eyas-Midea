@@ -16,6 +16,9 @@
         href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap"
         rel="stylesheet">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css"
+        integrity="sha512-QeR2VH+lsBE5LSAe1Q5EnTBbe7XTBubt8dG93Y7gidSgdMCr8nVqKcfKAMyN96SV8KDbZVTDXChatu5G2KQGzg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -210,7 +213,7 @@
                 @endif
             </nav>
 
-           
+
 
             <div class="ems-sidebar-footer">
                 <span>مجموعة إياس الإعلامية</span>
@@ -251,14 +254,32 @@
                         </button>
                     @endif
 
-                    <button class="ems-icon-btn" title="الإشعارات">
+                    <button class="ems-icon-btn" id="notifications-toggle" type="button" title="الإشعارات"
+                        aria-label="الإشعارات" aria-expanded="false">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                         </svg>
-                        <span class="badge-dot"></span>
+                        <span class="badge-dot {{ $notificationsUnreadCount > 0 ? '' : 'hidden' }}"
+                            id="notifications-badge">{{ $notificationsUnreadCount }}</span>
                     </button>
+                    <div id="notifications-panel"
+                        class="hidden absolute left-6 top-16 z-40 w-[min(92vw,390px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                            <div>
+                                <h2 class="font-bold text-slate-800">الإشعارات</h2>
+                                <p class="text-xs text-slate-500">آخر التنبيهات الخاصة بحسابك</p>
+                            </div>
+                            <button type="button" id="notifications-read-all"
+                                class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+                                تعليم الكل كمقروء
+                            </button>
+                        </div>
+                        <div id="notifications-list" class="max-h-96 overflow-y-auto p-2">
+                            <div class="px-3 py-8 text-center text-sm text-slate-400">جارٍ تحميل الإشعارات...</div>
+                        </div>
+                    </div>
                     <!-- بيانات المستخدم الحركية -->
                     @php
                         $authUser = auth()->user();
@@ -443,9 +464,11 @@
         </div>
     </div>
 
-    <div id="ems-toast-container" class="ems-toast-container"></div>
+    <div id="ems-toast-container"></div>
     <script src="{{ asset('assets/js/portal.js') }}"></script>
     @stack('scripts')
+
+
 </body>
 
 </html>

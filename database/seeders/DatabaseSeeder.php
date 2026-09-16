@@ -167,9 +167,6 @@ class DatabaseSeeder extends Seeder
             $empUser->roles()->attach($empRole->id);
         }
 
-        // 7) صلاحيات كل موديولات النظام (EMS Modules) وربطها بالأدوار بنطاقات مختلفة
-        //    المفهوم: Role (دور) + Permission (ماذا يستطيع أن يفعل) + Scope (أين):
-        //    self=بياناته فقط / department=دائرته أو قسمه / organization=كل المؤسسة
         $modulesWithActions = [
             'employees' => ['view', 'create', 'update', 'delete'],
             'departments' => ['view', 'create', 'update', 'delete'],

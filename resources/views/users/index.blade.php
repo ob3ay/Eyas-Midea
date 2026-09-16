@@ -182,7 +182,9 @@
             {{-- Permissions Matrix --}}
             <div class="bg-white rounded-2xl border border-slate-200 mb-6 overflow-hidden">
 
-                <div class="px-5 py-4 border-b border-slate-200">
+                <div class="px-5 py-4 border-b border-slate-200 flex justify-between">
+
+                  <div>
                     <h2 class="font-bold text-slate-800">
                         مصفوفة الصلاحيات
                     </h2>
@@ -191,6 +193,19 @@
                         الصلاحيات المرتبطة بكل دور ونطاقها
                     </p>
                 </div>
+                <div>
+                    <label for="permission-matrix-role"
+                        class="sr-only">اختيار الدور لعرض صلاحياته</label>
+                    <select id="permission-matrix-role"
+                        class="bg-slate-800 text-xs rounded-lg px-3 py-2 text-white">
+                        <option value="">كل الأدوار</option>
+                        @foreach ($roles as $role)
+                            <option value="{{ $role->id }}">{{ $role->display_name ?: $role->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                  </div>
+
 
                 @if ($roles->count() && $permissions->count())
                     <div class="overflow-x-auto">
@@ -203,7 +218,8 @@
                                     </th>
 
                                     @foreach ($roles as $role)
-                                        <th class="px-4 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">
+                                        <th data-permission-role="{{ $role->id }}"
+                                            class="permission-matrix-role-column px-4 py-3 text-center font-semibold text-slate-700 whitespace-nowrap">
                                             {{ $role->display_name ?: $role->name }}
                                         </th>
                                     @endforeach
@@ -246,7 +262,8 @@
                                                 ];
                                             @endphp
 
-                                            <td class="px-4 py-3 text-center">
+                                            <td data-permission-role="{{ $role->id }}"
+                                                class="permission-matrix-role-column px-4 py-3 text-center">
 
                                                 @if ($canManagePermissions)
                                                     <form method="POST"
@@ -471,7 +488,7 @@
                                         {{-- Roles --}}
                                         <td class="px-4 py-4">
 
-                                            <div class="flex flex-wrap gap-1.5">
+                                            <div class="flex flex-wrap gap-1.5" data-user-roles="{{ $user->id }}">
 
                                                 @forelse($user->roles as $role)
                                                     <span
@@ -562,6 +579,16 @@
                                                     </button>
                                                 @endif
 
+                                                @if ($canManagePermissions)
+                                                    <button type="button"
+                                                        onclick="openRolePicker({{ $user->id }})"
+                                                        class="w-9 h-9 rounded-lg bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center text-indigo-600 transition"
+                                                        title="اختيار الدور"
+                                                        aria-label="اختيار الدور">
+                                                        <i data-lucide="shield" class="w-4 h-4"></i>
+                                                    </button>
+                                                @endif
+
 
                                                 @if ($canDelete)
                                                     <form method="POST" action="{{ route('users.destroy', $user) }}"
@@ -612,6 +639,31 @@
             </div>
 
         </div>
+
+        {{-- Role Picker --}}
+        @if ($canManagePermissions)
+            <div id="modal-role-picker"
+                class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+                <div class="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                        <div>
+                            <h2 class="font-bold text-lg text-slate-800">اختيار الدور</h2>
+                            <p id="role-picker-user" class="text-xs text-slate-500 mt-1"></p>
+                        </div>
+                        <button type="button" onclick="closeModal('modal-role-picker')"
+                            class="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <div class="p-6">
+                        <p class="text-sm text-slate-500 mb-3">الدور الحالي محدد. اختر دورًا جديدًا ليتم حفظه مباشرة.</p>
+                        <div id="role-picker-options" class="grid gap-2"></div>
+                        <p id="role-picker-feedback" class="hidden mt-4 rounded-xl px-3 py-2 text-sm"></p>
+                    </div>
+                </div>
+            </div>
+        @endif
 
 
         {{-- Add User Modal --}}
@@ -995,36 +1047,21 @@
                 'username' => $user->username,
                 'email' => $user->email,
                 'is_active' => (bool) $user->is_active,
-                'roles' => $user->roles->pluck('id')->values()->all(),
+                'role_ids' => $user->roles->pluck('id')->values()->all(),
+                'role_names' => $user->roles->map(fn ($role) => $role->display_name ?: $role->name)->values()->all(),
             ];
         })
         ->values()
         ->all(),
 );
-
-        function openModal(id) {
-            const modal = document.getElementById(id);
-
-            if (!modal) {
-                return;
-            }
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            document.body.classList.add('overflow-hidden');
-        }
-
-        function closeModal(id) {
-            const modal = document.getElementById(id);
-
-            if (!modal) {
-                return;
-            }
-
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            document.body.classList.remove('overflow-hidden');
-        }
+        const availableRoles = @js(
+            $roles->map(fn ($role) => [
+                'id' => $role->id,
+                'name' => $role->display_name ?: $role->name,
+            ])->values()->all(),
+        );
+        let rolePickerUserId = null;
+        let roleRequestInFlight = false;
 
         function openEditUserModal(userId) {
             const user = usersData.find(
@@ -1063,12 +1100,174 @@
             }
 
             document.querySelectorAll('.edit-role').forEach(function(checkbox) {
-                checkbox.checked = user.roles.includes(
+                checkbox.checked = user.role_ids.includes(
                     Number(checkbox.value)
                 );
             });
 
             openModal('modal-edit-user');
+        }
+
+        function openRolePicker(userId) {
+            const user = usersData.find(item => Number(item.id) === Number(userId));
+            const options = document.getElementById('role-picker-options');
+            const userLabel = document.getElementById('role-picker-user');
+            const feedback = document.getElementById('role-picker-feedback');
+
+            if (!user || !options || !userLabel) {
+                return;
+            }
+
+            rolePickerUserId = user.id;
+            roleRequestInFlight = false;
+            userLabel.textContent = user.username;
+            feedback.className = 'hidden mt-4 rounded-xl px-3 py-2 text-sm';
+            const currentRoleId = user.role_ids[0] ?? null;
+            options.innerHTML = availableRoles.map(function(role) {
+                const checked = Number(currentRoleId) === Number(role.id);
+
+                return `
+                    <label class="role-picker-option flex items-center gap-3 p-3 rounded-xl border border-slate-200
+                        ${checked ? 'border-indigo-300 bg-indigo-50' : 'hover:bg-slate-50'} cursor-pointer transition">
+                        <input type="radio" name="role_picker_role" value="${role.id}"
+                            class="role-picker-input text-indigo-600 focus:ring-indigo-500" ${checked ? 'checked' : ''}>
+                        <span class="text-sm font-medium text-slate-700">${escapeHtml(role.name)}</span>
+                        ${checked ? '<span class="role-current-label mr-auto text-xs font-semibold text-indigo-600">الدور الحالي</span>' : ''}
+                    </label>
+                `;
+            }).join('');
+
+            options.querySelectorAll('.role-picker-input').forEach(function(input) {
+                input.addEventListener('change', function() {
+                    updateUserRole(Number(this.value), user);
+                });
+            });
+
+            openModal('modal-role-picker');
+        }
+
+        async function updateUserRole(roleId, user) {
+            if (roleRequestInFlight || !rolePickerUserId) {
+                return;
+            }
+
+            const options = document.getElementById('role-picker-options');
+            const feedback = document.getElementById('role-picker-feedback');
+            const selectedInput = options?.querySelector(`input[value="${roleId}"]`);
+            const previousRoleIds = [...user.role_ids];
+
+            roleRequestInFlight = true;
+            options?.classList.add('opacity-60', 'pointer-events-none');
+            if (selectedInput) {
+                selectedInput.closest('label')?.classList.add('animate-pulse');
+            }
+            showRolePickerFeedback('جاري حفظ الدور...', 'loading');
+
+            try {
+                const response = await fetch(`{{ url('/users') }}/${user.id}/role`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ role_id: roleId }),
+                });
+                const payload = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(payload.message || 'تعذر تحديث دور المستخدم.');
+                }
+
+                user.role_ids = [payload.role.id];
+                user.role_names = [payload.role.name];
+                renderUserRoles(user.id, user.role_names);
+                showRolePickerFeedback(payload.message, 'success');
+                if (typeof showToast === 'function') {
+                    showToast(payload.message, 'success');
+                }
+                refreshRolePickerOptions(user);
+            } catch (error) {
+                user.role_ids = previousRoleIds;
+                showRolePickerFeedback(error.message || 'حدث خطأ أثناء تحديث الدور.', 'error');
+                refreshRolePickerOptions(user);
+                if (typeof showToast === 'function') {
+                    showToast(error.message || 'حدث خطأ أثناء تحديث الدور.', 'error');
+                }
+            } finally {
+                roleRequestInFlight = false;
+                options?.classList.remove('opacity-60', 'pointer-events-none');
+            }
+        }
+
+        function refreshRolePickerOptions(user) {
+            document.querySelectorAll('.role-picker-option').forEach(function(option) {
+                const input = option.querySelector('input');
+                const isCurrent = user.role_ids.includes(Number(input.value));
+                input.checked = isCurrent;
+                option.classList.toggle('border-indigo-300', isCurrent);
+                option.classList.toggle('bg-indigo-50', isCurrent);
+                option.classList.toggle('hover:bg-slate-50', !isCurrent);
+                const currentLabel = option.querySelector('.role-current-label');
+                if (isCurrent && !currentLabel) {
+                    option.insertAdjacentHTML('beforeend',
+                        '<span class="role-current-label mr-auto text-xs font-semibold text-indigo-600">الدور الحالي</span>');
+                } else if (!isCurrent && currentLabel) {
+                    currentLabel.remove();
+                }
+            });
+        }
+
+        function renderUserRoles(userId, roleNames) {
+            const container = document.querySelector(`[data-user-roles="${userId}"]`);
+            if (!container) {
+                return;
+            }
+
+            container.innerHTML = roleNames.length
+                ? roleNames.map(name =>
+                    `<span class="inline-flex px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">${escapeHtml(name)}</span>`
+                ).join('')
+                : '<span class="text-slate-400 text-xs">بدون دور</span>';
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function showRolePickerFeedback(message, type) {
+            const feedback = document.getElementById('role-picker-feedback');
+            if (!feedback) {
+                return;
+            }
+
+            feedback.textContent = message;
+            feedback.className = type === 'success'
+                ? 'mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700'
+                : type === 'loading'
+                    ? 'mt-4 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700'
+                    : 'mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700';
+        }
+
+        const permissionMatrixRoleSelect = document.getElementById('permission-matrix-role');
+
+        if (permissionMatrixRoleSelect) {
+            permissionMatrixRoleSelect.addEventListener('change', function() {
+                const selectedRoleId = this.value;
+
+                document.querySelectorAll('.permission-matrix-role-column').forEach(function(column) {
+                    column.classList.toggle(
+                        'hidden',
+                        selectedRoleId !== '' && column.dataset.permissionRole !== selectedRoleId
+                    );
+                });
+            });
         }
 
         const searchInput = document.getElementById('userSearch');

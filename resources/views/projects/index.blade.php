@@ -350,38 +350,37 @@
                                                 </svg>
                                             </button>
 
-                                            @if ($canUpdate)
-                                                {{-- Edit --}}
-                                                <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
-                                                    onclick="openEditProjectModal({{ $project->id }})">
+
+                                            {{-- Edit --}}
+                                            <button type="button" class="ems-btn ems-btn-icon" title="تعديل"
+                                                onclick="openEditProjectModal({{ $project->id }})">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path d="M12 20h9"></path>
+                                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                                </svg>
+                                            </button>
+
+
+                                            {{-- Delete --}}
+                                            <form action="{{ route('projects.destroy', $project->id) }}" method="POST"
+                                                onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
+                                                style="display: inline;">
+                                                @csrf
+                                                @method('DELETE')
+
+                                                <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
+                                                    style="color: #ef4444;">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                         stroke-width="2">
-                                                        <path d="M12 20h9"></path>
-                                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                                        <path
+                                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                        </path>
                                                     </svg>
                                                 </button>
-                                            @endif
 
-                                            @if ($canDelete)
-                                                {{-- Delete --}}
-                                                <form action="{{ route('projects.destroy', $project->id) }}" method="POST"
-                                                    onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
-                                                    style="display: inline;">
-                                                    @csrf
-                                                    @method('DELETE')
-
-                                                    <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
-                                                        style="color: #ef4444;">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                            stroke-width="2">
-                                                            <polyline points="3 6 5 6 21 6"></polyline>
-                                                            <path
-                                                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                                                            </path>
-                                                        </svg>
-                                                    </button>
-                                                </form>
-                                            @endif
+                                            </form>
 
                                         </div>
 
@@ -582,11 +581,11 @@
                             </div>
                         </div>
 
-                        <div class="ems-form-row">
-                            <div class="ems-form-group">
-                                <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
-                                <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}" required>
-                            </div>
+                    <div class="ems-form-row">
+                        <div class="ems-form-group">
+                            <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
+                            <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}" required>
+                        </div>
 
                             <div class="ems-form-group">
                                 <label class="ems-label">تاريخ الانتهاء المتوقع</label>
@@ -605,22 +604,20 @@
                                 </select>
                             </div>
 
-                            <div class="ems-form-group">
-                                <label class="ems-label">نسبة الإنجاز (%)</label>
-                                <input type="number" name="completion_percentage" class="ems-input" min="0" max="100"
-                                    value="0" step="0.01">
-                            </div>
+                        <div class="ems-form-group">
+                            <label class="ems-label">نسبة الإنجاز (%)</label>
+                            <input type="number" name="completion_percentage" class="ems-input" min="0" max="100" value="0">
                         </div>
                     </div>
+                </div>
 
-                    <div class="ems-modal-footer">
-                        <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-project')">إلغاء</button>
-                        <button type="submit" class="ems-btn ems-btn-primary">حفظ المشروع</button>
-                    </div>
-                </form>
-            </div>
+                <div class="ems-modal-footer">
+                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-project')">إلغاء</button>
+                    <button type="submit" class="ems-btn ems-btn-primary">حفظ المشروع</button>
+                </div>
+            </form>
         </div>
-    @endif
+    </div>
 
 
     @if ($canUpdate)
@@ -705,14 +702,13 @@
                         </div>
                     </div>
 
-                    <div class="ems-modal-footer">
-                        <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-edit-project')">إلغاء</button>
-                        <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
-                    </div>
-                </form>
-            </div>
+                <div class="ems-modal-footer">
+                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-edit-project')">إلغاء</button>
+                    <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
+                </div>
+            </form>
         </div>
-    @endif
+    </div>
 
 
     {{-- JavaScript --}}

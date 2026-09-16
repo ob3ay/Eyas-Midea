@@ -5,7 +5,6 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\EmployeeRequestController;
 use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReportController;
@@ -87,10 +86,18 @@ Route::middleware(['web', 'auth', 'active.user'])->group(function () {
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
 
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
+        Route::patch('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
+        Route::patch('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('read');
+    });
+
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
         Route::post('/store', [UserController::class, 'store'])->name('store');
         Route::put('/{targetUser}', [UserController::class, 'update'])->name('update');
+        Route::patch('/{targetUser}/role', [UserController::class, 'updateRole'])->name('role.update');
         Route::delete('/{targetUser}', [UserController::class, 'destroy'])->name('destroy');
     });
 

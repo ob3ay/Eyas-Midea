@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,13 +20,17 @@ class Notification extends Model
         'title',
         'message',
         'read_at',
+        'isread',
         'related_entity_type',
         'related_entity_id',
     ];
 
     protected function casts(): array
     {
-        return ['read_at' => 'datetime'];
+        return [
+            'read_at' => 'datetime',
+            'isread' => 'boolean',
+        ];
     }
 
     public function recipient(): BelongsTo
@@ -41,5 +46,22 @@ class Notification extends Model
     public function isRead(): bool
     {
         return $this->read_at !== null;
+    }
+
+    public function scopeUnread(Builder $query): Builder
+    {
+        return $query->whereNull('read_at');
+    }
+
+    public function markAsRead(): bool
+    {
+        if ($this->isRead()) {
+            return false;
+        }
+
+        return $this->update([
+            'read_at' => now(),
+            'isread' => true,
+        ]);
     }
 }

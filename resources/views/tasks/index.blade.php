@@ -106,17 +106,19 @@
 
         <div class="ems-page-actions">
 
-            <button type="button" class="ems-btn ems-btn-primary" onclick="openModal('modal-add-task')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"
-                    height="20">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
+            @if ($canCreate)
+                <button type="button" class="ems-btn ems-btn-primary" onclick="openModal('modal-add-task')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"
+                        height="20">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
 
-                <span>
-                    إضافة مهمة جديدة
-                </span>
-            </button>
+                    <span>
+                        إضافة مهمة جديدة
+                    </span>
+                </button>
+            @endif
 
         </div>
 
@@ -153,8 +155,8 @@
             </div>
             <div class="ems-stat-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect width="18" height="18" x="3" y="3" rx="2"/>
-                    <path d="m9 12 2 2 4-4"/>
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="m9 12 2 2 4-4" />
                 </svg>
             </div>
         </div>
@@ -168,8 +170,8 @@
             </div>
             <div class="ems-stat-icon" style="background: #e0f2fe; border-color: #bae6fd; color: #0284c7;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
                 </svg>
             </div>
         </div>
@@ -183,9 +185,9 @@
             </div>
             <div class="ems-stat-icon" style="background: #fef3c7; border-color: #fde68a; color: #d97706;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 20V10"/>
-                    <path d="M18 20V4"/>
-                    <path d="M6 20v-4"/>
+                    <path d="M12 20V10" />
+                    <path d="M18 20V4" />
+                    <path d="M6 20v-4" />
                 </svg>
             </div>
         </div>
@@ -199,8 +201,8 @@
             </div>
             <div class="ems-stat-icon" style="background: #ede9fe; border-color: #ddd6fe; color: #7c3aed;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"/>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
             </div>
         </div>
@@ -214,8 +216,8 @@
             </div>
             <div class="ems-stat-icon" style="background: #dcfce7; border-color: #bbf7d0; color: #16a34a;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
                 </svg>
             </div>
         </div>
@@ -229,9 +231,9 @@
             </div>
             <div class="ems-stat-icon" style="background: #fee2e2; border-color: #fecaca; color: #dc2626;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
             </div>
         </div>
@@ -250,7 +252,8 @@
 
                     <div class="ems-kanban-title">
                         <span>{{ $index + 1 }}. {{ $statusLabels[$status] }}</span>
-                        <bdi style="opacity: .65; font-size: 11px; font-family: var(--font-sans); direction: ltr;">({{ $status }})</bdi>
+                        <bdi
+                            style="opacity: .65; font-size: 11px; font-family: var(--font-sans); direction: ltr;">({{ $status }})</bdi>
                     </div>
 
                     <span class="ems-kanban-count">
@@ -391,244 +394,248 @@
     </div>
 
     {{-- Modal إضافة مهمة --}}
-    <div class="ems-modal-overlay" id="modal-add-task">
+    @if ($canCreate)
+        <div class="ems-modal-overlay" id="modal-add-task">
 
-        <div class="ems-modal">
+            <div class="ems-modal">
 
-            <div class="ems-modal-header">
+                <div class="ems-modal-header">
 
-                <div class="ems-modal-title">
-                    إضافة مهمة جديدة
+                    <div class="ems-modal-title">
+                        إضافة مهمة جديدة
+                    </div>
+
+                    <button type="button" class="ems-modal-close" onclick="closeModal('modal-add-task')">
+                        ✕
+                    </button>
+
                 </div>
 
-                <button type="button" class="ems-modal-close" onclick="closeModal('modal-add-task')">
-                    ✕
-                </button>
+                <form action="{{ route('tasks.store') }}" method="POST">
+
+                    @csrf
+
+                    <div class="ems-modal-body">
+
+                        {{-- العنوان --}}
+                        <div class="ems-form-group">
+
+                            <label for="title" class="ems-label">
+                                <span class="required">*</span>
+                                عنوان المهمة
+                            </label>
+
+                            <input type="text" id="title" name="title" class="ems-input"
+                                value="{{ old('title') }}" maxlength="200" required>
+
+                        </div>
+
+                        {{-- الوصف --}}
+                        <div class="ems-form-group">
+
+                            <label for="description" class="ems-label">
+                                وصف المهمة
+                            </label>
+
+                            <textarea id="description" name="description" class="ems-input" rows="4">{{ old('description') }}</textarea>
+
+                        </div>
+
+                        {{-- المشروع + المهمة الرئيسية --}}
+                        <div class="ems-form-row">
+
+                            <div class="ems-form-group">
+
+                                <label for="project_id" class="ems-label">
+                                    المشروع التابع
+                                </label>
+
+                                <select id="project_id" name="project_id" class="ems-select">
+
+                                    <option value="">
+                                        -- اختياري --
+                                    </option>
+
+                                    @foreach ($projects as $project)
+                                        <option value="{{ $project->id }}" @selected(old('project_id') == $project->id)>
+                                            {{ $project->title }}
+                                        </option>
+                                    @endforeach
+
+                                </select>
+
+                            </div>
+
+                            <div class="ems-form-group">
+
+                                <label for="parent_task_id" class="ems-label">
+                                    المهمة الرئيسية
+                                </label>
+
+                                <select id="parent_task_id" name="parent_task_id" class="ems-select">
+
+                                    <option value="">
+                                        -- مهمة رئيسية --
+                                    </option>
+
+                                    @foreach ($tasks->whereNull('parent_task_id') as $parentTask)
+                                        <option value="{{ $parentTask->id }}" @selected(old('parent_task_id') == $parentTask->id)>
+                                            TSK-{{ str_pad($parentTask->id, 4, '0', STR_PAD_LEFT) }}
+                                            —
+                                            {{ $parentTask->title }}
+                                        </option>
+                                    @endforeach
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+                        {{-- الموظف + الأولوية --}}
+                        <div class="ems-form-row">
+
+                            <div class="ems-form-group">
+
+                                <label for="assignee_employee_id" class="ems-label">
+                                    <span class="required">*</span>
+                                    الموظف المكلف
+                                </label>
+
+                                <select id="assignee_employee_id" name="assignee_employee_id" class="ems-select"
+                                    required>
+
+                                    <option value="">
+                                        -- اختر موظف --
+                                    </option>
+
+                                    @foreach ($employees as $employee)
+                                        <option value="{{ $employee->id }}" @selected(old('assignee_employee_id') == $employee->id)>
+                                            {{ $employee->full_name }}
+                                        </option>
+                                    @endforeach
+
+                                </select>
+
+                            </div>
+
+                            <div class="ems-form-group">
+
+                                <label for="priority" class="ems-label">
+                                    <span class="required">*</span>
+                                    الأولوية
+                                </label>
+
+                                <select id="priority" name="priority" class="ems-select" required>
+
+                                    <option value="Low">
+                                        منخفضة
+                                    </option>
+
+                                    <option value="Medium" selected>
+                                        متوسطة
+                                    </option>
+
+                                    <option value="High">
+                                        عالية
+                                    </option>
+
+                                    <option value="Urgent">
+                                        عاجلة
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+                        {{-- الموعد + الحالة --}}
+                        <div class="ems-form-row">
+
+                            <div class="ems-form-group">
+
+                                <label for="due_datetime" class="ems-label">
+                                    الموعد النهائي
+                                </label>
+
+                                <input type="datetime-local" id="due_datetime" name="due_datetime" class="ems-input"
+                                    value="{{ old('due_datetime') }}">
+
+                            </div>
+
+                            <div class="ems-form-group">
+
+                                <label for="status" class="ems-label">
+                                    <span class="required">*</span>
+                                    حالة المهمة
+                                </label>
+
+                                <select id="status" name="status" class="ems-select" required>
+
+                                    <option value="Draft">
+                                        مسودة
+                                    </option>
+
+                                    <option value="To-Do" selected>
+                                        قيد الانتظار
+                                    </option>
+
+                                    <option value="In Progress">
+                                        قيد التنفيذ
+                                    </option>
+
+                                    <option value="Under Review">
+                                        قيد المراجعة
+                                    </option>
+
+                                    <option value="Completed">
+                                        مكتملة
+                                    </option>
+
+                                    <option value="Rejected">
+                                        مرفوضة
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+                        {{-- نسبة الإنجاز --}}
+                        <div class="ems-form-group">
+
+                            <label for="completion_percentage" class="ems-label">
+                                نسبة الإنجاز
+                            </label>
+
+                            <input type="number" id="completion_percentage" name="completion_percentage"
+                                class="ems-input" min="0" max="100" step="0.01"
+                                value="{{ old('completion_percentage', 0) }}">
+
+                        </div>
+
+                    </div>
+
+                    <div class="ems-modal-footer">
+
+                        <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-task')">
+                            إلغاء
+                        </button>
+
+                        <button type="submit" class="ems-btn ems-btn-primary">
+                            حفظ المهمة
+                        </button>
+
+                    </div>
+
+                </form>
 
             </div>
 
-            <form action="{{ route('tasks.store') }}" method="POST">
-
-                @csrf
-
-                <div class="ems-modal-body">
-
-                    {{-- العنوان --}}
-                    <div class="ems-form-group">
-
-                        <label for="title" class="ems-label">
-                            <span class="required">*</span>
-                            عنوان المهمة
-                        </label>
-
-                        <input type="text" id="title" name="title" class="ems-input" value="{{ old('title') }}"
-                            maxlength="200" required>
-
-                    </div>
-
-                    {{-- الوصف --}}
-                    <div class="ems-form-group">
-
-                        <label for="description" class="ems-label">
-                            وصف المهمة
-                        </label>
-
-                        <textarea id="description" name="description" class="ems-input" rows="4">{{ old('description') }}</textarea>
-
-                    </div>
-
-                    {{-- المشروع + المهمة الرئيسية --}}
-                    <div class="ems-form-row">
-
-                        <div class="ems-form-group">
-
-                            <label for="project_id" class="ems-label">
-                                المشروع التابع
-                            </label>
-
-                            <select id="project_id" name="project_id" class="ems-select">
-
-                                <option value="">
-                                    -- اختياري --
-                                </option>
-
-                                @foreach ($projects as $project)
-                                    <option value="{{ $project->id }}" @selected(old('project_id') == $project->id)>
-                                        {{ $project->title }}
-                                    </option>
-                                @endforeach
-
-                            </select>
-
-                        </div>
-
-                        <div class="ems-form-group">
-
-                            <label for="parent_task_id" class="ems-label">
-                                المهمة الرئيسية
-                            </label>
-
-                            <select id="parent_task_id" name="parent_task_id" class="ems-select">
-
-                                <option value="">
-                                    -- مهمة رئيسية --
-                                </option>
-
-                                @foreach ($tasks->whereNull('parent_task_id') as $parentTask)
-                                    <option value="{{ $parentTask->id }}" @selected(old('parent_task_id') == $parentTask->id)>
-                                        TSK-{{ str_pad($parentTask->id, 4, '0', STR_PAD_LEFT) }}
-                                        —
-                                        {{ $parentTask->title }}
-                                    </option>
-                                @endforeach
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-                    {{-- الموظف + الأولوية --}}
-                    <div class="ems-form-row">
-
-                        <div class="ems-form-group">
-
-                            <label for="assignee_employee_id" class="ems-label">
-                                <span class="required">*</span>
-                                الموظف المكلف
-                            </label>
-
-                            <select id="assignee_employee_id" name="assignee_employee_id" class="ems-select" required>
-
-                                <option value="">
-                                    -- اختر موظف --
-                                </option>
-
-                                @foreach ($employees as $employee)
-                                    <option value="{{ $employee->id }}" @selected(old('assignee_employee_id') == $employee->id)>
-                                        {{ $employee->full_name }}
-                                    </option>
-                                @endforeach
-
-                            </select>
-
-                        </div>
-
-                        <div class="ems-form-group">
-
-                            <label for="priority" class="ems-label">
-                                <span class="required">*</span>
-                                الأولوية
-                            </label>
-
-                            <select id="priority" name="priority" class="ems-select" required>
-
-                                <option value="Low">
-                                    منخفضة
-                                </option>
-
-                                <option value="Medium" selected>
-                                    متوسطة
-                                </option>
-
-                                <option value="High">
-                                    عالية
-                                </option>
-
-                                <option value="Urgent">
-                                    عاجلة
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-                    {{-- الموعد + الحالة --}}
-                    <div class="ems-form-row">
-
-                        <div class="ems-form-group">
-
-                            <label for="due_datetime" class="ems-label">
-                                الموعد النهائي
-                            </label>
-
-                            <input type="datetime-local" id="due_datetime" name="due_datetime" class="ems-input"
-                                value="{{ old('due_datetime') }}">
-
-                        </div>
-
-                        <div class="ems-form-group">
-
-                            <label for="status" class="ems-label">
-                                <span class="required">*</span>
-                                حالة المهمة
-                            </label>
-
-                            <select id="status" name="status" class="ems-select" required>
-
-                                <option value="Draft">
-                                    مسودة
-                                </option>
-
-                                <option value="To-Do" selected>
-                                    قيد الانتظار
-                                </option>
-
-                                <option value="In Progress">
-                                    قيد التنفيذ
-                                </option>
-
-                                <option value="Under Review">
-                                    قيد المراجعة
-                                </option>
-
-                                <option value="Completed">
-                                    مكتملة
-                                </option>
-
-                                <option value="Rejected">
-                                    مرفوضة
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-                    {{-- نسبة الإنجاز --}}
-                    <div class="ems-form-group">
-
-                        <label for="completion_percentage" class="ems-label">
-                            نسبة الإنجاز
-                        </label>
-
-                        <input type="number" id="completion_percentage" name="completion_percentage" class="ems-input"
-                            min="0" max="100" step="0.01" value="{{ old('completion_percentage', 0) }}">
-
-                    </div>
-
-                </div>
-
-                <div class="ems-modal-footer">
-
-                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-task')">
-                        إلغاء
-                    </button>
-
-                    <button type="submit" class="ems-btn ems-btn-primary">
-                        حفظ المهمة
-                    </button>
-
-                </div>
-
-            </form>
-
         </div>
-
-    </div>
+    @endif
 
     {{-- SortableJS --}}
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
