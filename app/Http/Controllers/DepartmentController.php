@@ -80,6 +80,27 @@ class DepartmentController extends Controller
             'ratio',
         ));
     }
+
+    public function show(Request $request, Department $department)
+    {
+        $user = $request->user();
+        Gate::authorize('view', $department);
+        $scope = $user->highestScopeFor('departments.view');
+
+        if ($scope !== 'organization' && (int) $user->employee?->department_id !== $department->id) {
+            abort(403, 'لا يمكنك عرض تفاصيل دائرة خارج نطاق دائرتك.');
+        }
+
+        $department->load([
+            'manager.user',
+            'sections.head.user',
+            'sections.employees.user',
+            'employees.user',
+            'projects.owner.user',
+        ]);
+
+        return view('departments.show', compact('department'));
+    }
     public function store(StoreDepartmentRequest $request): RedirectResponse
     {
         $data = $request->validated();
@@ -159,6 +180,26 @@ class DepartmentController extends Controller
         ]);
 
         return back()->with('success', 'تم نقل الموظف وتحديث تبعيته التنظيمية');
+    }
+
+    public function showSection(Request $request, Section $section)
+    {
+        $user = $request->user();
+        Gate::authorize('view', $section);
+        $scope = $user->highestScopeFor('departments.view');
+
+        if ($scope !== 'organization' && (int) $user->employee?->department_id !== $section->department_id && (int) $user->employee?->section_id !== $section->id) {
+            abort(403, 'لا يمكنك عرض تفاصيل هذا القسم خارج نطاقك.');
+        }
+
+        $section->load([
+            'department.manager.user',
+            'head.user',
+            'employees.user',
+            'department.projects.owner.user',
+        ]);
+
+        return view('departments.section', compact('section'));
     }
 
     private function assertManagerBelongsToDepartment(?int $employeeId, ?int $departmentId): void

@@ -43,6 +43,7 @@ Route::middleware(['web', 'auth', 'active.user'])->group(function () {
     Route::prefix('departments')->name('departments.')->group(function () {
         Route::get('/', [DepartmentController::class, 'index'])->name('index');
         Route::get('/structure', [DepartmentController::class, 'structure'])->name('structure');
+        Route::get('/show/{department}', [DepartmentController::class, 'show'])->name('show');
         Route::post('/store', [DepartmentController::class, 'store'])->name('store');
         Route::put('/{department}', [DepartmentController::class, 'update'])->name('update');
         Route::delete('/{department}', [DepartmentController::class, 'destroy'])->name('destroy');
@@ -50,6 +51,7 @@ Route::middleware(['web', 'auth', 'active.user'])->group(function () {
     });
 
     Route::post('/sections', [DepartmentController::class, 'storeSection'])->name('sections.store');
+    Route::get('/sections/{section}', [DepartmentController::class, 'showSection'])->name('sections.show');
     Route::put('/sections/{section}', [DepartmentController::class, 'updateSection'])->name('sections.update');
     Route::delete('/sections/{section}', [DepartmentController::class, 'destroySection'])->name('sections.destroy');
 

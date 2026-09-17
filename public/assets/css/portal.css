@@ -673,11 +673,10 @@ img, svg {
 }
 
 .ems-stat-value {
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 800;
-  color: var(--ems-text-main);
-  font-family: var(--font-mono), var(--font-arabic);
-  line-height: 1.1;
+  color: var(--ems-text-main);;
+  /* line-height: 1.1; */
 }
 
 .ems-stat-subtext {
@@ -967,7 +966,7 @@ img, svg {
 /* لوحة المهام (Kanban 5-States Workflow) */
 .ems-kanban-board {
   display: grid;
-  grid-template-columns: repeat(5, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
   gap: 16px;
   overflow-x: auto;
   padding-bottom: 16px;

@@ -128,11 +128,16 @@
                             </div>
                         </div>
                         <div style="display: flex; gap: 6px; align-items: center;">
-                            <a href="{{ route('departments.structure', ['department' => $department->id]) }}"
+                            {{-- <a href="{{ route('departments.structure', ['department' => $department->id]) }}"
                                 class="ems-btn ems-btn-secondary ems-btn-sm"
                                 style="flex: 1; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
                                 <span>استعراض الهيكل</span>
                                 <span style="font-size: 14px;">←</span>
+                            </a> --}}
+                            <a href="{{ route('departments.show', ['department' => $department->id]) }}" class="ems-btn ems-btn-secondary ems-btn-sm"
+                                style="flex: 1; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                                <span>عرض تفاصيل الدائرة</span>
+                                <span style="font-size: 14px;">→</span>
                             </a>
                             @can('edit-department', $department)
                             <button type="button" class="ems-btn ems-btn-icon ems-btn-sm" title="تعديل الدائرة"
@@ -295,11 +300,11 @@
                         <label for="dept_manager" class="ems-label">مدير الدائرة المسؤول</label>
                         <select id="dept_manager" name="manager_employee_id" class="ems-select">
                             <option value="">-- حدد مدير الدائرة (اختياري) --</option>
-                            @foreach ($availableEmployees as $emp)
+                            {{-- @foreach ($availableEmployees as $emp)
                                 <option value="{{ $emp->id }}">
                                     {{ $emp->full_name }} {{ $emp->position ? '— (' . $emp->position . ')' : '' }}
                                 </option>
-                            @endforeach
+                            @endforeach --}}
                         </select>
                     </div>
 
@@ -375,11 +380,11 @@
                             <label for="edit_sec_head_employee_id" class="ems-label">المسؤول المباشر / رئيس القسم</label>
                             <select id="edit_sec_head_employee_id" name="section_head_employee_id" class="ems-select">
                                 <option value="">-- غير محدد (شاغر) --</option>
-                                @foreach ($availableEmployees as $emp)
+                                {{-- @foreach ($availableEmployees as $emp)
                                     <option value="{{ $emp->id }}">
                                         {{ $emp->full_name }} {{ $emp->position ? '— (' . $emp->position . ')' : '' }}
                                     </option>
-                                @endforeach
+                                @endforeach --}}
                             </select>
                         </div>
                     </div>
@@ -420,11 +425,11 @@
                         <label for="edit_dept_manager" class="ems-label">مدير الدائرة المسؤول</label>
                         <select id="edit_dept_manager" name="manager_employee_id" class="ems-select">
                             <option value="">-- حدد مدير الدائرة (اختياري) --</option>
-                            @foreach ($availableEmployees as $emp)
+                            {{-- @foreach ($availableEmployees as $emp)
                                 <option value="{{ $emp->id }}">
                                     {{ $emp->full_name }} {{ $emp->position ? '— (' . $emp->position . ')' : '' }}
                                 </option>
-                            @endforeach
+                            @endforeach --}}
                         </select>
                     </div>
                 </div>
@@ -467,11 +472,11 @@
                             <label for="new_sec_head_employee_id" class="ems-label">المسؤول المباشر / رئيس القسم</label>
                             <select id="new_sec_head_employee_id" name="section_head_employee_id" class="ems-select">
                                 <option value="">-- غير محدد (شاغر) --</option>
-                                @foreach ($availableEmployees as $emp)
+                                {{-- @foreach ($availableEmployees as $emp)
                                     <option value="{{ $emp->id }}">
                                         {{ $emp->full_name }} {{ $emp->position ? '— (' . $emp->position . ')' : '' }}
                                     </option>
-                                @endforeach
+                                @endforeach --}}
                             </select>
                         </div>
                     </div>
@@ -499,9 +504,9 @@
                             <label for="assignment_employee_id" class="ems-label">الموظف / حساب المستخدم</label>
                             <select id="assignment_employee_id" name="employee_id" class="ems-select" required>
                                 <option value="">-- اختر موظفاً --</option>
-                                @foreach ($availableEmployees as $employee)
+                                {{-- @foreach ($availableEmployees as $employee)
                                     <option value="{{ $employee->id }}">{{ $employee->full_name }}{{ $employee->user ? ' — ' . $employee->user->username : '' }}</option>
-                                @endforeach
+                                @endforeach --}}
                             </select>
                         </div>
                         <div class="ems-form-row">
