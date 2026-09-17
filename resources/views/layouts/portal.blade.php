@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="rtl">
 
@@ -64,7 +63,8 @@
                 @php
                     $user = auth()->user();
                     $isSelfEmployee = $user && $user->highestScopeFor('employees.view') === 'self';
-                    $canViewStaff = $user && in_array($user->highestScopeFor('employees.view'), ['department', 'organization']);
+                    $canViewStaff =
+                        $user && in_array($user->highestScopeFor('employees.view'), ['department', 'organization']);
                 @endphp
 
                 <div class="ems-nav-group-title">الإدارة والتشغيل</div>
@@ -140,7 +140,11 @@
                     </a>
                 @endif
 
-                @if ($user?->hasPermission('attendance.view') || $user?->hasPermission('performance.view') || $user?->hasPermission('reports.view') || $user?->hasPermission('users.view'))
+                @if (
+                    $user?->hasPermission('attendance.view') ||
+                        $user?->hasPermission('performance.view') ||
+                        $user?->hasPermission('reports.view') ||
+                        $user?->hasPermission('users.view'))
                     <div class="ems-nav-group-title">المتابعة والرقابة</div>
                 @endif
 
@@ -175,7 +179,8 @@
                     <a href="{{ route('requests.index') }}"
                         class="ems-nav-link {{ request()->routeIs('requests.*') ? 'active' : '' }}">
                         <div class="ems-nav-link-content">
-                            <svg class="ems-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg class="ems-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                 <polyline points="14 2 14 8 20 8"></polyline>
                                 <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -246,9 +251,10 @@
 
                 <div class="ems-topbar-end">
                     @if (auth()->user()?->hasPermission('attendance.create'))
-                        <button class="ems-icon-btn" onclick="openModal('modal-quick-attendance')" title="تسجيل الحضور">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
+                        <button class="ems-icon-btn" onclick="openModal('modal-quick-attendance')"
+                            title="تسجيل الحضور">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10" />
                                 <polyline points="12 6 12 12 16 14" />
                             </svg>

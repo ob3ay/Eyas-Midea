@@ -98,8 +98,20 @@ class DepartmentController extends Controller
             'employees.user',
             'projects.owner.user',
         ]);
+        // Get available employees for assignment (those not already assigned to this department)
+        $availableEmployees = Employee::query()
+            ->active()
+            ->where(function ($query) use ($department) {
+                $query->whereNull('department_id')
+                    ->orWhere('department_id', '!=', $department->id);
+            })
+            ->with('user')
+            ->orderBy('full_name')
+            ->get();
 
-        return view('departments.show', compact('department'));
+
+        return view('departments.show', compact('department', 'availableEmployees'))->with('sections', $department->sections);
+
     }
     public function store(StoreDepartmentRequest $request): RedirectResponse
     {
