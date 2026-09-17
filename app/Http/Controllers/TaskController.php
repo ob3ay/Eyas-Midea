@@ -64,7 +64,7 @@ class TaskController extends Controller
 
         $averageProgress = $tasks->avg('completion_percentage') ?? 0;
 
-        $canCreate = $user->hasPermission('tasks.create');
+        $canCreate = $user->hasPermission('tasks.create') && ! $user->hasRole('SA');
         $canUpdate = $user->hasPermission('tasks.update');
         $canDelete = $user->hasPermission('tasks.delete');
 
@@ -83,6 +83,11 @@ class TaskController extends Controller
     public function store(Request $request, NotificationService $notifications): RedirectResponse
     {
         $user = $request->user();
+
+        if ($user->hasRole('SA')) {
+            abort(403, 'مهام المشاريع تُضاف وتُدار بواسطة مدير الدائرة المسند إليه المشروع.');
+        }
+
         $scope = $this->authorizeScope('tasks.create');
 
         $validated = $request->validate([
@@ -173,6 +178,14 @@ class TaskController extends Controller
     public function updateState(Request $request, Task $task, NotificationService $notifications): JsonResponse
     {
         $user = $request->user();
+
+        if ($user->hasRole('SA')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تغيير حالات المهام عبر لوحة الكانبان مخصص للموظف ومسؤوله المباشر، ودور مدير النظام الأعلى يقتصر على المتابعة والرقابة.',
+            ], 403);
+        }
+
         $this->authorizeScope('tasks.update', $task, $user);
 
         $validated = $request->validate([

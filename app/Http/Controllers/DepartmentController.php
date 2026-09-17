@@ -12,6 +12,7 @@ use App\Models\Employee;
 use App\Models\Section;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class DepartmentController extends Controller
@@ -51,7 +52,7 @@ class DepartmentController extends Controller
             'departments' => $departments,
             'sections' => $sections,
             'availableEmployees' => $availableEmployees,
-            'nextDeptCode' => 'DEPT-' . str_pad((Department::max('id') ?? 0) + 1, 2, '0', STR_PAD_LEFT),
+            'nextDeptCode' => $this->getNextDepartmentCode(),
         ]);
     }
     public function structure(Request $request)
@@ -71,6 +72,7 @@ class DepartmentController extends Controller
         $totalEmployees = $departments->sum('employees_count');
         $assignedManagers = $departments->whereNotNull('manager_employee_id')->count();
         $ratio = $departments->count() > 0 ? round(($assignedManagers / $departments->count()) * 100) : 100;
+        $selectedDeptId = $request->query('department_id', '');
 
         return view('departments.structure', compact(
             'departments',
@@ -78,6 +80,7 @@ class DepartmentController extends Controller
             'totalEmployees',
             'assignedManagers',
             'ratio',
+            'selectedDeptId',
         ));
     }
 
@@ -113,40 +116,114 @@ class DepartmentController extends Controller
         return view('departments.show', compact('department', 'availableEmployees'))->with('sections', $department->sections);
 
     }
+
     public function store(StoreDepartmentRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $sections = $data['sections'] ?? [];
+        unset($data['sections']);
 
-        if (! empty($data['manager_employee_id'])) {
-            abort(422, 'أضف الدائرة أولاً ثم عيّن مديراً تابعاً لها.');
+        $managerId = ! empty($data['manager_employee_id']) ? (int) $data['manager_employee_id'] : null;
+        unset($data['manager_employee_id']);
+
+        if (empty($data['code'])) {
+            $data['code'] = $this->getNextDepartmentCode();
         }
 
-        Department::create($data);
+        DB::transaction(function () use ($data, $managerId, $sections) {
+            // Force delete any trashed department with the same code or name so MySQL unique constraints do not conflict
+            Department::onlyTrashed()
+                ->where(function ($q) use ($data) {
+                    $q->where('name', $data['name']);
+                    if (! empty($data['code'])) {
+                        $q->orWhere('code', $data['code']);
+                    }
+                })
+                ->forceDelete();
 
-        return back()->with('success', 'تمت إضافة الدائرة بنجاح');
+            $department = Department::create($data);
+
+            if ($managerId) {
+                $manager = Employee::find($managerId);
+                if ($manager) {
+                    $manager->update([
+                        'department_id' => $department->id,
+                        'section_id' => null,
+                    ]);
+                    $department->update(['manager_employee_id' => $manager->id]);
+                }
+            }
+
+            if (! empty($sections)) {
+                foreach (array_unique(array_filter($sections)) as $sectionName) {
+                    $trimmed = trim($sectionName);
+                    if ($trimmed !== '') {
+                        Section::create([
+                            'department_id' => $department->id,
+                            'name' => $trimmed,
+                            'is_active' => true,
+                        ]);
+                    }
+                }
+            }
+        });
+
+        return redirect()->route('departments.index')->with('success', 'تمت إضافة الدائرة وأقسامها بنجاح.');
     }
 
     public function update(UpdateDepartmentRequest $request, Department $department): RedirectResponse
     {
         $data = $request->validated();
-        $this->assertManagerBelongsToDepartment($data['manager_employee_id'] ?? null, $department->id);
+
+        if (! empty($data['manager_employee_id'])) {
+            $manager = Employee::find((int) $data['manager_employee_id']);
+            if ($manager && $manager->department_id !== $department->id) {
+                $manager->update([
+                    'department_id' => $department->id,
+                    'section_id' => null,
+                ]);
+            }
+        }
 
         $department->update($data);
 
-        return back()->with('success', 'تم تحديث الدائرة');
+        return redirect()->route('departments.index')->with('success', 'تم تحديث بيانات الدائرة بنجاح.');
     }
 
     public function destroy(Request $request, Department $department): RedirectResponse
     {
         Gate::authorize('delete', $department);
 
-        if ($department->employees()->exists() || $department->sections()->exists()) {
-            return back()->with('error', 'لا يمكن حذف هذه الدائرة لوجود أقسام أو موظفين مرتبطين بها.');
+        $reasons = [];
+        if ($department->employees()->exists()) {
+            $empCount = $department->employees()->count();
+            $empNames = $department->employees()->pluck('full_name')->take(3)->implode('، ');
+            if ($empCount > 3) {
+                $empNames .= ' وآخرين';
+            }
+            $reasons[] = "وجود ({$empCount}) موظف مسجلين بها [{$empNames}]";
         }
 
-        $department->delete();
+        if ($department->sections()->exists()) {
+            $secCount = $department->sections()->count();
+            $reasons[] = "وجود ({$secCount}) قسم تخصصي تابع لها";
+        }
 
-        return back()->with('success', 'تم حذف الدائرة بنجاح');
+        if ($department->projects()->exists()) {
+            $projCount = $department->projects()->count();
+            $reasons[] = "وجود ({$projCount}) مشروع مرتبط بهذه الدائرة";
+        }
+
+        if (! empty($reasons)) {
+            return back()->with('error', 'لا يمكن حذف هذه الدائرة بسبب: ' . implode('، و', $reasons) . '. يرجى نقل الموظفين إلى دائرة أخرى أولاً عبر زر "نقل / تعيين موظف" أعلى الصفحة.');
+        }
+
+        // Clean up any trashed sections belonging to this department so FK doesn't fail
+        $department->sections()->withTrashed()->forceDelete();
+
+        $department->forceDelete();
+
+        return back()->with('success', 'تم حذف الدائرة بنجاح.');
     }
 
     public function storeSection(StoreSectionRequest $request): RedirectResponse
@@ -214,18 +291,28 @@ class DepartmentController extends Controller
         return view('departments.section', compact('section'));
     }
 
-    private function assertManagerBelongsToDepartment(?int $employeeId, ?int $departmentId): void
+    private function getNextDepartmentCode(): string
     {
-        if ($employeeId === null) {
-            return;
+        $existingCodes = Department::withTrashed()->pluck('code')->filter()->toArray();
+        $maxNum = 0;
+        foreach ($existingCodes as $code) {
+            if (preg_match('/^DEPT-(\d+)$/i', $code, $matches)) {
+                $num = (int) $matches[1];
+                if ($num > $maxNum) {
+                    $maxNum = $num;
+                }
+            }
         }
 
-        $employee = Employee::findOrFail($employeeId);
-        $expectedDepartmentId = $departmentId ?? request()->integer('department_id');
+        $candidateNum = $maxNum + 1;
+        $code = 'DEPT-' . str_pad($candidateNum, 2, '0', STR_PAD_LEFT);
 
-        if ($departmentId !== null && $employee->department_id !== $expectedDepartmentId) {
-            abort(422, 'يجب أن يكون مدير الدائرة موظفاً تابعاً للدائرة نفسها.');
+        while (Department::withTrashed()->where('code', $code)->exists()) {
+            $candidateNum++;
+            $code = 'DEPT-' . str_pad($candidateNum, 2, '0', STR_PAD_LEFT);
         }
+
+        return $code;
     }
 
     private function assertDepartmentScope($user, int $departmentId, string $permission): void

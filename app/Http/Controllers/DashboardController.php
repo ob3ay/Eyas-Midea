@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeRequest;
 use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Support\Facades\Auth;
@@ -63,6 +64,9 @@ class DashboardController extends Controller
             ->latest('created_at')
             ->limit(4)
             ->get();
+
+        // 8) إجمالي طلبات الموظفين المعلقة بانتظار البت
+        $pendingRequestsCount = EmployeeRequest::where('status', 'pending')->count();
 
         $isEmployee = $user->hasRole('EMP') || $user->highestScopeFor('employees.view') === 'self';
         $latestEvaluation = null;
@@ -157,6 +161,7 @@ class DashboardController extends Controller
             'presentThisMonthCount',
             'lateThisMonthCount',
             'myActiveTasksCount',
+            'pendingRequestsCount',
         ));
     }
 }

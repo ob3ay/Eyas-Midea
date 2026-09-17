@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Project;
+use App\Models\ProjectAttachment;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProjectController extends Controller
 {
@@ -18,13 +20,13 @@ class ProjectController extends Controller
         $scope = $this->authorizeScope('projects.view');
 
         $projects = $this->scopedProjectsQuery($user, $scope)
-            ->with(['department', 'owner', 'members', 'tasks.assignee'])
+            ->with(['department', 'owner', 'members', 'tasks.assignee', 'attachments.uploader'])
             ->latest()
             ->get();
 
         $departments = $scope === 'organization'
-            ? Department::orderBy('name')->get()
-            : Department::whereKey($user->employee?->department_id ?? 0)->get();
+            ? Department::with('manager')->orderBy('name')->get()
+            : Department::with('manager')->whereKey($user->employee?->department_id ?? 0)->get();
 
         $employees = Employee::active()
             ->when($scope !== 'organization', fn($q) => $q->where('department_id', $user->employee?->department_id ?? 0))
@@ -65,13 +67,25 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'department_id' => ['nullable', 'exists:departments,id'],
+            'department_id' => ['required', 'exists:departments,id'],
             'owner_employee_id' => ['nullable', 'exists:employees,id'],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'status' => ['required', 'in:in_progress,in_review,completed,on_hold'],
             'completion_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['nullable', 'file', 'max:20480'],
         ]);
+
+        $attachments = $request->file('attachments', []);
+        unset($validated['attachments']);
+
+        if (empty($validated['owner_employee_id']) && ! empty($validated['department_id'])) {
+            $dept = Department::find($validated['department_id']);
+            if ($dept && $dept->manager_employee_id) {
+                $validated['owner_employee_id'] = $dept->manager_employee_id;
+            }
+        }
 
         $this->assertWithinScope($user, $scope, $validated['department_id'] ?? null, $validated['owner_employee_id'] ?? null);
 
@@ -82,6 +96,27 @@ class ProjectController extends Controller
         }
 
         $project = Project::create($validated);
+
+        if (! empty($attachments)) {
+            $uploaderId = $user->employee?->id;
+            foreach ($attachments as $file) {
+                if ($file && $file->isValid()) {
+                    $originalName = $file->getClientOriginalName();
+                    $sizeKb = max(1, (int) round($file->getSize() / 1024));
+                    $mimeType = $file->getClientMimeType() ?: $file->getMimeType();
+                    $path = $file->store('projects/attachments', 'public');
+
+                    $project->attachments()->create([
+                        'file_name' => $originalName,
+                        'file_path' => $path,
+                        'file_size_kb' => $sizeKb,
+                        'mime_type' => $mimeType,
+                        'uploaded_by' => $uploaderId,
+                    ]);
+                }
+            }
+        }
+
         if ($project->owner_employee_id !== null) {
             $notifications->createForEmployee(
                 $project->owner_employee_id,
@@ -103,14 +138,26 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'department_id' => ['nullable', 'exists:departments,id'],
+            'department_id' => ['required', 'exists:departments,id'],
             'owner_employee_id' => ['nullable', 'exists:employees,id'],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'actual_end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'status' => ['required', 'in:in_progress,in_review,completed,on_hold'],
             'completion_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['nullable', 'file', 'max:20480'],
         ]);
+
+        $attachments = $request->file('attachments', []);
+        unset($validated['attachments']);
+
+        if (empty($validated['owner_employee_id']) && ! empty($validated['department_id'])) {
+            $dept = Department::find($validated['department_id']);
+            if ($dept && $dept->manager_employee_id) {
+                $validated['owner_employee_id'] = $dept->manager_employee_id;
+            }
+        }
 
         $this->assertWithinScope($user, $scope, $validated['department_id'] ?? null, $validated['owner_employee_id'] ?? null);
 
@@ -124,6 +171,26 @@ class ProjectController extends Controller
 
         $project->update($validated);
 
+        if (! empty($attachments)) {
+            $uploaderId = $user->employee?->id;
+            foreach ($attachments as $file) {
+                if ($file && $file->isValid()) {
+                    $originalName = $file->getClientOriginalName();
+                    $sizeKb = max(1, (int) round($file->getSize() / 1024));
+                    $mimeType = $file->getClientMimeType() ?: $file->getMimeType();
+                    $path = $file->store('projects/attachments', 'public');
+
+                    $project->attachments()->create([
+                        'file_name' => $originalName,
+                        'file_path' => $path,
+                        'file_size_kb' => $sizeKb,
+                        'mime_type' => $mimeType,
+                        'uploaded_by' => $uploaderId,
+                    ]);
+                }
+            }
+        }
+
         return redirect()->route('projects.index')->with('success', 'تم تعديل بيانات المشروع بنجاح');
     }
 
@@ -135,6 +202,29 @@ class ProjectController extends Controller
         $project->delete();
 
         return redirect()->route('projects.index')->with('success', 'تم حذف المشروع بنجاح');
+    }
+
+    public function downloadAttachment(ProjectAttachment $attachment)
+    {
+        if (! Storage::disk('public')->exists($attachment->file_path)) {
+            abort(404, 'الملف غير موجود في الخادم.');
+        }
+
+        return Storage::disk('public')->download($attachment->file_path, $attachment->file_name);
+    }
+
+    public function destroyAttachment(Request $request, ProjectAttachment $attachment): RedirectResponse
+    {
+        $user = $request->user();
+        $this->authorizeScope('projects.update', $attachment->project, $user);
+
+        if (Storage::disk('public')->exists($attachment->file_path)) {
+            Storage::disk('public')->delete($attachment->file_path);
+        }
+
+        $attachment->forceDelete();
+
+        return back()->with('success', 'تم حذف المرفق بنجاح.');
     }
 
     private function authorizeScope(string $permissionKey, ?Project $project = null, ?User $user = null): string

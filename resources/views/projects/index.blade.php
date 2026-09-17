@@ -32,7 +32,7 @@
 
             <div class="ems-page-actions">
                 @if ($canCreate)
-                    <button type="button" class="ems-btn ems-btn-primary" onclick="openModal('modal-add-project')">
+                    <button type="button" class="ems-btn ems-btn-primary" onclick="openAddProjectModal()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -201,7 +201,7 @@
                         <thead>
                             <tr>
                                 <th>المشروع</th>
-                                <th>القسم</th>
+                                <th>الدائرة</th>
                                 <th>المسؤول</th>
                                 <th style="min-width: 160px;">
                                     نسبة الإنجاز
@@ -256,6 +256,17 @@
                                                 margin-top: 4px;
                                             ">
                                                 {{ Str::limit($project->description, 80) }}
+                                            </div>
+                                        @endif
+
+                                        @if ($project->attachments->count() > 0)
+                                            <div style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                                <span class="ems-badge badge-gold" style="font-size: 11px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;" title="{{ $project->attachments->pluck('file_name')->implode('، ') }}">
+                                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                                                    </svg>
+                                                    {{ $project->attachments->count() }} مرفق
+                                                </span>
                                             </div>
                                         @endif
 
@@ -510,6 +521,42 @@
                                                     لا توجد مهام مسندة لهذا المشروع حالياً.
                                                 </div>
                                             @endif
+
+                                            {{-- Project Attachments Section --}}
+                                            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--ems-border, #e5e7eb);">
+                                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                                    <span style="font-size: 13.5px; font-weight: 700; color: var(--ems-text-main); display: inline-flex; align-items: center; gap: 6px;">
+                                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ems-gold-hover, #a8823b)" stroke-width="2">
+                                                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                                                        </svg>
+                                                        مرفقات المشروع ({{ $project->attachments->count() }})
+                                                    </span>
+                                                </div>
+
+                                                @if ($project->attachments->count() > 0)
+                                                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                                        @foreach ($project->attachments as $att)
+                                                            <div style="background: var(--ems-surface-alt, #f8fafc); border: 1px solid var(--ems-border, #e2e8f0); border-radius: 8px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 10px;">
+                                                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--ems-gold-hover, #a8823b)" stroke-width="2">
+                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                                                </svg>
+                                                                <div>
+                                                                    <div style="font-size: 12.5px; font-weight: 600; color: var(--ems-text-main);">{{ $att->file_name }}</div>
+                                                                    <div style="font-size: 11px; color: var(--ems-text-muted);">{{ $att->formatted_size }} &bull; {{ $att->created_at->format('Y-m-d') }}</div>
+                                                                </div>
+                                                                <a href="{{ route('projects.attachments.download', $att) }}" class="ems-btn ems-btn-sm ems-btn-secondary" style="padding: 4px 10px; font-size: 11.5px; margin-right: 6px; text-decoration: none;" title="تحميل الملف">
+                                                                    تحميل ⬇
+                                                                </a>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @else
+                                                    <div style="font-size: 12px; color: var(--ems-text-muted);">
+                                                        لا توجد ملفات مرفقة لهذا المشروع.
+                                                    </div>
+                                                @endif
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -550,7 +597,7 @@
                     <button type="button" onclick="closeModal('modal-add-project')" class="ems-modal-close">✕</button>
                 </div>
 
-                <form action="{{ route('projects.store') }}" method="POST">
+                <form action="{{ route('projects.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="ems-modal-body">
                         <div class="ems-form-group">
@@ -565,31 +612,39 @@
 
                         <div class="ems-form-row">
                             <div class="ems-form-group">
-                                <label class="ems-label">القسم / الدائرة</label>
-                                <select name="department_id" class="ems-input">
-                                    <option value="">اختر القسم</option>
+                                <label class="ems-label"><span class="required">*</span> الدائرة المسؤولة عن المشروع</label>
+                                <select name="department_id" id="add_department_id" class="ems-input" required onchange="handleDepartmentChange(this.value, 'add')">
+                                    <option value="">-- اختر الدائرة المسؤولة --</option>
                                     @foreach ($departments as $department)
-                                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                        <option value="{{ $department->id }}" 
+                                                data-manager-id="{{ $department->manager_employee_id ?? '' }}"
+                                                data-manager-name="{{ $department->manager?->full_name ?? '' }}"
+                                                {{ $departments->count() === 1 ? 'selected' : '' }}>
+                                            {{ $department->name }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
 
                             <div class="ems-form-group">
                                 <label class="ems-label">المسؤول عن المشروع</label>
-                                <select name="owner_employee_id" class="ems-input">
+                                <select name="owner_employee_id" id="add_owner_employee_id" class="ems-input">
                                     <option value="">اختر المسؤول</option>
                                     @foreach ($employees as $employee)
-                                        <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
+                                        <option value="{{ $employee->id }}" data-department-id="{{ $employee->department_id ?? '' }}">
+                                            {{ $employee->full_name }}
+                                        </option>
                                     @endforeach
                                 </select>
+                                <div id="add_manager_hint" style="font-size: 11.5px; color: #15803d; margin-top: 5px; display: none;"></div>
                             </div>
                         </div>
 
-                    <div class="ems-form-row">
-                        <div class="ems-form-group">
-                            <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
-                            <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}" required>
-                        </div>
+                        <div class="ems-form-row">
+                            <div class="ems-form-group">
+                                <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
+                                <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}" required>
+                            </div>
 
                             <div class="ems-form-group">
                                 <label class="ems-label">تاريخ الانتهاء المتوقع</label>
@@ -608,12 +663,42 @@
                                 </select>
                             </div>
 
+                            <div class="ems-form-group">
+                                <label class="ems-label">نسبة الإنجاز (%)</label>
+                                <input type="number" name="completion_percentage" class="ems-input" min="0" max="100" value="0">
+                            </div>
+                        </div>
+
+                        {{-- مرفقات المشروع (اختياري) --}}
                         <div class="ems-form-group">
-                            <label class="ems-label">نسبة الإنجاز (%)</label>
-                            <input type="number" name="completion_percentage" class="ems-input" min="0" max="100" value="0">
+                            <label class="ems-label">
+                                مرفقات المشروع
+                                <span style="font-size: 11px; font-weight: normal; color: var(--ems-text-muted); margin-right: 6px;">(اختياري — ملفات، مستندات، عروض، صور — حتى 20MB لكل ملف)</span>
+                            </label>
+                            <div class="ems-dropzone" style="border: 2px dashed var(--ems-border, #cbd5e1); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer; transition: all 0.2s;"
+                                onclick="document.getElementById('add_project_attachments').click()"
+                                id="addProjectDropzone"
+                                ondragover="event.preventDefault(); this.style.borderColor='var(--ems-gold, #c5a059)'; this.style.background='rgba(197, 160, 89, 0.05)';"
+                                ondragleave="this.style.borderColor=''; this.style.background='';"
+                                ondrop="handleProjectFilesDrop(event, 'add')">
+                                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="var(--ems-text-muted)" stroke-width="1.6" style="margin: 0 auto 6px; display:block;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                                <div style="font-size: 13px; font-weight: 600; color: var(--ems-text-main);">
+                                    اضغط لرفع المرفقات أو اسحب الملفات هنا
+                                </div>
+                                <span style="font-size: 11.5px; color: var(--ems-text-muted); display: block; margin-top: 4px;">
+                                    يمكن اختيار أكثر من ملف (PDF, Word, Excel, صور, ZIP)
+                                </span>
+                            </div>
+                            <input type="file" id="add_project_attachments" name="attachments[]" multiple
+                                style="display: none;"
+                                onchange="handleProjectFilesSelect(this, 'add')">
+                            <div id="add_project_files_list" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;"></div>
                         </div>
                     </div>
-                </div>
 
                 <div class="ems-modal-footer">
                     <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-project')">إلغاء</button>
@@ -634,7 +719,7 @@
                     <button type="button" onclick="closeModal('modal-edit-project')" class="ems-modal-close">✕</button>
                 </div>
 
-                <form id="editProjectForm" method="POST">
+                <form id="editProjectForm" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 
@@ -651,11 +736,15 @@
 
                         <div class="ems-form-row">
                             <div class="ems-form-group">
-                                <label class="ems-label">القسم / الدائرة</label>
-                                <select id="edit_department_id" name="department_id" class="ems-input">
-                                    <option value="">اختر القسم</option>
+                                <label class="ems-label"><span class="required">*</span> الدائرة المسؤولة عن المشروع</label>
+                                <select id="edit_department_id" name="department_id" class="ems-input" required onchange="handleDepartmentChange(this.value, 'edit')">
+                                    <option value="">-- اختر الدائرة المسؤولة --</option>
                                     @foreach ($departments as $department)
-                                        <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                        <option value="{{ $department->id }}" 
+                                                data-manager-id="{{ $department->manager_employee_id ?? '' }}"
+                                                data-manager-name="{{ $department->manager?->full_name ?? '' }}">
+                                            {{ $department->name }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>
@@ -665,9 +754,12 @@
                                 <select id="edit_owner_employee_id" name="owner_employee_id" class="ems-input">
                                     <option value="">اختر المسؤول</option>
                                     @foreach ($employees as $employee)
-                                        <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
+                                        <option value="{{ $employee->id }}" data-department-id="{{ $employee->department_id ?? '' }}">
+                                            {{ $employee->full_name }}
+                                        </option>
                                     @endforeach
                                 </select>
+                                <div id="edit_manager_hint" style="font-size: 11.5px; color: #15803d; margin-top: 5px; display: none;"></div>
                             </div>
                         </div>
 
@@ -705,6 +797,41 @@
                             <input type="number" id="edit_completion_percentage" name="completion_percentage"
                                 class="ems-input" min="0" max="100" step="0.01" required>
                         </div>
+
+                        {{-- المرفقات الحالية للمشروع --}}
+                        <div class="ems-form-group">
+                            <label class="ems-label">المرفقات الحالية للمشروع</label>
+                            <div id="edit_project_existing_attachments" style="border: 1px solid var(--ems-border, #e5e7eb); border-radius: 8px; padding: 10px; min-height: 44px; background: var(--ems-surface-alt, #fafafa);">
+                                <div style="font-size: 12px; color: var(--ems-text-muted); text-align: center; padding: 6px;">لا توجد مرفقات سابقة لهذا المشروع.</div>
+                            </div>
+                        </div>
+
+                        {{-- إضافة مرفقات جديدة --}}
+                        <div class="ems-form-group">
+                            <label class="ems-label">
+                                إضافة مرفقات جديدة
+                                <span style="font-size: 11px; font-weight: normal; color: var(--ems-text-muted); margin-right: 6px;">(اختياري — حتى 20MB لكل ملف)</span>
+                            </label>
+                            <div class="ems-dropzone" style="border: 2px dashed var(--ems-border, #cbd5e1); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s;"
+                                onclick="document.getElementById('edit_project_attachments').click()"
+                                id="editProjectDropzone"
+                                ondragover="event.preventDefault(); this.style.borderColor='var(--ems-gold, #c5a059)'; this.style.background='rgba(197, 160, 89, 0.05)';"
+                                ondragleave="this.style.borderColor=''; this.style.background='';"
+                                ondrop="handleProjectFilesDrop(event, 'edit')">
+                                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--ems-text-muted)" stroke-width="1.6" style="margin: 0 auto 6px; display:block;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                                <div style="font-size: 13px; font-weight: 600; color: var(--ems-text-main);">
+                                    اضغط لاختيار مرفقات جديدة أو اسحبها هنا
+                                </div>
+                            </div>
+                            <input type="file" id="edit_project_attachments" name="attachments[]" multiple
+                                style="display: none;"
+                                onchange="handleProjectFilesSelect(this, 'edit')">
+                            <div id="edit_project_files_list" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;"></div>
+                        </div>
                     </div>
 
                 <div class="ems-modal-footer">
@@ -715,6 +842,12 @@
         </div>
     </div>
     @endif
+
+    {{-- Hidden Delete Attachment Form --}}
+    <form id="deleteAttachmentForm" method="POST" style="display: none;">
+        @csrf
+        @method('DELETE')
+    </form>
 
 
     {{-- JavaScript --}}
@@ -733,11 +866,68 @@
                 'actual_end_date' => $project->actual_end_date?->format('Y-m-d'),
                 'status' => $project->status,
                 'completion_percentage' => (float) $project->completion_percentage,
+                'attachments' => $project->attachments->map(fn($att) => [
+                    'id' => $att->id,
+                    'file_name' => $att->file_name,
+                    'file_size_formatted' => $att->formatted_size,
+                    'download_url' => route('projects.attachments.download', $att),
+                    'delete_url' => route('projects.attachments.destroy', $att),
+                ])->values()->all(),
             ];
         })
         ->values()
         ->all(),
 );
+
+        function openAddProjectModal() {
+            openModal('modal-add-project');
+            const deptSelect = document.getElementById('add_department_id');
+            if (deptSelect && deptSelect.value) {
+                handleDepartmentChange(deptSelect.value, 'add');
+            }
+        }
+
+        function handleDepartmentChange(deptId, mode) {
+            const deptSelect = document.getElementById(mode === 'add' ? 'add_department_id' : 'edit_department_id');
+            const ownerSelect = document.getElementById(mode === 'add' ? 'add_owner_employee_id' : 'edit_owner_employee_id');
+            const hint = document.getElementById(mode === 'add' ? 'add_manager_hint' : 'edit_manager_hint');
+            if (!deptSelect || !ownerSelect) return;
+
+            if (!deptId) {
+                if (mode === 'add') ownerSelect.value = '';
+                if (hint) hint.style.display = 'none';
+                return;
+            }
+
+            const selectedOption = deptSelect.options[deptSelect.selectedIndex];
+            const managerId = selectedOption ? selectedOption.getAttribute('data-manager-id') : null;
+            const managerName = selectedOption ? selectedOption.getAttribute('data-manager-name') : null;
+
+            if (managerId && managerId !== '') {
+                ownerSelect.value = managerId;
+                if (hint) {
+                    hint.style.display = 'block';
+                    hint.style.color = '#15803d';
+                    hint.innerHTML = '✓ تم تحديد مدير الدائرة تلقائياً: <strong>' + (managerName || '') + '</strong>';
+                }
+            } else {
+                if (mode === 'add') {
+                    ownerSelect.value = '';
+                }
+                if (hint) {
+                    hint.style.display = 'block';
+                    hint.style.color = '#b45309';
+                    hint.textContent = 'تنبيه: لا يوجد مدير مسجل لهذه الدائرة حالياً، يمكنك اختيار المسؤول يدوياً.';
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const deptSelect = document.getElementById('add_department_id');
+            if (deptSelect && deptSelect.value) {
+                handleDepartmentChange(deptSelect.value, 'add');
+            }
+        });
 
         @if ($canUpdate)
         function openEditProjectModal(projectId) {
@@ -764,9 +954,98 @@
             document.getElementById('edit_status').value = project.status ?? 'in_progress';
             document.getElementById('edit_completion_percentage').value = project.completion_percentage ?? 0;
 
+            const editHint = document.getElementById('edit_manager_hint');
+            if (!project.owner_employee_id && project.department_id) {
+                handleDepartmentChange(project.department_id, 'edit');
+            } else if (editHint) {
+                editHint.style.display = 'none';
+            }
+
+            // Render existing attachments
+            const existingContainer = document.getElementById('edit_project_existing_attachments');
+            if (existingContainer) {
+                if (project.attachments && project.attachments.length > 0) {
+                    existingContainer.innerHTML = project.attachments.map(att => `
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #fff; border: 1px solid var(--ems-border, #e5e7eb); border-radius: 6px; margin-bottom: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+                                <span style="font-size: 13px;">📎</span>
+                                <span style="font-size: 12.5px; font-weight: 600; color: var(--ems-text-main); white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 250px;" title="${att.file_name}">${att.file_name}</span>
+                                <span style="font-size: 11px; color: var(--ems-text-muted);">(${att.file_size_formatted})</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <a href="${att.download_url}" class="ems-btn ems-btn-sm ems-btn-secondary" style="padding: 3px 8px; font-size: 11px; text-decoration: none;" title="تحميل الملف">⬇</a>
+                                <button type="button" class="ems-btn ems-btn-sm" style="padding: 3px 8px; font-size: 11px; color: #ef4444; border-color: #fecaca; background: #fef2f2;" onclick="deleteProjectAttachment('${att.delete_url}')" title="حذف هذا المرفق">✕</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    existingContainer.innerHTML = '<div style="font-size: 12px; color: var(--ems-text-muted); text-align: center; padding: 6px;">لا توجد مرفقات سابقة لهذا المشروع.</div>';
+                }
+            }
+
+            // Reset new files input
+            const editFileInput = document.getElementById('edit_project_attachments');
+            if (editFileInput) editFileInput.value = '';
+            const editFilesList = document.getElementById('edit_project_files_list');
+            if (editFilesList) editFilesList.innerHTML = '';
+
             openModal('modal-edit-project');
         }
+
+        function deleteProjectAttachment(url) {
+            if (!confirm('هل أنت متأكد من رغبتك في حذف هذا المرفق نهائياً؟')) {
+                return;
+            }
+            const form = document.getElementById('deleteAttachmentForm');
+            form.action = url;
+            form.submit();
+        }
         @endif
+
+        function handleProjectFilesSelect(input, mode) {
+            renderSelectedFiles(input.files, mode);
+        }
+
+        function handleProjectFilesDrop(event, mode) {
+            event.preventDefault();
+            const dropzone = document.getElementById(mode === 'add' ? 'addProjectDropzone' : 'editProjectDropzone');
+            if (dropzone) {
+                dropzone.style.borderColor = '';
+                dropzone.style.background = '';
+            }
+            const input = document.getElementById(mode === 'add' ? 'add_project_attachments' : 'edit_project_attachments');
+            if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+                input.files = event.dataTransfer.files;
+                renderSelectedFiles(input.files, mode);
+            }
+        }
+
+        function renderSelectedFiles(files, mode) {
+            const list = document.getElementById(mode === 'add' ? 'add_project_files_list' : 'edit_project_files_list');
+            if (!list) return;
+
+            if (!files || files.length === 0) {
+                list.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                const kb = (f.size / 1024).toFixed(0);
+                const sizeStr = kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB' : kb + ' KB';
+                html += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px;">
+                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                            <span style="color: #15803d; font-weight: bold;">✓</span>
+                            <span style="font-weight: 600; color: #166534; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 280px;">${f.name}</span>
+                            <span style="color: #6b7280; font-size: 11px;">(${sizeStr})</span>
+                        </div>
+                    </div>
+                `;
+            }
+            list.innerHTML = html;
+        }
 
         function toggleProjectTasks(projectId) {
             const row = document.getElementById('project-tasks-row-' + projectId);

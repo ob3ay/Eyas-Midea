@@ -70,18 +70,8 @@
     <div class="ems-card">
         <div class="ems-card-header">
             <div class="ems-card-title">موظفو {{ $section->name }}</div>
-            <div style="display:flex; gap:8px; align-items:center;">
+            <div>
                 <a href="{{ route('departments.show', ['department' => $section->department_id]) }}" class="ems-btn ems-btn-secondary">رجوع إلى الدائرة</a>
-                @can('update', $section)
-                    <button type="button" class="ems-btn ems-btn-primary" onclick="openEditSectionModal({{ json_encode(['id' => $section->id, 'name' => $section->name, 'department_id' => $section->department_id, 'section_head_employee_id' => $section->section_head_employee_id]) }})">تعديل القسم</button>
-                @endcan
-                @can('delete', $section)
-                    <form action="{{ route('sections.destroy', $section) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف القسم {{ $section->name }}؟');" style="margin:0; display:inline-block;">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="ems-btn ems-btn-danger">حذف القسم</button>
-                    </form>
-                @endcan
             </div>
         </div>
         <div class="ems-card-body">
@@ -142,14 +132,27 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php
+                            $statusMap = [
+                                'in_progress' => ['label' => 'قيد التنفيذ', 'bg' => '#dcfce7', 'color' => '#15803d'],
+                                'in_review'   => ['label' => 'قيد المراجعة','bg' => '#dbeafe', 'color' => '#1d4ed8'],
+                                'completed'   => ['label' => 'مكتمل',        'bg' => '#f0fdf4', 'color' => '#166534'],
+                                'on_hold'     => ['label' => 'موقوف',         'bg' => '#fef3c7', 'color' => '#b45309'],
+                            ];
+                        @endphp
                         @forelse ($section->department?->projects ?? [] as $project)
+                            @php $st = $statusMap[$project->status] ?? ['label' => $project->status, 'bg' => '#f3f4f6', 'color' => '#6b7280']; @endphp
                             <tr>
                                 <td>{{ $project->title }}</td>
                                 <td>{{ $project->owner?->full_name ?? '-' }}</td>
                                 <td>{{ number_format((float) ($project->completion_percentage ?? 0), 0) }}%</td>
                                 <td>{{ optional($project->start_date)->toDateString() ?? '-' }}</td>
                                 <td>{{ optional($project->end_date)->toDateString() ?? '-' }}</td>
-                                <td>{{ $project->status ?? '-' }}</td>
+                                <td>
+                                    <span class="ems-badge" style="background: {{ $st['bg'] }}; color: {{ $st['color'] }}; font-weight: 700;">
+                                        {{ $st['label'] }}
+                                    </span>
+                                </td>
                             </tr>
                         @empty
                             <tr>

@@ -24,14 +24,23 @@ class UpdateDepartmentRequest extends FormRequest
     public function rules(): array
     {
         $department = $this->route('department');
-        $id = $department instanceof Department ? $department->id : null;
+        $id = $department instanceof Department ? $department->id : $department;
 
         return [
-            'code' => ['nullable', 'string', 'max:10', Rule::unique('departments', 'code')->ignore($id)],
-            'name' => ['required', 'string', 'max:150', Rule::unique('departments', 'name')->ignore($id)],
+            'code' => ['nullable', 'string', 'max:10', Rule::unique('departments', 'code')->ignore($id)->whereNull('deleted_at')],
+            'name' => ['required', 'string', 'max:150', Rule::unique('departments', 'name')->ignore($id)->whereNull('deleted_at')],
             'description' => ['nullable', 'string', 'max:500'],
-            'manager_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'manager_employee_id' => ['nullable'],
             'is_active' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'يرجى إدخال اسم الدائرة.',
+            'name.unique' => 'اسم هذه الدائرة مستخدم بالفعل، يرجى اختيار اسم آخر.',
+            'code.unique' => 'رمز الدائرة مستخدم بالفعل، يرجى اختيار رمز آخر.',
         ];
     }
 }

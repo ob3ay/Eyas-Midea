@@ -535,4 +535,224 @@
 
     @endif
 
+    {{-- =========================================================
+    Projects (المشاريع المرتبطة بالموظف)
+    ========================================================= --}}
+    @php
+        $allEmployeeProjects = $managedProjects->merge($projects)->unique('id');
+        $projStatusLabels = [
+            'in_progress' => ['label' => 'قيد التنفيذ', 'class' => 'badge-gold'],
+            'in_review' => ['label' => 'قيد المراجعة', 'class' => 'badge-review'],
+            'completed' => ['label' => 'مكتمل', 'class' => 'badge-completed'],
+            'on_hold' => ['label' => 'متوقف', 'class' => 'badge-danger'],
+        ];
+    @endphp
+
+    <div class="ems-card" style="margin-top:20px; margin-bottom:20px;">
+        <div class="ems-card-header">
+            <div class="ems-card-title">
+                المشاريع المرتبطة بالموظف
+            </div>
+            <span class="ems-badge badge-gold">
+                {{ $allEmployeeProjects->count() }} مشروع/مشاريع
+            </span>
+        </div>
+
+        <div class="ems-card-body" style="padding: 0;">
+            @if ($allEmployeeProjects->count() > 0)
+                <div class="ems-table-responsive">
+                    <table class="ems-table">
+                        <thead>
+                            <tr>
+                                <th>المشروع</th>
+                                <th>دور الموظف</th>
+                                <th>الدائرة</th>
+                                <th style="min-width: 140px;">نسبة الإنجاز</th>
+                                <th>الحالة</th>
+                                <th>الفترة الزمنية</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($allEmployeeProjects as $project)
+                                @php
+                                    $isOwner = $project->owner_employee_id === $employee->id;
+                                    $pjSt = $projStatusLabels[$project->status] ?? ['label' => $project->status, 'class' => ''];
+                                    $progress = (float) ($project->completion_percentage ?? 0);
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 700; color: var(--ems-text-main);">
+                                            {{ $project->title }}
+                                        </div>
+                                        @if ($project->description)
+                                            <div style="font-size: 11.5px; color: var(--ems-text-muted); margin-top: 3px;">
+                                                {{ Str::limit($project->description, 60) }}
+                                            </div>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if ($isOwner)
+                                            <span class="ems-badge badge-gold" style="font-size: 11px;">مسؤول المشروع</span>
+                                        @else
+                                            <span class="ems-badge badge-draft" style="font-size: 11px;">عضو فريق العمل</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        {{ $project->department->name ?? '-' }}
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div class="ems-progress" style="height: 6px; flex-grow: 1;">
+                                                <div class="ems-progress-bar {{ $progress >= 100 ? 'success' : '' }}"
+                                                    style="width: {{ min(100, $progress) }}%;"></div>
+                                            </div>
+                                            <span style="font-size: 11px; font-weight: 700; font-family: var(--font-mono); {{ $progress >= 100 ? 'color: #10b981;' : '' }}">
+                                                {{ number_format($progress, 0) }}%
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="ems-badge {{ $pjSt['class'] }}">
+                                            {{ $pjSt['label'] }}
+                                        </span>
+                                    </td>
+                                    <td style="font-size: 12px; color: var(--ems-text-muted);">
+                                        {{ $project->start_date?->format('d/m/Y') ?? '-' }}
+                                        إلى
+                                        {{ $project->end_date?->format('d/m/Y') ?? 'مفتوح' }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div style="text-align: center; padding: 24px; color: var(--ems-text-muted); font-size: 13px;">
+                    لا توجد مشاريع مسندة لهذا الموظف حالياً.
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- =========================================================
+    Tasks (المهام المسندة ومتابعة الإنجاز)
+    ========================================================= --}}
+    @php
+        $taskStatusMap = [
+            'Draft' => ['label' => 'مسودة', 'class' => 'badge-draft'],
+            'To-Do' => ['label' => 'قيد الانتظار', 'class' => 'badge-danger'],
+            'In Progress' => ['label' => 'قيد التنفيذ', 'class' => 'badge-progress'],
+            'Under Review' => ['label' => 'قيد المراجعة', 'class' => 'badge-review'],
+            'Completed' => ['label' => 'مكتملة', 'class' => 'badge-completed'],
+            'Rejected' => ['label' => 'مرفوضة', 'class' => 'badge-danger'],
+        ];
+        $taskPriorityMap = [
+            'Low' => ['label' => 'منخفضة', 'class' => 'badge-completed'],
+            'Medium' => ['label' => 'متوسطة', 'class' => 'badge-gold'],
+            'High' => ['label' => 'عالية', 'class' => 'badge-danger'],
+            'Urgent' => ['label' => 'عاجلة', 'class' => 'badge-danger'],
+        ];
+    @endphp
+
+    <div class="ems-card" style="margin-top:20px; margin-bottom:30px;">
+        <div class="ems-card-header" style="flex-wrap: wrap; gap: 10px;">
+            <div>
+                <div class="ems-card-title">
+                    المهام المسندة ومتابعة الإنجاز
+                </div>
+                <div style="font-size: 12px; color: var(--ems-text-muted); margin-top: 3px;">
+                    إجمالي المهام المسجلة: <strong>{{ $taskTotal }}</strong> | مكتملة: <strong style="color: #10b981;">{{ $taskCompleted }}</strong> | قيد التنفيذ: <strong style="color: #d97706;">{{ $taskInProgress }}</strong> | مراجعة: <strong style="color: #6d28d9;">{{ $taskUnderReview }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="ems-card-body" style="padding: 0;">
+            @if ($tasks->count() > 0)
+                <div class="ems-table-responsive">
+                    <table class="ems-table">
+                        <thead>
+                            <tr>
+                                <th>المهمة</th>
+                                <th>المشروع</th>
+                                <th>المكلف بالتنفيذ</th>
+                                <th>الأولوية</th>
+                                <th>الحالة</th>
+                                <th style="min-width: 120px;">نسبة الإنجاز</th>
+                                <th>تاريخ الاستحقاق</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($tasks as $task)
+                                @php
+                                    $st = $taskStatusMap[$task->status] ?? ['label' => $task->status, 'class' => ''];
+                                    $pr = $taskPriorityMap[$task->priority] ?? ['label' => $task->priority, 'class' => ''];
+                                    $tProgress = (float) ($task->completion_percentage ?? 0);
+                                    $isDirectAssignee = $task->assignee_employee_id === $employee->id;
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 700; color: var(--ems-text-main);">
+                                            {{ $task->title }}
+                                        </div>
+                                        @if ($task->description)
+                                            <div style="font-size: 11.5px; color: var(--ems-text-muted); margin-top: 3px;">
+                                                {{ Str::limit($task->description, 65) }}
+                                            </div>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if ($task->project)
+                                            <span style="font-size: 12px; color: var(--ems-text-main); font-weight: 600;">
+                                                {{ $task->project->title }}
+                                            </span>
+                                        @else
+                                            <span style="font-size: 12px; color: var(--ems-text-muted);">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            <span style="font-size: 12px; font-weight: 600; color: var(--ems-text-main);">
+                                                {{ $task->assignee?->full_name ?? 'غير مسند' }}
+                                            </span>
+                                            @if ($isDirectAssignee)
+                                                <span class="ems-badge badge-gold" style="font-size: 10px; padding: 2px 6px;">مهمته</span>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="ems-badge {{ $pr['class'] }}" style="font-size: 11px;">
+                                            {{ $pr['label'] }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="ems-badge {{ $st['class'] }}" style="font-size: 11px;">
+                                            {{ $st['label'] }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div class="ems-progress" style="height: 5px; flex-grow: 1;">
+                                                <div class="ems-progress-bar {{ $tProgress >= 100 ? 'success' : '' }}"
+                                                    style="width: {{ min(100, $tProgress) }}%;"></div>
+                                            </div>
+                                            <span style="font-size: 11px; font-weight: 700; font-family: var(--font-mono);">
+                                                {{ round($tProgress) }}%
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td style="font-size: 12px; color: var(--ems-text-muted);">
+                                        {{ $task->due_datetime ? $task->due_datetime->format('Y-m-d') : '-' }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div style="text-align: center; padding: 24px; color: var(--ems-text-muted); font-size: 13px;">
+                    لا توجد مهام مسندة لهذا الموظف حالياً.
+                </div>
+            @endif
+        </div>
+    </div>
 @endsection

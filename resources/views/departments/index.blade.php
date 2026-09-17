@@ -51,6 +51,16 @@
                 style="display:block; padding:10px 14px; margin-bottom:14px; background:#fee2e2; color:#b91c1c;">
                 {{ session('error') }}</div>
         @endif
+        @if ($errors->any())
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; color: #b91c1c; font-size: 13px;">
+                <div style="font-weight: 700; margin-bottom: 4px;">يرجى مراجعة وتصحيح الملاحظات التالية:</div>
+                <ul style="margin: 0; padding-right: 20px;">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         <!-- شبكة بطاقات الدوائر (ديناميكية) -->
         <div class="ems-dept-grid">
@@ -100,13 +110,19 @@
                                 class="ems-badge badge-gold">{{ $department->code ?? 'DEPT-' . str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</span>
                         </div>
                         <h2 class="ems-dept-title">{{ $department->name }}</h2>
-                        <p class="ems-dept-desc">{{ $department->description ?? 'ما في وصف مضاف لهاي الدائرة بعد.' }}</p>
+                        <p class="ems-dept-desc">{{ $department->description ?? 'لا يوجد وصف مضاف لهذه الدائرة حالياً.' }}</p>
                     </div>
                     <div>
                         <div class="ems-dept-meta">
                             <div>
-                                <div class="ems-dept-meta-item-label">الموظفون / الحسابات</div>
-                                <div class="ems-dept-meta-item-val">{{ $department->employees_count }} / {{ $department->users_count }}</div>
+                                <div class="ems-dept-meta-item-label">الكادر / الحسابات</div>
+                                <div class="ems-dept-meta-item-val" style="display: inline-flex; align-items: baseline; gap: 3px;">
+                                    <span style="font-weight: 700;">{{ $department->employees_count }}</span>
+                                    <span style="font-size: 10.5px; color: var(--ems-text-muted);">موظف</span>
+                                    <span style="color: var(--ems-border, #cbd5e1); margin: 0 1px;">•</span>
+                                    <span style="font-weight: 700;">{{ $department->users_count }}</span>
+                                    <span style="font-size: 10.5px; color: var(--ems-text-muted);">حساب</span>
+                                </div>
                             </div>
                             <div>
                                 <div class="ems-dept-meta-item-label">الحالة</div>
@@ -171,106 +187,11 @@
                     </div>
                 </div>
             @empty
-                <p style="font-size: 13px; color: var(--ems-text-muted);">ما في دوائر مضافة بعد.</p>
+                <p style="font-size: 13px; color: var(--ems-text-muted);">لا توجد دوائر مسجلة حالياً.</p>
             @endforelse
         </div>
 
-        <!-- جدول الأقسام التفصيلي (ديناميكي) -->
-        <div class="ems-card">
-            <div class="ems-card-header">
-                <div class="ems-card-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <path d="M3 21h18" />
-                        <path d="M3 7v14" />
-                        <path d="M21 7v14" />
-                    </svg>
-                    <span>سجل الأقسام التخصصية والوحدات التنفيذية المعتمدة</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span class="ems-badge badge-completed">{{ $sections->count() }} وحدات تخصصية</span>
-                    @can('create-section')
-                        <button type="button" class="ems-btn ems-btn-primary ems-btn-sm" onclick="openModal('modal-add-section')">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="5" x2="12" y2="19" />
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
-                        <span>إضافة قسم جديد</span>
-                        </button>
-                    @endcan
-                </div>
-            </div>
 
-            <div class="ems-card-body" style="padding: 0;">
-                <div class="ems-table-responsive">
-                    <table class="ems-table" id="departmentsTable">
-                        <thead>
-                            <tr>
-                                <th>رمز القسم</th>
-                                <th>اسم القسم</th>
-                                <th>الدائرة الرئيسية</th>
-                                <th>المسؤول المباشر</th>
-                                <th>عدد الكوادر</th>
-                                <th>الحالة</th>
-                                <th style="text-align: center;">الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($sections as $section)
-                                <tr>
-                                    <td><span
-                                            style="font-family: var(--font-mono); font-weight: 700; color: var(--ems-gold-hover);">SEC-{{ str_pad($section->id, 3, '0', STR_PAD_LEFT) }}</span>
-                                    </td>
-                                    <td><strong style="color: var(--ems-text-main);">{{ $section->name }}</strong></td>
-                                    <td>{{ $section->department->name ?? '-' }}</td>
-                                    <td>{{ $section->head->full_name ?? 'غير محدد' }}</td>
-                                    <td>{{ $section->employees_count }} موظف / {{ $section->users_count }} حساب</td>
-                                    <td><span class="ems-badge {{ $section->is_active ? 'badge-completed' : '' }}">{{ $section->is_active ? 'نشط' : 'غير نشط' }}</span></td>
-                                    <td style="text-align: center;">
-                                        <div style="display: inline-flex; align-items: center; gap: 6px;">
-                                            @can('edit-section', $section)
-                                            <button class="ems-btn ems-btn-icon" title="تعديل"
-                                                onclick="openEditSectionModal({{ json_encode([
-                                                    'id' => $section->id,
-                                                    'code' => 'SEC-' . str_pad($section->id, 3, '0', STR_PAD_LEFT),
-                                                    'name' => $section->name,
-                                                    'department_id' => $section->department_id,
-                                                    'section_head_employee_id' => $section->section_head_employee_id,
-                                                ]) }})">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                                </svg>
-                                            </button>
-                                            @endcan
-                                            @can('delete', $section)
-                                            <form action="{{ route('sections.destroy', $section->id) }}" method="POST"
-                                                onsubmit="return confirm('هل أنت متأكد من حذف قسم ({{ $section->name }})؟');" style="margin: 0; display: inline;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="ems-btn ems-btn-icon" title="حذف"
-                                                    style="color: var(--ems-danger, #ef4444);">
-                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                    </svg>
-                                                </button>
-                                            </form>
-                                            @endcan
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="7" style="text-align:center; color: var(--ems-text-muted);">ما في أقسام
-                                        مضافة بعد.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
 
     <!-- نافذة إضافة دائرة جديدة وأقسامها التابعة -->
     <div class="ems-modal-overlay" id="modal-add-department">
@@ -284,10 +205,10 @@
                 <div class="ems-modal-body">
                     <div class="ems-form-row">
                         <div class="ems-form-group">
-                            <label for="dept_code" class="ems-label">رمز / كود الدائرة (تلقائي)</label>
+                            <label for="dept_code" class="ems-label">رمز / كود الدائرة</label>
                             <input type="text" id="dept_code" name="code" class="ems-input"
-                                value="{{ $nextDeptCode }}" readonly
-                                style="background-color: var(--ems-surface-alt); font-family: var(--font-mono); font-weight: 600; cursor: default;">
+                                value="{{ $nextDeptCode }}" placeholder="مثال: DEPT-05"
+                                style="font-family: var(--font-mono); font-weight: 600;">
                         </div>
                         <div class="ems-form-group">
                             <label for="dept_name" class="ems-label"><span class="required">*</span> اسم الدائرة</label>
@@ -432,6 +353,12 @@
                             @endforeach
                         </select>
                     </div>
+
+                    <div class="ems-form-group" style="margin-bottom: 16px;">
+                        <label for="edit_dept_desc" class="ems-label">وصف ومسؤوليات الدائرة</label>
+                        <textarea id="edit_dept_desc" name="description" class="ems-input" rows="2"
+                            placeholder="نبذة موجزة عن مهام الدائرة واختصاصاتها..." style="resize: vertical; height: auto; padding: 10px;"></textarea>
+                    </div>
                 </div>
                 <div class="ems-modal-footer">
                     <button type="button" class="ems-btn ems-btn-secondary"
@@ -548,6 +475,7 @@
         document.getElementById('edit_dept_code').value = dept.code || '';
         document.getElementById('edit_dept_name').value = dept.name || '';
         document.getElementById('edit_dept_manager').value = dept.manager_employee_id || '';
+        document.getElementById('edit_dept_desc').value = dept.description || '';
         openModal('modal-edit-department');
     }
 

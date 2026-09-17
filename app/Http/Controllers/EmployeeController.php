@@ -109,8 +109,11 @@ class EmployeeController extends Controller
     | المهام المسندة للموظف
     |--------------------------------------------------------------------------
     */
+        $managedProjectIds = Project::where('owner_employee_id', $employee->id)->pluck('id');
+
         $tasks = Task::with([
             'project',
+            'assignee',
             'comments',
             'attachments',
             'statusHistory',
@@ -119,7 +122,10 @@ class EmployeeController extends Controller
                 'comments',
                 'attachments',
             ])
-            ->where('assignee_employee_id', $employee->id)
+            ->where(function ($query) use ($employee, $managedProjectIds) {
+                $query->where('assignee_employee_id', $employee->id)
+                    ->orWhereIn('project_id', $managedProjectIds);
+            })
             ->latest()
             ->get();
 

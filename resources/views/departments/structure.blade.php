@@ -2,6 +2,31 @@
 @section('title', 'الهيكل التنظيمي التفاعلي | مجموعة إياس الإعلامية')
 
 @section('content')
+    @php
+        $selectedDeptId = $selectedDeptId ?? request('department_id', '');
+        $deptThemes = [
+            [
+                'bg' => '#fef3c7',
+                'color' => '#b45309',
+                'border' => '#fde68a',
+            ],
+            [
+                'bg' => '#e0f2fe',
+                'color' => '#0369a1',
+                'border' => '#bae6fd',
+            ],
+            [
+                'bg' => '#eff6ff',
+                'color' => '#1d4ed8',
+                'border' => '#bfdbfe',
+            ],
+            [
+                'bg' => '#fdf4ff',
+                'color' => '#a21caf',
+                'border' => '#f5d0fe',
+            ],
+        ];
+    @endphp
 
 
     <!-- مسار التنقل وترويسة الصفحة -->

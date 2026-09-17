@@ -164,6 +164,15 @@
 
                     <div class="ems-form-row">
                         <div class="ems-form-group">
+                            <label for="section_id" class="ems-label">
+                                القسم التخصصي
+                            </label>
+                            <select id="section_id" name="section_id" class="ems-select">
+                                <option value="">بدون قسم</option>
+                            </select>
+                        </div>
+
+                        <div class="ems-form-group">
                             <label for="hire_date" class="ems-label">
                                 <span class="required">*</span>
                                 تاريخ التعيين
@@ -405,8 +414,11 @@
                                     <div style="display:flex; justify-content:center; gap:6px;">
 
                                         <a href="{{ route('employees.show', $employee) }}"
-                                            class="ems-btn ems-btn-icon bg-blue-500 text-white" title="عرض التفاصيل">
-                                            <i class="fa fa-eye"></i>
+                                            class="ems-btn ems-btn-icon" title="عرض التفاصيل">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
                                         </a>
                                         @if ($canUpdate)
                                             @php
@@ -456,7 +468,7 @@
                         @empty
                             <tr>
                                 <td colspan="7" style="text-align:center; color: var(--ems-text-muted);">
-                                    ما في موظفين مسجلين بعد.
+                                    لا يوجد موظفون مسجلون حالياً.
                                 </td>
                             </tr>
                         @endforelse

@@ -60,6 +60,8 @@ Route::middleware(['web', 'auth', 'active.user'])->group(function () {
         Route::post('/store', [ProjectController::class, 'store'])->name('store');
         Route::put('/{project}', [ProjectController::class, 'update'])->name('update');
         Route::delete('/{project}', [ProjectController::class, 'destroy'])->name('destroy');
+        Route::get('/attachments/{attachment}/download', [ProjectController::class, 'downloadAttachment'])->name('attachments.download');
+        Route::delete('/attachments/{attachment}', [ProjectController::class, 'destroyAttachment'])->name('attachments.destroy');
     });
 
     Route::prefix('tasks')->name('tasks.')->group(function () {

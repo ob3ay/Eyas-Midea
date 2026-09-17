@@ -4,26 +4,33 @@
 
 @section('content')
 
-    <style>
-        .sortable-ghost {
-            opacity: 0.4;
-            background-color: var(--ems-surface-alt, #f3f4f6);
-            border: 2px dashed #3b82f6 !important;
-        }
+    @php
+        $isSuperAdmin = auth()->user()?->hasRole('SA') ?? false;
+        $canDrag = ! $isSuperAdmin;
+    @endphp
 
+    <style>
         .kanban-dropzone {
             min-height: 150px;
             padding-bottom: 20px;
         }
 
         .ems-task-card {
-            cursor: grab;
+            cursor: {{ $canDrag ? 'grab' : 'default' }};
             user-select: none;
         }
 
-        .ems-task-card:active {
-            cursor: grabbing;
-        }
+        @if ($canDrag)
+            .sortable-ghost {
+                opacity: 0.4;
+                background-color: var(--ems-surface-alt, #f3f4f6);
+                border: 2px dashed #3b82f6 !important;
+            }
+
+            .ems-task-card:active {
+                cursor: grabbing;
+            }
+        @endif
     </style>
 
     @php
@@ -93,9 +100,16 @@
 
             </div>
 
-            <h1 class="ems-page-title">
-                إدارة المهام ودورة حياة الإنتاج
-            </h1>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h1 class="ems-page-title" style="margin: 0;">
+                    إدارة المهام ودورة حياة الإنتاج
+                </h1>
+                @if ($isSuperAdmin)
+                    <span class="ems-badge badge-review" style="font-size: 11.5px; padding: 4px 10px;">
+                        لوحة إشرافية ورقابية (عرض ومتابعة)
+                    </span>
+                @endif
+            </div>
 
             <p class="ems-page-subtitle">
                 مسودة ➔ قيد الانتظار ➔ قيد التنفيذ ➔ قيد المراجعة ➔ مكتملة
@@ -237,6 +251,58 @@
                 </svg>
             </div>
         </div>
+    </div>
+
+    {{-- شريط التصفية والبحث في المهام --}}
+    <div class="ems-card" style="margin-bottom: 20px; padding: 14px 18px;">
+        <form method="GET" action="{{ route('tasks.index') }}" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+            <div style="flex: 1; min-width: 200px;">
+                <label class="ems-label" style="font-size: 12px; margin-bottom: 4px;">تصفية حسب المشروع</label>
+                <select name="project_id" class="ems-select" style="font-size: 13px; padding: 8px 12px;">
+                    <option value="">جميع المشاريع</option>
+                    @foreach ($projects as $project)
+                        <option value="{{ $project->id }}" @selected(request('project_id') == $project->id)>
+                            {{ $project->title }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div style="flex: 1; min-width: 200px;">
+                <label class="ems-label" style="font-size: 12px; margin-bottom: 4px;">الموظف المكلف</label>
+                <select name="assignee_employee_id" class="ems-select" style="font-size: 13px; padding: 8px 12px;">
+                    <option value="">جميع الموظفين</option>
+                    @foreach ($employees as $emp)
+                        <option value="{{ $emp->id }}" @selected(request('assignee_employee_id') == $emp->id)>
+                            {{ $emp->full_name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div style="flex: 1; min-width: 150px;">
+                <label class="ems-label" style="font-size: 12px; margin-bottom: 4px;">الأولوية</label>
+                <select name="priority" class="ems-select" style="font-size: 13px; padding: 8px 12px;">
+                    <option value="">جميع الأولويات</option>
+                    @foreach ($priorityLabels as $pKey => $pVal)
+                        <option value="{{ $pKey }}" @selected(request('priority') == $pKey)>
+                            {{ $pVal }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                <button type="submit" class="ems-btn ems-btn-primary" style="padding: 8px 16px; font-size: 13px;">
+                    تصفية
+                </button>
+                @if (request()->hasAny(['project_id', 'assignee_employee_id', 'priority', 'status']))
+                    <a href="{{ route('tasks.index') }}" class="ems-btn ems-btn-secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">
+                        إعادة ضبط
+                    </a>
+                @endif
+            </div>
+        </form>
     </div>
 
     {{-- لوحة Kanban --}}
@@ -644,134 +710,136 @@
         </div>
     @endif
 
-    {{-- SortableJS --}}
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    @if ($canDrag)
+        {{-- SortableJS --}}
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
 
-            const dropzones = document.querySelectorAll('.kanban-dropzone');
+                const dropzones = document.querySelectorAll('.kanban-dropzone');
 
-            dropzones.forEach(function(dropzone) {
+                dropzones.forEach(function(dropzone) {
 
-                new Sortable(dropzone, {
+                    new Sortable(dropzone, {
 
-                    group: 'kanban',
+                        group: 'kanban',
 
-                    animation: 150,
+                        animation: 150,
 
-                    ghostClass: 'sortable-ghost',
+                        ghostClass: 'sortable-ghost',
 
-                    onEnd: function(evt) {
+                        onEnd: function(evt) {
 
-                        const itemEl = evt.item;
+                            const itemEl = evt.item;
 
-                        const taskId =
-                            itemEl.getAttribute('data-task-id');
+                            const taskId =
+                                itemEl.getAttribute('data-task-id');
 
-                        const newStatus =
-                            evt.to.getAttribute('data-status');
+                            const newStatus =
+                                evt.to.getAttribute('data-status');
 
-                        const oldStatus =
-                            evt.from.getAttribute('data-status');
+                            const oldStatus =
+                                evt.from.getAttribute('data-status');
 
-                        // النقل داخل نفس العمود لا يحتاج تحديث للسيرفر
-                        if (oldStatus === newStatus) {
-                            return;
+                            // النقل داخل نفس العمود لا يحتاج تحديث للسيرفر
+                            if (oldStatus === newStatus) {
+                                return;
+                            }
+
+                            fetch(
+                                    '{{ url('/tasks') }}/' +
+                                    taskId +
+                                    '/state', {
+                                        method: 'POST',
+
+                                        headers: {
+                                            'Content-Type': 'application/json',
+
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+
+                                            'Accept': 'application/json'
+                                        },
+
+                                        body: JSON.stringify({
+                                            status: newStatus
+                                        })
+                                    }
+                                )
+                                .then(function(response) {
+
+                                    if (!response.ok) {
+                                        throw new Error(
+                                            'فشل تحديث الحالة'
+                                        );
+                                    }
+
+                                    return response.json();
+                                })
+                                .then(function(data) {
+
+                                    if (!data.success) {
+                                        throw new Error(
+                                            'لم يتم تحديث المهمة'
+                                        );
+                                    }
+
+                                    itemEl.setAttribute(
+                                        'data-current-status',
+                                        newStatus
+                                    );
+
+                                    updateCounts(
+                                        evt.from,
+                                        evt.to
+                                    );
+
+                                })
+                                .catch(function() {
+
+                                    alert(
+                                        'تعذر حفظ الحالة الجديدة، سيتم إعادة تحميل الصفحة.'
+                                    );
+
+                                    window.location.reload();
+
+                                });
+
                         }
 
-                        fetch(
-                                '{{ url('/tasks') }}/' +
-                                taskId +
-                                '/state', {
-                                    method: 'POST',
-
-                                    headers: {
-                                        'Content-Type': 'application/json',
-
-                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-
-                                        'Accept': 'application/json'
-                                    },
-
-                                    body: JSON.stringify({
-                                        status: newStatus
-                                    })
-                                }
-                            )
-                            .then(function(response) {
-
-                                if (!response.ok) {
-                                    throw new Error(
-                                        'فشل تحديث الحالة'
-                                    );
-                                }
-
-                                return response.json();
-                            })
-                            .then(function(data) {
-
-                                if (!data.success) {
-                                    throw new Error(
-                                        'لم يتم تحديث المهمة'
-                                    );
-                                }
-
-                                itemEl.setAttribute(
-                                    'data-current-status',
-                                    newStatus
-                                );
-
-                                updateCounts(
-                                    evt.from,
-                                    evt.to
-                                );
-
-                            })
-                            .catch(function() {
-
-                                alert(
-                                    'تعذر حفظ الحالة الجديدة، سيتم إعادة تحميل الصفحة.'
-                                );
-
-                                window.location.reload();
-
-                            });
-
-                    }
+                    });
 
                 });
 
-            });
 
+                function updateCounts(fromEl, toEl) {
 
-            function updateCounts(fromEl, toEl) {
+                    const fromCount =
+                        fromEl
+                        .closest('.ems-kanban-column')
+                        .querySelector('.ems-kanban-count');
 
-                const fromCount =
-                    fromEl
-                    .closest('.ems-kanban-column')
-                    .querySelector('.ems-kanban-count');
+                    const toCount =
+                        toEl
+                        .closest('.ems-kanban-column')
+                        .querySelector('.ems-kanban-count');
 
-                const toCount =
-                    toEl
-                    .closest('.ems-kanban-column')
-                    .querySelector('.ems-kanban-count');
+                    if (!fromCount || !toCount) {
+                        return;
+                    }
 
-                if (!fromCount || !toCount) {
-                    return;
+                    fromCount.textContent =
+                        Math.max(
+                            0,
+                            parseInt(fromCount.textContent) - 1
+                        );
+
+                    toCount.textContent =
+                        parseInt(toCount.textContent) + 1;
                 }
 
-                fromCount.textContent =
-                    Math.max(
-                        0,
-                        parseInt(fromCount.textContent) - 1
-                    );
-
-                toCount.textContent =
-                    parseInt(toCount.textContent) + 1;
-            }
-
-        });
-    </script>
+            });
+        </script>
+    @endif
 
 @endsection

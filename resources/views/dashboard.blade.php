@@ -19,7 +19,19 @@
             </p>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            @if (! ($isEmployee ?? false) && isset($pendingRequestsCount) && $pendingRequestsCount > 0)
+                <a href="{{ route('requests.index') }}" class="ems-btn ems-btn-secondary"
+                    style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    <span>طلبات بانتظار المراجعة ({{ $pendingRequestsCount }})</span>
+                </a>
+            @endif
             @if (auth()->user()?->hasPermission('projects.create'))
                 <a href="{{ route('projects.index') }}" class="ems-btn ems-btn-primary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -189,7 +201,7 @@
                                 </div>
                             </div>
                         @empty
-                            <p style="font-size: 13px; color: var(--ems-text-muted);">ما في مشاريع نشطة حالياً.</p>
+                            <p style="font-size: 13px; color: var(--ems-text-muted);">لا توجد مشاريع نشطة حالياً.</p>
                         @endforelse
                     </div>
                 </div>
@@ -262,13 +274,18 @@
                                     $activity->user->employee->full_name ?? ($activity->user->username ?? 'النظام');
                                 $initial = mb_substr($actorName, 0, 1);
                                 $actionLabels = [
-                                    'Login' => 'سجّل دخول للنظام',
-                                    'Logout' => 'سجّل خروج من النظام',
+                                    'Login' => 'سجّل دخولاً إلى المنظومة',
+                                    'Logout' => 'سجّل خروجاً من المنظومة',
                                     'AccountLocked' => 'تم قفل حسابه مؤقتاً',
+                                    'UpdateRolePermission' => 'قام بتحديث صلاحيات دور',
+                                    'CreateProject' => 'أنشأ مشروعاً جديداً',
+                                    'UpdateProject' => 'عدّل بيانات مشروع',
+                                    'CreateTask' => 'أنشأ مهمة جديدة',
+                                    'UpdateTask' => 'حدّث بيانات مهمة',
                                 ];
                                 $actionText =
                                     $actionLabels[$activity->action_type] ??
-                                    $activity->action_type . ' - ' . $activity->entity_type;
+                                    'قام بعملية على ' . $activity->entity_type;
                             @endphp
                             <div class="ems-avatar"
                                 style="width: 32px; height: 32px; font-size: 12px; background:#c5a059;">
@@ -281,7 +298,7 @@
                             </div>
                         </div>
                     @empty
-                        <p style="font-size: 13px; color: var(--ems-text-muted);">ما في نشاطات مسجلة بعد.</p>
+                        <p style="font-size: 13px; color: var(--ems-text-muted);">لا توجد أنشطة مسجلة بعد.</p>
                     @endforelse
                 </div>
             </div>
