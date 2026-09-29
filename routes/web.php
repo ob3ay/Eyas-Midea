@@ -74,9 +74,13 @@ Route::middleware(['web', 'auth', 'active.user'])->group(function () {
 
     Route::prefix('attendance')->name('attendance.')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->name('index');
+        Route::get('/print', [AttendanceController::class, 'printSheet'])->name('print');
+        Route::get('/export', [AttendanceController::class, 'exportCsv'])->name('export');
         Route::post('/check-in', [AttendanceController::class, 'checkIn'])->name('checkin');
         Route::post('/check-out', [AttendanceController::class, 'checkOut'])->name('checkout');
         Route::post('/manual-log', [AttendanceController::class, 'manualLog'])->name('manual');
+        Route::put('/{attendanceRecord}', [AttendanceController::class, 'update'])->name('update');
+        Route::delete('/{attendanceRecord}', [AttendanceController::class, 'destroy'])->name('destroy');
     });
 
     Route::prefix('performance')->name('performance.')->group(function () {
@@ -88,6 +92,8 @@ Route::middleware(['web', 'auth', 'active.user'])->group(function () {
         Route::get('/', [EmployeeRequestController::class, 'index'])->name('index');
         Route::post('/', [EmployeeRequestController::class, 'store'])->name('store');
         Route::post('/{employeeRequest}/cancel', [EmployeeRequestController::class, 'cancel'])->name('cancel');
+        Route::post('/{employeeRequest}/approve', [EmployeeRequestController::class, 'approve'])->name('approve');
+        Route::post('/{employeeRequest}/reject', [EmployeeRequestController::class, 'reject'])->name('reject');
     });
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmployeeRequest;
+use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,23 +17,27 @@ class EmployeeRequestController extends Controller
         $user = $request->user();
         $employee = $user->employee;
 
-        if (! $employee) {
-            abort(403, 'حسابك غير مرتبط بسجل موظف في المنظومة.');
-        }
+        $isSuperAdmin = $user->hasRole('SA') || $user->hasRole('EX');
+        $isAdmin = $isSuperAdmin || $user->hasRole('OM') || $user->hasRole('HOD') || $user->hasRole('SH');
 
-        // نطاق العرض: الموظف يرى طلباته الخاصة، والإداري يرى طلبات دائرته أو المنظمة
-        $scope = $user->highestScopeFor('requests.view') ?? 'self';
-
-        $query = EmployeeRequest::with(['employee.department', 'reviewer'])
+        $query = EmployeeRequest::with(['employee.department', 'employee.section', 'reviewer'])
             ->latest();
 
-        if ($scope === 'self' || ! $user->hasRole('SA')) {
-            $query->where('employee_id', $employee->id);
-        } elseif ($scope === 'department') {
+        if ($user->hasRole('SA') || $user->hasRole('EX') || $user->hasRole('OM')) {
+            // الإدارة العليا ترى جميع طلبات الكوادر
+        } elseif ($user->hasRole('SH') && $employee?->section_id) {
+            $query->whereHas('employee', fn ($q) => $q->where('section_id', $employee->section_id));
+        } elseif ($user->hasRole('HOD') && $employee?->department_id) {
             $query->whereHas('employee', fn ($q) => $q->where('department_id', $employee->department_id));
+        } else {
+            $query->where('employee_id', $employee?->id ?? 0);
         }
 
         $requests = $query->get();
+
+        $myRequests = $employee
+            ? EmployeeRequest::where('employee_id', $employee->id)->latest()->get()
+            : collect();
 
         $stats = [
             'total' => $requests->count(),
@@ -40,16 +46,16 @@ class EmployeeRequestController extends Controller
             'rejected' => $requests->where('status', 'rejected')->count(),
         ];
 
-        return view('requests.index', compact('requests', 'stats', 'employee'));
+        return view('requests.index', compact('requests', 'myRequests', 'stats', 'employee', 'isAdmin', 'isSuperAdmin'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, NotificationService $notifications): RedirectResponse
     {
         $user = $request->user();
         $employee = $user->employee;
 
         if (! $employee) {
-            abort(403, 'حسابك غير مرتبط بسجل موظف.');
+            abort(403, 'حسابك غير مرتبط بسجل موظف لتقديم طلب.');
         }
 
         $validated = $request->validate([
@@ -76,7 +82,7 @@ class EmployeeRequestController extends Controller
             $daysCount = $start->diffInDays($end) + 1;
         }
 
-        EmployeeRequest::create([
+        $empRequest = EmployeeRequest::create([
             'employee_id' => $employee->id,
             'type' => $validated['type'],
             'title' => $validated['title'],
@@ -88,7 +94,72 @@ class EmployeeRequestController extends Controller
             'status' => 'pending',
         ]);
 
-        return redirect()->route('requests.index')->with('success', 'تم تقديم طلبك بنجاح، وهو الآن قيد المراجعة لدى الإدارة.');
+        $adminUsers = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['SA', 'EX']))->get();
+        foreach ($adminUsers as $admin) {
+            $notifications->createForUser(
+                $admin,
+                'new_employee_request',
+                'طلب موظف جديد وارد',
+                'قام الموظف ' . $employee->full_name . ' بتقديم: ' . $validated['title'],
+                $empRequest
+            );
+        }
+
+        return redirect()->route('requests.index')->with('success', 'تم تقديم طلبك بنجاح، وهو الآن قيد المراجعة والاعتماد لدى الإدارة.');
+    }
+
+    public function approve(Request $request, EmployeeRequest $employeeRequest, NotificationService $notifications): RedirectResponse
+    {
+        $user = $request->user();
+        $this->assertCanDecide($user, $employeeRequest);
+
+        $validated = $request->validate([
+            'admin_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $employeeRequest->update([
+            'status' => 'approved',
+            'reviewed_by' => $user->id,
+            'reviewed_at' => now(),
+            'admin_notes' => $validated['admin_notes'] ?? null,
+        ]);
+
+        $notifications->createForEmployee(
+            $employeeRequest->employee_id,
+            'request_approved',
+            'تمت الموافقة على طلبك',
+            'تمت الموافقة الرسمية على: ' . $employeeRequest->title . ($validated['admin_notes'] ? ' — ملاحظة: ' . $validated['admin_notes'] : ''),
+            $employeeRequest
+        );
+
+        return redirect()->route('requests.index')->with('success', 'تم اعتماد وقبول الطلب بنجاح، وتم إشعار الموظف بذلك.');
+    }
+
+    public function reject(Request $request, EmployeeRequest $employeeRequest, NotificationService $notifications): RedirectResponse
+    {
+        $user = $request->user();
+        $this->assertCanDecide($user, $employeeRequest);
+
+        $validated = $request->validate([
+            'admin_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $employeeRequest->update([
+            'status' => 'rejected',
+            'reviewed_by' => $user->id,
+            'reviewed_at' => now(),
+            'admin_notes' => $validated['admin_notes'] ?? null,
+        ]);
+
+        $notifications->createForEmployee(
+            $employeeRequest->employee_id,
+            'request_rejected',
+            'تم رفض الطلب',
+            'تم رفض: ' . $employeeRequest->title . ($validated['admin_notes'] ? ' — السبب: ' . $validated['admin_notes'] : ''),
+            $employeeRequest
+        );
+
+        return redirect()->route('requests.index')->with('success', 'تم رفض الطلب وتسجيل الملاحظات، وتم إشعار الموظف.');
     }
 
     public function cancel(Request $request, EmployeeRequest $employeeRequest): RedirectResponse
@@ -108,4 +179,25 @@ class EmployeeRequestController extends Controller
 
         return redirect()->route('requests.index')->with('success', 'تم إلغاء الطلب بنجاح.');
     }
+
+    private function assertCanDecide(User $user, EmployeeRequest $employeeRequest): void
+    {
+        if ($user->hasRole('SA') || $user->hasRole('EX') || $user->hasRole('OM')) {
+            return;
+        }
+
+        $employee = $user->employee;
+        $targetEmployee = $employeeRequest->employee;
+
+        if ($user->hasRole('HOD') && $employee && $targetEmployee && $employee->department_id === $targetEmployee->department_id) {
+            return;
+        }
+
+        if ($user->hasRole('SH') && $employee && $targetEmployee && $employee->section_id === $targetEmployee->section_id) {
+            return;
+        }
+
+        abort(403, 'غير مصرح لك باتخاذ قرار بشأن هذا الطلب.');
+    }
 }
+
