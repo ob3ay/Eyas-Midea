@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -26,15 +28,13 @@ class UserController extends Controller
 
         $roles = Role::with('permissions')->orderBy('display_name')->get();
         $permissions = Permission::orderBy('display_name')->get();
-        $employees = Employee::whereDoesntHave('user')
-            ->when($scope !== 'organization', function ($query) use ($user) {
-                $query->where('department_id', $user->employee?->department_id ?? 0);
-            })
+        $employees = $user->employeesWithinScope('users.create')
+            ->whereDoesntHave('user')
             ->orderBy('full_name')
             ->get();
 
         $superAdmin = $users->first(function ($u) {
-            return $u->roles->contains(fn($role) => $role->name === 'SA');
+            return $u->roles->contains(fn ($role) => $role->name === 'SA');
         });
 
         $canCreate = $user->hasPermission('users.create');
@@ -61,29 +61,33 @@ class UserController extends Controller
         $scope = $this->authorizeScope('users.create');
 
         $data = $request->validate([
-            'employee_id' => ['required', 'exists:employees,id', 'unique:users,employee_id'],
+            'employee_id' => ['required', Rule::exists('employees', 'id')->whereNull('deleted_at'), 'unique:users,employee_id'],
             'username' => ['required', 'string', 'max:100', 'unique:users,username'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'roles' => ['nullable', 'array'],
-            'roles.*' => ['exists:roles,id'],
+            'roles.*' => [Rule::exists('roles', 'id')->whereNull('deleted_at')],
         ]);
 
         $employee = Employee::findOrFail($data['employee_id']);
-        $this->assertEmployeeWithinScope($user, $employee, $scope);
+        abort_unless($user->allowsEmployeeWithinScope('users.create', $employee), 403, 'لا يمكنك إدارة حساب موظف خارج نطاقك.');
         $this->assertAssignableRoles($user, $data['roles'] ?? []);
 
-        $newUser = User::create([
-            'employee_id' => $data['employee_id'],
-            'username' => $data['username'],
-            'email' => $data['email'],
-            'password' => $data['password'],
-            'is_active' => $request->boolean('is_active'),
-        ]);
+        DB::transaction(function () use ($data, $request, $user): void {
+            $newUser = User::create([
+                'employee_id' => $data['employee_id'],
+                'username' => $data['username'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+                'is_active' => $request->boolean('is_active'),
+                'must_change_password' => true,
+            ]);
 
-        if ($user->hasPermission('settings.manage_permissions')) {
-            $newUser->roles()->sync($data['roles'] ?? []);
-        }
+            if ($user->hasPermission('settings.manage_permissions')) {
+                $newUser->roles()->sync($data['roles'] ?? []);
+            }
+            AuditLog::record('Create', 'User', $newUser->id);
+        });
 
         return back()->with('success', 'تم إنشاء حساب المستخدم بنجاح');
     }
@@ -98,32 +102,56 @@ class UserController extends Controller
         }
 
         $data = $request->validate([
-            'employee_id' => ['required', 'exists:employees,id', Rule::unique('users', 'employee_id')->ignore($targetUser->id)],
+            'employee_id' => ['required', Rule::exists('employees', 'id')->whereNull('deleted_at'), Rule::unique('users', 'employee_id')->ignore($targetUser->id)],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($targetUser->id)],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($targetUser->id)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'roles' => ['nullable', 'array'],
-            'roles.*' => ['exists:roles,id'],
+            'roles.*' => [Rule::exists('roles', 'id')->whereNull('deleted_at')],
         ]);
 
+        if ($targetUser->hasRole('SA') && $this->isLastActiveSuperAdmin($targetUser)) {
+            $saRoleId = Role::where('name', 'SA')->value('id');
+            $removesSuperAdmin = array_key_exists('roles', $data)
+                && ! in_array((int) $saRoleId, array_map('intval', $data['roles'] ?? []), true);
+            if ($removesSuperAdmin || ! $request->boolean('is_active')) {
+                abort(403, 'لا يمكن تعطيل أو إزالة دور آخر مسؤول نظام نشط.');
+            }
+        }
+
         $employee = Employee::findOrFail($data['employee_id']);
-        $this->assertEmployeeWithinScope($user, $employee, $scope);
+        abort_unless($user->allowsEmployeeWithinScope('users.update', $employee), 403, 'لا يمكنك إدارة حساب موظف خارج نطاقك.');
         $this->assertAssignableRoles($user, $data['roles'] ?? []);
 
-        $targetUser->employee_id = $data['employee_id'];
-        $targetUser->username = $data['username'];
-        $targetUser->email = $data['email'];
-        $targetUser->is_active = $request->boolean('is_active');
+        DB::transaction(function () use ($targetUser, $user, $data, $request): void {
+            $saRole = $this->lockSuperAdminRole();
+            $targetUser->refresh();
+            $targetUser->forgetAuthorizationCache();
+            if ($saRole !== null && $targetUser->hasRole('SA') && $this->isLastActiveSuperAdmin($targetUser)) {
+                $removesSuperAdmin = array_key_exists('roles', $data)
+                    && ! in_array((int) $saRole->id, array_map('intval', $data['roles'] ?? []), true);
+                if ($removesSuperAdmin || ! $request->boolean('is_active')) {
+                    abort(403, 'لا يمكن تعطيل أو إزالة دور آخر مسؤول نظام نشط.');
+                }
+            }
 
-        if (! empty($data['password'])) {
-            $targetUser->password = $data['password'];
-        }
+            $targetUser->employee_id = $data['employee_id'];
+            $targetUser->username = $data['username'];
+            $targetUser->email = $data['email'];
+            $targetUser->is_active = $request->boolean('is_active');
+            if (! empty($data['password'])) {
+                $targetUser->password = $data['password'];
+                $targetUser->must_change_password = true;
+            }
 
-        $targetUser->save();
+            $targetUser->save();
 
-        if ($user->hasPermission('settings.manage_permissions')) {
-            $targetUser->roles()->sync($data['roles'] ?? []);
-        }
+            if ($user->hasPermission('settings.manage_permissions') && array_key_exists('roles', $data)) {
+                $targetUser->roles()->sync($data['roles'] ?? []);
+                $targetUser->forgetAuthorizationCache();
+            }
+            AuditLog::record('Update', 'User', $targetUser->id);
+        });
 
         return back()->with('success', 'تم تحديث حساب المستخدم بنجاح');
     }
@@ -142,13 +170,27 @@ class UserController extends Controller
         }
 
         $data = $request->validate([
-            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')],
+            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')->whereNull('deleted_at')],
         ]);
 
         $this->assertAssignableRoles($user, [$data['role_id']]);
 
         $role = Role::findOrFail($data['role_id']);
-        $targetUser->roles()->sync([$role->id]);
+        if ($targetUser->hasRole('SA') && $this->isLastActiveSuperAdmin($targetUser) && $role->name !== 'SA') {
+            abort(403, 'لا يمكن إزالة دور آخر مسؤول نظام نشط.');
+        }
+        DB::transaction(function () use ($targetUser, $role): void {
+            $saRole = $this->lockSuperAdminRole();
+            $targetUser->refresh();
+            $targetUser->forgetAuthorizationCache();
+            if ($saRole !== null && $targetUser->hasRole('SA') && $this->isLastActiveSuperAdmin($targetUser) && $role->name !== 'SA') {
+                abort(403, 'لا يمكن إزالة دور آخر مسؤول نظام نشط.');
+            }
+
+            $targetUser->roles()->sync([$role->id]);
+            $targetUser->forgetAuthorizationCache();
+            AuditLog::record('UpdateRole', 'User', $targetUser->id);
+        });
 
         return response()->json([
             'message' => 'تم تحديث دور المستخدم بنجاح.',
@@ -172,7 +214,21 @@ class UserController extends Controller
             abort(403, 'لا يمكنك حذف حساب Super Admin.');
         }
 
-        $targetUser->delete();
+        if ($targetUser->hasRole('SA') && $this->isLastActiveSuperAdmin($targetUser)) {
+            abort(403, 'لا يمكن حذف آخر مسؤول نظام نشط.');
+        }
+
+        DB::transaction(function () use ($targetUser): void {
+            $this->lockSuperAdminRole();
+            $targetUser->refresh();
+            $targetUser->forgetAuthorizationCache();
+            if ($targetUser->hasRole('SA') && $this->isLastActiveSuperAdmin($targetUser)) {
+                abort(403, 'لا يمكن حذف آخر مسؤول نظام نشط.');
+            }
+
+            $targetUser->delete();
+            AuditLog::record('Delete', 'User', $targetUser->id);
+        });
 
         return back()->with('success', 'تم حذف حساب المستخدم بنجاح');
     }
@@ -186,27 +242,8 @@ class UserController extends Controller
             abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
-        if ($target !== null && $scope !== 'organization') {
-            $ownEmployee = $user->employee;
-            $targetEmployee = $target->employee;
-
-            if (! $ownEmployee || ! $targetEmployee) {
-                abort(403, 'غير مصرح لك بإدارة هذا الحساب.');
-            }
-
-            if ($scope === 'self' && $target->id !== $user->id) {
-                abort(403, 'لا تملك صلاحية إدارة سوى حسابك الشخصي.');
-            }
-
-            if ($scope === 'department') {
-                if ($user->hasRole('SH')) {
-                    if ($targetEmployee->section_id !== $ownEmployee->section_id) {
-                        abort(403, 'لا تملك صلاحية إدارة سوى حسابات موظفي قسمك.');
-                    }
-                } elseif ($targetEmployee->department_id !== $ownEmployee->department_id) {
-                    abort(403, 'لا تملك صلاحية إدارة سوى حسابات موظفي دائرتك.');
-                }
-            }
+        if ($target !== null && ! $user->allowsUserWithinScope($permissionKey, $target)) {
+            abort(403, 'غير مصرح لك بإدارة هذا الحساب خارج نطاقك.');
         }
 
         return $scope;
@@ -214,42 +251,7 @@ class UserController extends Controller
 
     private function scopedUsersQuery(User $user, string $scope)
     {
-        $query = User::query();
-
-        if ($scope === 'organization') {
-            return $query;
-        }
-
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        if ($scope === 'self') {
-            return $query->where('id', $user->id);
-        }
-
-        if ($user->hasRole('SH')) {
-            return $query->whereHas('employee', fn($q) => $q->where('section_id', $ownEmployee->section_id));
-        }
-
-        return $query->whereHas('employee', fn($q) => $q->where('department_id', $ownEmployee->department_id));
-    }
-
-    private function assertEmployeeWithinScope(User $user, Employee $employee, string $scope): void
-    {
-        if ($scope === 'organization') {
-            return;
-        }
-
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee || $employee->department_id !== $ownEmployee->department_id) {
-            abort(403, 'لا يمكنك إدارة حساب موظف خارج نطاق دائرتك.');
-        }
-
-        if ($scope === 'self' && $employee->id !== $ownEmployee->id) {
-            abort(403, 'يمكنك إدارة حسابك الشخصي فقط.');
-        }
+        return $user->usersWithinScope('users.view');
     }
 
     private function assertAssignableRoles(User $user, array $roleIds): void
@@ -259,7 +261,7 @@ class UserController extends Controller
         }
 
         $roles = Role::with('permissions')->whereIn('id', $roleIds)->get();
-        if ($roles->contains(fn(Role $role) => $role->name === 'SA')) {
+        if ($roles->contains(fn (Role $role) => $role->name === 'SA')) {
             abort(403, 'لا يمكنك إسناد دور Super Admin.');
         }
 
@@ -273,5 +275,21 @@ class UserController extends Controller
         if ($hasElevatedPermission) {
             abort(403, 'لا يمكنك إسناد صلاحيات على مستوى المؤسسة أو إدارة الصلاحيات.');
         }
+    }
+
+    private function isLastActiveSuperAdmin(User $targetUser): bool
+    {
+        if (! $targetUser->is_active || ! $targetUser->hasRole('SA')) {
+            return false;
+        }
+
+        return User::query()->where('is_active', true)
+            ->whereHas('roles', fn ($query) => $query->where('name', 'SA'))
+            ->count() <= 1;
+    }
+
+    private function lockSuperAdminRole(): ?Role
+    {
+        return Role::query()->where('name', 'SA')->lockForUpdate()->first();
     }
 }

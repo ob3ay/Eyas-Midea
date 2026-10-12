@@ -112,7 +112,7 @@
     <!-- نموذج تسجيل الدخول الرسمي لـ Laravel -->
     <form action="{{ route('login.post') }}" method="POST" id="loginForm">
       @csrf
-      
+
       @if($errors->any())
         <div style="background-color: #fee2e2; border: 1px solid #fecaca; color: #b91c1c; padding: 10px 14px; border-radius: var(--radius-md); font-size: 12.5px; margin-bottom: 18px;">
           {{ $errors->first() }}
@@ -171,7 +171,7 @@
       const passwordInput = document.getElementById('password');
       const eyeIcon = document.getElementById('eyeIcon');
       const eyeOffIcon = document.getElementById('eyeOffIcon');
-      
+
       if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
         eyeIcon.style.display = 'none';

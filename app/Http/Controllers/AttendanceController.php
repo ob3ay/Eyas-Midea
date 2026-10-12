@@ -3,18 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceRecord;
+use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Employee;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller
 {
     /** أوقات الدوام الرسمي المعتمدة. */
     private const WORK_START_TIME = '10:00:00';
+
     private const WORK_END_TIME = '16:00:00';
 
     public function index(Request $request)
@@ -82,7 +86,7 @@ class AttendanceController extends Controller
         $leaveCount = $records->where('status', 'Leave')->count();
         $absentCount = $records->where('status', 'Absent')->count();
 
-        $activeEmployeesCount = $this->scopedEmployeesQuery($user, $viewScope)
+        $activeEmployeesCount = $user->employeesWithinScope('attendance.view', $viewScope)
             ->where('employment_status', 'active')
             ->count();
 
@@ -100,7 +104,7 @@ class AttendanceController extends Controller
         $checkedInNotOutEmployees = collect();
 
         if ($createScope !== null) {
-            $recordableEmployees = $this->scopedEmployeesQuery($user, $createScope)
+            $recordableEmployees = $user->employeesWithinScope('attendance.create', $createScope)
                 ->where('employment_status', 'active')
                 ->orderBy('full_name')
                 ->get();
@@ -111,11 +115,12 @@ class AttendanceController extends Controller
                 ->keyBy('employee_id');
 
             $notCheckedInEmployees = $recordableEmployees->filter(
-                fn($emp) => ! $todayRecordsByEmployee->has($emp->id)
+                fn ($emp) => ! $todayRecordsByEmployee->has($emp->id)
             )->values();
 
             $checkedInNotOutEmployees = $recordableEmployees->filter(function ($emp) use ($todayRecordsByEmployee) {
                 $record = $todayRecordsByEmployee->get($emp->id);
+
                 return $record && $record->check_in_time && ! $record->check_out_time;
             })->values();
         }
@@ -128,7 +133,7 @@ class AttendanceController extends Controller
             $departments = collect([$user->employee->department]);
         }
 
-        $allFilterEmployees = $this->scopedEmployeesQuery($user, $viewScope)
+        $allFilterEmployees = $user->employeesWithinScope('attendance.view', $viewScope)
             ->orderBy('full_name')
             ->get(['id', 'full_name', 'employee_code', 'department_id']);
 
@@ -176,29 +181,51 @@ class AttendanceController extends Controller
         ]);
 
         $employee = Employee::findOrFail($data['employee_id']);
-        $this->assertWithinScope($user, $scope, $employee);
+        $this->assertWithinScope($user, 'attendance.create', $employee);
 
         $today = today();
-        if (AttendanceRecord::where('employee_id', $employee->id)->whereDate('date', $today)->exists()) {
-            return back()->with('error', "تم تسجيل حضور {$employee->full_name} اليوم مسبقاً.");
-        }
-
         $now = now();
         $workStart = today()->setTimeFromTimeString(self::WORK_START_TIME);
         $isLate = $now->greaterThan($workStart);
         $lateMinutes = $isLate ? (int) round($now->diffInMinutes($workStart, true)) : 0;
 
-        AttendanceRecord::create([
-            'employee_id' => $employee->id,
-            'date' => $today,
-            'check_in_time' => $now,
-            'status' => $isLate ? 'Late' : 'Present',
-            'late_minutes' => $lateMinutes,
-            'recorded_by' => $user->id,
-        ]);
+        $record = DB::transaction(function () use ($employee, $today, $now, $isLate, $lateMinutes, $user): ?AttendanceRecord {
+            Employee::query()->lockForUpdate()->findOrFail($employee->id);
+            $existing = AttendanceRecord::withTrashed()
+                ->where('employee_id', $employee->id)
+                ->whereDate('date', $today)
+                ->first();
+            if ($existing !== null && ! $existing->trashed()) {
+                return null;
+            }
+
+            $attributes = [
+                'employee_id' => $employee->id,
+                'date' => $today,
+                'check_in_time' => $now,
+                'status' => $isLate ? 'Late' : 'Present',
+                'late_minutes' => $lateMinutes,
+                'recorded_by' => $user->id,
+            ];
+            if ($existing !== null) {
+                $existing->restore();
+                $existing->fill($attributes)->save();
+                $record = $existing;
+                AuditLog::record('RestoreCheckIn', 'AttendanceRecord', $record->id);
+            } else {
+                $record = AttendanceRecord::create($attributes);
+                AuditLog::record('CheckIn', 'AttendanceRecord', $record->id);
+            }
+
+            return $record;
+        });
+
+        if ($record === null) {
+            return back()->with('error', "تم تسجيل حضور {$employee->full_name} اليوم مسبقاً.");
+        }
 
         return back()->with('success', "تم تسجيل حضور {$employee->full_name} بنجاح الساعة {$now->format('h:i A')}"
-            . ($isLate ? " (متأخر {$lateMinutes} دقيقة)" : ' - بالوقت المحدد'));
+            .($isLate ? " (متأخر {$lateMinutes} دقيقة)" : ' - بالوقت المحدد'));
     }
 
     public function checkOut(Request $request): RedirectResponse
@@ -211,7 +238,7 @@ class AttendanceController extends Controller
         ]);
 
         $employee = Employee::findOrFail($data['employee_id']);
-        $this->assertWithinScope($user, $scope, $employee);
+        $this->assertWithinScope($user, 'attendance.create', $employee);
 
         $record = AttendanceRecord::where('employee_id', $employee->id)->whereDate('date', today())->first();
 
@@ -223,16 +250,23 @@ class AttendanceController extends Controller
         }
 
         $now = now();
-        $record->update([
-            'check_out_time' => $now,
-            'work_minutes' => (int) round($record->check_in_time->diffInMinutes($now, true)),
-        ]);
+        DB::transaction(function () use ($record, $now): void {
+            $lockedRecord = AttendanceRecord::query()->lockForUpdate()->findOrFail($record->id);
+            if ($lockedRecord->check_out_time !== null) {
+                abort(409, 'تم تسجيل الانصراف مسبقاً.');
+            }
+            $lockedRecord->update([
+                'check_out_time' => $now,
+                'work_minutes' => (int) round($lockedRecord->check_in_time->diffInMinutes($now, true)),
+            ]);
+            AuditLog::record('CheckOut', 'AttendanceRecord', $lockedRecord->id);
+        });
 
         $workEnd = today()->setTimeFromTimeString(self::WORK_END_TIME);
         $isEarly = $now->lessThan($workEnd);
 
         return back()->with('success', "تم تسجيل انصراف {$employee->full_name} بنجاح الساعة {$now->format('h:i A')}"
-            . ($isEarly ? ' (قبل نهاية الدوام الرسمي 04:00 م)' : ''));
+            .($isEarly ? ' (قبل نهاية الدوام الرسمي 04:00 م)' : ''));
     }
 
     public function manualLog(Request $request): RedirectResponse
@@ -249,35 +283,43 @@ class AttendanceController extends Controller
         ]);
 
         $employee = Employee::findOrFail($data['employee_id']);
-        $this->assertWithinScope($user, $scope, $employee);
+        $this->assertWithinScope($user, 'attendance.create', $employee);
 
-        $checkIn = $data['check_in_time'] ? $data['date'] . ' ' . $data['check_in_time'] : null;
-        $checkOut = $data['check_out_time'] ? $data['date'] . ' ' . $data['check_out_time'] : null;
+        $checkIn = $data['check_in_time'] ? $data['date'].' '.$data['check_in_time'] : null;
+        $checkOut = $data['check_out_time'] ? $data['date'].' '.$data['check_out_time'] : null;
 
         $workMinutes = ($checkIn && $checkOut)
             ? (int) round(Carbon::parse($checkIn)->diffInMinutes(Carbon::parse($checkOut), true))
             : null;
+        $this->assertCheckOutAfterCheckIn($checkIn, $checkOut);
 
         $lateMinutes = 0;
         if ($data['status'] === 'Late' && $checkIn) {
-            $workStart = Carbon::parse($data['date'] . ' ' . self::WORK_START_TIME);
+            $workStart = Carbon::parse($data['date'].' '.self::WORK_START_TIME);
             $checkInCarbon = Carbon::parse($checkIn);
             if ($checkInCarbon->greaterThan($workStart)) {
                 $lateMinutes = (int) round($checkInCarbon->diffInMinutes($workStart, true));
             }
         }
 
-        AttendanceRecord::updateOrCreate(
-            ['employee_id' => $employee->id, 'date' => $data['date']],
-            [
+        DB::transaction(function () use ($employee, $data, $checkIn, $checkOut, $workMinutes, $lateMinutes, $user): void {
+            Employee::query()->lockForUpdate()->findOrFail($employee->id);
+            $record = AttendanceRecord::withTrashed()->firstOrNew(
+                ['employee_id' => $employee->id, 'date' => $data['date']],
+            );
+            if ($record->exists && $record->trashed()) {
+                $record->restore();
+            }
+            $record->fill([
                 'status' => $data['status'],
                 'check_in_time' => $checkIn,
                 'check_out_time' => $checkOut,
                 'work_minutes' => $workMinutes,
                 'late_minutes' => $lateMinutes,
                 'recorded_by' => $user->id,
-            ]
-        );
+            ])->save();
+            AuditLog::record('ManualLog', 'AttendanceRecord', $record->id);
+        });
 
         return back()->with('success', "تم حفظ القيد اليدوي للموظف {$employee->full_name} بنجاح");
     }
@@ -287,7 +329,7 @@ class AttendanceController extends Controller
         $user = $request->user();
         $scope = $this->authorizeScope('attendance.update');
 
-        $this->assertWithinScope($user, $scope, $attendanceRecord->employee);
+        $this->assertWithinScope($user, 'attendance.update', $attendanceRecord->employee);
 
         $data = $request->validate([
             'status' => ['required', Rule::in(['Present', 'Absent', 'Late', 'Leave'])],
@@ -297,29 +339,34 @@ class AttendanceController extends Controller
         ]);
 
         $recordDate = $attendanceRecord->date->toDateString();
-        $checkIn = $data['check_in_time'] ? $recordDate . ' ' . $data['check_in_time'] : null;
-        $checkOut = $data['check_out_time'] ? $recordDate . ' ' . $data['check_out_time'] : null;
+        $checkIn = $data['check_in_time'] ? $recordDate.' '.$data['check_in_time'] : null;
+        $checkOut = $data['check_out_time'] ? $recordDate.' '.$data['check_out_time'] : null;
 
         $workMinutes = ($checkIn && $checkOut)
             ? (int) round(Carbon::parse($checkIn)->diffInMinutes(Carbon::parse($checkOut), true))
             : null;
+        $this->assertCheckOutAfterCheckIn($checkIn, $checkOut);
 
         $lateMinutes = (int) ($data['late_minutes'] ?? 0);
         if ($data['status'] === 'Late' && $checkIn && $lateMinutes === 0) {
-            $workStart = Carbon::parse($recordDate . ' ' . self::WORK_START_TIME);
+            $workStart = Carbon::parse($recordDate.' '.self::WORK_START_TIME);
             $checkInCarbon = Carbon::parse($checkIn);
             if ($checkInCarbon->greaterThan($workStart)) {
                 $lateMinutes = (int) round($checkInCarbon->diffInMinutes($workStart, true));
             }
         }
 
-        $attendanceRecord->update([
-            'status' => $data['status'],
-            'check_in_time' => $checkIn,
-            'check_out_time' => $checkOut,
-            'work_minutes' => $workMinutes,
-            'late_minutes' => $lateMinutes,
-        ]);
+        DB::transaction(function () use ($attendanceRecord, $data, $checkIn, $checkOut, $workMinutes, $lateMinutes): void {
+            $lockedRecord = AttendanceRecord::query()->lockForUpdate()->findOrFail($attendanceRecord->id);
+            $lockedRecord->update([
+                'status' => $data['status'],
+                'check_in_time' => $checkIn,
+                'check_out_time' => $checkOut,
+                'work_minutes' => $workMinutes,
+                'late_minutes' => $lateMinutes,
+            ]);
+            AuditLog::record('Update', 'AttendanceRecord', $lockedRecord->id);
+        });
 
         return back()->with('success', "تم تعديل سجل دوام الموظف {$attendanceRecord->employee->full_name} بنجاح.");
     }
@@ -329,12 +376,16 @@ class AttendanceController extends Controller
         $user = $request->user();
         $scope = $this->authorizeScope('attendance.delete');
 
-        $this->assertWithinScope($user, $scope, $attendanceRecord->employee);
+        $this->assertWithinScope($user, 'attendance.delete', $attendanceRecord->employee);
 
         $employeeName = $attendanceRecord->employee->full_name ?? 'الموظف';
         $recordDate = $attendanceRecord->date ? $attendanceRecord->date->format('Y-m-d') : '';
 
-        $attendanceRecord->delete();
+        DB::transaction(function () use ($attendanceRecord): void {
+            $lockedRecord = AttendanceRecord::query()->lockForUpdate()->findOrFail($attendanceRecord->id);
+            $lockedRecord->delete();
+            AuditLog::record('Delete', 'AttendanceRecord', $lockedRecord->id);
+        });
 
         return back()->with('success', "تم حذف سجل دوام {$employeeName} لتاريخ {$recordDate} بنجاح.");
     }
@@ -410,7 +461,7 @@ class AttendanceController extends Controller
             'search' => $search,
         ])->with(['employee.department'])->get();
 
-        $filename = 'attendance_report_' . date('Ymd_His') . '.csv';
+        $filename = 'attendance_report_'.date('Ymd_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -429,7 +480,7 @@ class AttendanceController extends Controller
 
         $callback = function () use ($records, $statusLabels) {
             $handle = fopen('php://output', 'w');
-            fputs($handle, "\xEF\xBB\xBF");
+            fwrite($handle, "\xEF\xBB\xBF");
 
             fputcsv($handle, [
                 '#',
@@ -482,7 +533,7 @@ class AttendanceController extends Controller
         }
 
         if (! empty($filters['department_id'])) {
-            $query->whereHas('employee', fn($q) => $q->where('department_id', $filters['department_id']));
+            $query->whereHas('employee', fn ($q) => $q->where('department_id', $filters['department_id']));
         }
 
         if (! empty($filters['employee_id'])) {
@@ -517,79 +568,31 @@ class AttendanceController extends Controller
         return $scope;
     }
 
-    private function assertWithinScope($user, string $scope, ?Employee $employee): void
+    private function assertWithinScope($user, string $permissionKey, ?Employee $employee): void
     {
-        if ($scope === 'organization') {
-            return;
-        }
-
         if (! $employee) {
             abort(404, 'سجل الموظف غير موجود.');
         }
 
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee) {
-            abort(403, 'حسابك غير مرتبط بسجل موظف.');
-        }
-
-        if ($scope === 'self') {
-            if ($employee->id !== $ownEmployee->id) {
-                abort(403, 'لا تملك صلاحية التعديل على سجلات دوام غيرك.');
-            }
-            return;
-        }
-
-        $boundaryField = $user->hasRole('SH') ? 'section_id' : 'department_id';
-        if ($employee->{$boundaryField} !== $ownEmployee->{$boundaryField}) {
+        if (! $user->allowsEmployeeWithinScope($permissionKey, $employee)) {
             abort(403, 'لا تملك صلاحية إلا على موظفين ضمن نطاقك الإداري.');
+        }
+    }
+
+    private function assertCheckOutAfterCheckIn(?string $checkIn, ?string $checkOut): void
+    {
+        if ($checkIn !== null && $checkOut !== null && Carbon::parse($checkOut)->lessThanOrEqualTo(Carbon::parse($checkIn))) {
+            throw ValidationException::withMessages([
+                'check_out_time' => 'يجب أن يكون وقت الانصراف بعد وقت الحضور.',
+            ]);
         }
     }
 
     private function scopedQuery($user, string $scope)
     {
-        $query = AttendanceRecord::query();
-
-        if ($scope === 'organization') {
-            return $query;
-        }
-
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        if ($scope === 'self') {
-            return $query->where('employee_id', $ownEmployee->id);
-        }
-
-        if ($user->hasRole('SH')) {
-            return $query->whereHas('employee', fn($q) => $q->where('section_id', $ownEmployee->section_id));
-        }
-
-        return $query->whereHas('employee', fn($q) => $q->where('department_id', $ownEmployee->department_id));
-    }
-
-    private function scopedEmployeesQuery($user, string $scope)
-    {
-        $query = Employee::query();
-
-        if ($scope === 'organization') {
-            return $query;
-        }
-
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        if ($scope === 'self') {
-            return $query->where('id', $ownEmployee->id);
-        }
-
-        if ($user->hasRole('SH')) {
-            return $query->where('section_id', $ownEmployee->section_id);
-        }
-
-        return $query->where('department_id', $ownEmployee->department_id);
+        return AttendanceRecord::query()->whereIn(
+            'employee_id',
+            $user->employeesWithinScope('attendance.view', $scope)->select('employees.id'),
+        );
     }
 }

@@ -64,7 +64,7 @@ class LoginController extends Controller
         $credentials = ['email' => $data['email'], 'password' => $data['password']];
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            $this->handleFailedAttempt($user, $request);
+            $this->handleFailedAttempt($user);
 
             throw ValidationException::withMessages([
                 'email' => 'بيانات الدخول غير صحيحة.',
@@ -81,6 +81,10 @@ class LoginController extends Controller
         ])->save();
 
         AuditLog::record('Login', 'User', $user->id);
+
+        if ($user->must_change_password) {
+            return redirect()->route('password.change');
+        }
 
         return redirect()->intended(route('dashboard'));
     }
@@ -99,7 +103,7 @@ class LoginController extends Controller
         return redirect()->route('login');
     }
 
-    private function handleFailedAttempt(User $user, Request $request): void
+    private function handleFailedAttempt(User $user): void
     {
         $user->increment('failed_login_attempts');
 

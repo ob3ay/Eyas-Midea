@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendanceCorrectionController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
@@ -21,14 +23,19 @@ Route::get('/', function () {
 
 Route::middleware(['guest'])->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login'])->name('login.post');
+    Route::post('/login', [LoginController::class, 'login'])
+        ->middleware('throttle:login')
+        ->name('login.post');
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
-Route::middleware(['web', 'auth', 'active.user'])->group(function () {
+Route::middleware(['web', 'auth', 'active.user', 'password.changed'])->group(function () {
+
+    Route::get('/password/change', [PasswordChangeController::class, 'edit'])->name('password.change');
+    Route::put('/password/change', [PasswordChangeController::class, 'update'])->name('password.change.update');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -74,6 +81,10 @@ Route::middleware(['web', 'auth', 'active.user'])->group(function () {
 
     Route::prefix('attendance')->name('attendance.')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->name('index');
+        Route::get('/corrections', [AttendanceCorrectionController::class, 'index'])->name('corrections.index');
+        Route::post('/corrections', [AttendanceCorrectionController::class, 'store'])->name('corrections.store');
+        Route::post('/corrections/{correction}/approve', [AttendanceCorrectionController::class, 'approve'])->name('corrections.approve');
+        Route::post('/corrections/{correction}/reject', [AttendanceCorrectionController::class, 'reject'])->name('corrections.reject');
         Route::get('/print', [AttendanceController::class, 'printSheet'])->name('print');
         Route::get('/export', [AttendanceController::class, 'exportCsv'])->name('export');
         Route::post('/check-in', [AttendanceController::class, 'checkIn'])->name('checkin');

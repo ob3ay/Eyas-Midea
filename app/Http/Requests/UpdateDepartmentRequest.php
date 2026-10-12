@@ -27,10 +27,10 @@ class UpdateDepartmentRequest extends FormRequest
         $id = $department instanceof Department ? $department->id : $department;
 
         return [
-            'code' => ['nullable', 'string', 'max:10', Rule::unique('departments', 'code')->ignore($id)->whereNull('deleted_at')],
-            'name' => ['required', 'string', 'max:150', Rule::unique('departments', 'name')->ignore($id)->whereNull('deleted_at')],
+            'code' => ['nullable', 'string', 'max:10', Rule::unique('departments', 'code')->ignore($id)],
+            'name' => ['required', 'string', 'max:150', Rule::unique('departments', 'name')->ignore($id)],
             'description' => ['nullable', 'string', 'max:500'],
-            'manager_employee_id' => ['nullable'],
+            'manager_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

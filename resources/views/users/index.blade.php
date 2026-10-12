@@ -252,12 +252,14 @@
                                                 $scopeLabels = [
                                                     'organization' => 'المؤسسة',
                                                     'department' => 'الدائرة',
+                                                    'section' => 'القسم',
                                                     'self' => 'ذاتي',
                                                 ];
 
                                                 $scopeClasses = [
                                                     'organization' => 'bg-emerald-100 text-emerald-700',
                                                     'department' => 'bg-blue-100 text-blue-700',
+                                                    'section' => 'bg-cyan-100 text-cyan-700',
                                                     'self' => 'bg-amber-100 text-amber-700',
                                                 ];
                                             @endphp
@@ -278,9 +280,12 @@
                                                             <option value="self"
                                                                 {{ $scope === 'self' ? 'selected' : '' }}>ذاتي (Self)
                                                             </option>
+                                                            <option value="section"
+                                                                {{ $scope === 'section' ? 'selected' : '' }}>القسم
+                                                            </option>
                                                             <option value="department"
                                                                 {{ $scope === 'department' ? 'selected' : '' }}>
-                                                                الدائرة/القسم</option>
+                                                                الدائرة</option>
                                                             <option value="organization"
                                                                 {{ $scope === 'organization' ? 'selected' : '' }}>المؤسسة
                                                                 كاملة</option>
@@ -402,8 +407,9 @@
                                                 }
 
                                                 $priority = [
-                                                    'organization' => 3,
-                                                    'department' => 2,
+                                                    'organization' => 4,
+                                                    'department' => 3,
+                                                    'section' => 2,
                                                     'self' => 1,
                                                 ];
 
@@ -419,12 +425,14 @@
                                         $scopeLabels = [
                                             'organization' => 'المؤسسة',
                                             'department' => 'الدائرة',
+                                            'section' => 'القسم',
                                             'self' => 'ذاتي',
                                         ];
 
                                         $scopeClasses = [
                                             'organization' => 'bg-emerald-100 text-emerald-700',
                                             'department' => 'bg-blue-100 text-blue-700',
+                                            'section' => 'bg-cyan-100 text-cyan-700',
                                             'self' => 'bg-amber-100 text-amber-700',
                                         ];
 

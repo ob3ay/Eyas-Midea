@@ -24,10 +24,10 @@ class StoreDepartmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['nullable', 'string', 'max:10', Rule::unique('departments', 'code')->whereNull('deleted_at')],
-            'name' => ['required', 'string', 'max:150', Rule::unique('departments', 'name')->whereNull('deleted_at')],
+            'code' => ['nullable', 'string', 'max:10', Rule::unique('departments', 'code')],
+            'name' => ['required', 'string', 'max:150', Rule::unique('departments', 'name')],
             'description' => ['nullable', 'string', 'max:500'],
-            'manager_employee_id' => ['nullable'],
+            'manager_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'sections' => ['nullable', 'array'],
             'sections.*' => ['required', 'string', 'max:150'],
             'is_active' => ['sometimes', 'boolean'],

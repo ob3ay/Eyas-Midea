@@ -27,7 +27,7 @@ class NotificationService
             $attributes['related_entity_id'] = $relatedEntity->getKey();
         }
 
-        return Notification::firstOrCreate($attributes, [
+        return Notification::create($attributes + [
             'isread' => false,
         ]);
     }

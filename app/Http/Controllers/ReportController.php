@@ -3,12 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceRecord;
-use App\Models\Department;
-use App\Models\Employee;
-use App\Models\Project;
-use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class ReportController extends Controller
 {
@@ -17,13 +14,24 @@ class ReportController extends Controller
         $user = $request->user();
         $scope = $this->authorizeScope('reports.view');
 
-        $from = $request->filled('from') ? $request->date('from') : now()->subDays(30)->startOfDay();
-        $to = $request->filled('to') ? $request->date('to') : now()->endOfDay();
+        $dates = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+        ]);
+        $from = isset($dates['from']) ? Carbon::parse($dates['from'])->startOfDay() : now()->subDays(30)->startOfDay();
+        $to = isset($dates['to']) ? Carbon::parse($dates['to'])->endOfDay() : now()->endOfDay();
+        if ($from->greaterThan($to)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'to' => 'يجب أن يكون تاريخ النهاية مساوياً لتاريخ البداية أو بعده.',
+            ]);
+        }
+        if ($from->diffInDays($to) > 365) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'to' => 'الفترة القصوى للتقرير سنة واحدة.',
+            ]);
+        }
 
-        $employeeScope = $this->scopedEmployeeIds($user, $scope);
-
-        $employeesQuery = Employee::query()->when($employeeScope !== null, fn($q) => $q->whereIn('id', $employeeScope));
-
+        $employeesQuery = $user->employeesWithinScope('reports.view');
         $employeesByDepartment = (clone $employeesQuery)
             ->join('departments', 'departments.id', '=', 'employees.department_id')
             ->selectRaw('departments.name as department_name, count(*) as total')
@@ -36,12 +44,7 @@ class ReportController extends Controller
             ->groupBy('employment_status')
             ->pluck('total', 'employment_status');
 
-        $projectsQuery = Project::query();
-        if ($scope === 'department') {
-            $projectsQuery->where('department_id', $user->employee?->department_id);
-        } elseif ($scope === 'self') {
-            $projectsQuery->where('owner_employee_id', $user->employee?->id);
-        }
+        $projectsQuery = $user->projectsWithinScope('reports.view');
 
         $projectsByStatus = (clone $projectsQuery)
             ->selectRaw('status, count(*) as total')
@@ -50,12 +53,7 @@ class ReportController extends Controller
 
         $averageProjectCompletion = round((clone $projectsQuery)->avg('completion_percentage') ?? 0, 1);
 
-        $tasksQuery = Task::query();
-        if ($scope === 'department') {
-            $tasksQuery->whereHas('assignee', fn($q) => $q->where('department_id', $user->employee?->department_id));
-        } elseif ($scope === 'self') {
-            $tasksQuery->where('assignee_employee_id', $user->employee?->id);
-        }
+        $tasksQuery = $user->tasksWithinScope('reports.view');
 
         $tasksByStatus = (clone $tasksQuery)
             ->selectRaw('status, count(*) as total')
@@ -68,18 +66,22 @@ class ReportController extends Controller
             ->where('status', '!=', 'Completed')
             ->count();
 
-        $attendanceQuery = AttendanceRecord::query()->whereBetween('date', [$from, $to]);
-        if ($employeeScope !== null) {
-            $attendanceQuery->whereIn('employee_id', $employeeScope);
-        }
+        $attendanceQuery = AttendanceRecord::query()
+            ->whereBetween('date', [$from, $to])
+            ->whereIn('employee_id', $user->employeesWithinScope('reports.view')->select('employees.id'));
 
         $attendanceByStatus = (clone $attendanceQuery)
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $workingDaysInRange = max(1, $from->diffInWeekdays($to));
-        $expectedAttendanceRecords = ($employeeScope !== null ? count($employeeScope) : Employee::active()->count()) * $workingDaysInRange;
+        $workingDaysInRange = 0;
+        for ($day = $from->copy()->startOfDay(); $day->lte($to); $day->addDay()) {
+            if ($day->isWeekday()) {
+                $workingDaysInRange++;
+            }
+        }
+        $expectedAttendanceRecords = (clone $employeesQuery)->active()->count() * $workingDaysInRange;
         $attendanceRate = $expectedAttendanceRecords > 0
             ? round((($attendanceByStatus->get('Present', 0) + $attendanceByStatus->get('Late', 0)) / $expectedAttendanceRecords) * 100, 1)
             : 0;
@@ -124,25 +126,4 @@ class ReportController extends Controller
         return $scope;
     }
 
-    private function scopedEmployeeIds(User $user, string $scope): ?array
-    {
-        if ($scope === 'organization') {
-            return null;
-        }
-
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee) {
-            return [];
-        }
-
-        if ($scope === 'self') {
-            return [$ownEmployee->id];
-        }
-
-        if ($user->hasRole('SH')) {
-            return Employee::where('section_id', $ownEmployee->section_id)->pluck('id')->all();
-        }
-
-        return Employee::where('department_id', $ownEmployee->department_id)->pluck('id')->all();
-    }
 }

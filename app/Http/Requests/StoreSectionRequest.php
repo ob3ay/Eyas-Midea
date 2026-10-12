@@ -25,7 +25,7 @@ class StoreSectionRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:150', Rule::unique('sections', 'name')->where(fn ($query) => $query->where('department_id', $this->integer('department_id')))],
             'department_id' => ['required', 'integer', 'exists:departments,id'],
-            'section_head_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where(fn ($query) => $query->where('department_id', $this->integer('department_id')))],
+            'section_head_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->where(fn ($query) => $query->where('department_id', $this->integer('department_id'))->whereNull('deleted_at'))],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

@@ -12,7 +12,7 @@ class DepartmentPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasPermission('departments.view');
+        return in_array($user->highestScopeFor('departments.view'), ['department', 'organization'], true);
     }
 
     /**
@@ -20,7 +20,7 @@ class DepartmentPolicy
      */
     public function view(User $user, Department $department): bool
     {
-        return $user->hasPermission('departments.view') && $this->withinScope($user, $department, 'departments.view');
+        return $user->hasPermission('departments.view') && $user->allowsDepartmentWithinScope('departments.view', $department);
     }
 
     /**
@@ -28,7 +28,7 @@ class DepartmentPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasPermission('departments.create');
+        return $user->highestScopeFor('departments.create') === 'organization';
     }
 
     /**
@@ -36,7 +36,7 @@ class DepartmentPolicy
      */
     public function update(User $user, Department $department): bool
     {
-        return $user->hasPermission('departments.update') && $this->withinScope($user, $department, 'departments.update');
+        return $user->hasPermission('departments.update') && $user->allowsDepartmentWithinScope('departments.update', $department);
     }
 
     /**
@@ -44,7 +44,7 @@ class DepartmentPolicy
      */
     public function delete(User $user, Department $department): bool
     {
-        return $user->hasPermission('departments.delete') && $this->withinScope($user, $department, 'departments.delete');
+        return $user->hasPermission('departments.delete') && $user->allowsDepartmentWithinScope('departments.delete', $department);
     }
 
     /**
@@ -63,14 +63,4 @@ class DepartmentPolicy
         return false;
     }
 
-    private function withinScope(User $user, Department $department, string $permission): bool
-    {
-        $scope = $user->highestScopeFor($permission);
-
-        if ($scope === 'organization') {
-            return true;
-        }
-
-        return $scope === 'department' && (int) $user->employee?->department_id === $department->id;
-    }
 }

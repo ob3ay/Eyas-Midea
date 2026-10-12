@@ -66,6 +66,16 @@ class Employee extends Model
         return $this->hasMany(EmployeeRequest::class);
     }
 
+    public function assignedTasks(): HasMany
+    {
+        return $this->hasMany(Task::class, 'assignee_employee_id');
+    }
+
+    public function latestEvaluation(): HasOne
+    {
+        return $this->hasOne(PerformanceEvaluation::class)->latestOfMany('evaluation_date');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('employment_status', 'active');

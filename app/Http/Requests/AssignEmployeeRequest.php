@@ -23,9 +23,9 @@ class AssignEmployeeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'employee_id' => ['required', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'department_id' => ['required', 'integer', 'exists:departments,id'],
-            'section_id' => ['nullable', 'integer', Rule::exists('sections', 'id')->where(fn ($query) => $query->where('department_id', $this->integer('department_id')))],
+            'section_id' => ['nullable', 'integer', Rule::exists('sections', 'id')->where(fn ($query) => $query->where('department_id', $this->integer('department_id'))->whereNull('deleted_at'))],
         ];
     }
 }

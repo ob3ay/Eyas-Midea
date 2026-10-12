@@ -161,6 +161,13 @@
                     </a>
                 @endif
 
+                @if ($user?->hasPermission('attendance.view') || $user?->hasPermission('attendance.update'))
+                    <a href="{{ route('attendance.corrections.index') }}"
+                        class="ems-nav-link {{ request()->routeIs('attendance.corrections.*') ? 'active' : '' }}">
+                        <div class="ems-nav-link-content"><span>طلبات تصحيح الحضور</span></div>
+                    </a>
+                @endif
+
                 @if ($user?->hasPermission('performance.view') && Route::has('performance.index'))
                     <a href="{{ route('performance.index') }}"
                         class="ems-nav-link {{ request()->routeIs('performance.*') ? 'active' : '' }}">

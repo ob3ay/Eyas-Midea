@@ -224,7 +224,7 @@
         </div>
 
         <div class="ems-page-actions">
-            @if ($employee && ! $isSuperAdmin)
+            @if ($employee && $canCreateRequest)
                 <button type="button" class="ems-btn ems-btn-primary" onclick="openModal('modal-add-request')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -317,7 +317,7 @@
                 </svg>
                 <span>{{ $isAdmin ? 'سجل طلبات الكوادر الواردة' : 'سجل الطلبات الإدارية والمالية' }}</span>
             </div>
-            <span class="ems-badge badge-gold">{{ $requests->count() }} طلب</span>
+            <span class="ems-badge badge-gold">{{ $stats['total'] }} طلب</span>
         </div>
 
         <div style="padding: 14px 18px 0;">
@@ -501,16 +501,18 @@
                                             </svg>
                                         </button>
 
-                                        @if ($isAdmin && $req->status === 'pending')
+                                        @if ($isAdmin && $canApproveRequest && $req->status === 'pending')
                                             <button type="button" class="req-action-btn approve" title="اعتماد وقبول الطلب"
-                                                onclick="openApproveModal({{ $req->id }}, '{{ addslashes($req->title) }}', '{{ addslashes($req->employee?->full_name ?? '') }}')">
+                                                onclick="openApproveModal({{ $req->id }}, {{ Js::from($req->title) }}, {{ Js::from($req->employee?->full_name ?? '') }})">
                                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                                     <polyline points="20 6 9 17 4 12"></polyline>
                                                 </svg>
                                             </button>
+                                        @endif
 
+                                        @if ($isAdmin && $canRejectRequest && $req->status === 'pending')
                                             <button type="button" class="req-action-btn reject" title="رفض الطلب"
-                                                onclick="openRejectModal({{ $req->id }}, '{{ addslashes($req->title) }}', '{{ addslashes($req->employee?->full_name ?? '') }}')">
+                                                onclick="openRejectModal({{ $req->id }}, {{ Js::from($req->title) }}, {{ Js::from($req->employee?->full_name ?? '') }})">
                                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                                     <line x1="18" y1="6" x2="6" y2="18"></line>
                                                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -518,7 +520,7 @@
                                             </button>
                                         @endif
 
-                                        @if (! $isAdmin && $req->status === 'pending')
+                                        @if ($canCancelRequest && $req->employee_id === $employee?->id && $req->status === 'pending')
                                             <form action="{{ route('requests.cancel', $req) }}" method="POST"
                                                 onsubmit="return confirm('هل أنت متأكد من إلغاء هذا الطلب؟');" style="display:inline;">
                                                 @csrf
@@ -551,6 +553,11 @@
             <div id="noReqFilterResults" style="display: none; text-align: center; padding: 36px; color: var(--ems-text-muted); font-size: 13px;">
                 لا توجد طلبات تطابق معايير التصفية المحددة.
             </div>
+            @if ($requests->hasPages())
+                <div style="padding: 16px 20px;">
+                    {{ $requests->links() }}
+                </div>
+            @endif
         </div>
     </div>
 
@@ -623,7 +630,7 @@
     </div>
 </div>
 
-@if ($isAdmin)
+@if ($canApproveRequest)
 {{-- MODAL: Approve Request --}}
 <div class="ems-modal-overlay" id="modal-approve-request">
     <div class="ems-modal" style="max-width: 480px;">
@@ -660,6 +667,9 @@
     </div>
 </div>
 
+@endif
+
+@if ($canRejectRequest)
 {{-- MODAL: Reject Request --}}
 <div class="ems-modal-overlay" id="modal-reject-request">
     <div class="ems-modal" style="max-width: 480px;">
@@ -697,7 +707,7 @@
 </div>
 @endif
 
-@if ($employee)
+@if ($employee && $canCreateRequest)
 {{-- MODAL: Add Request --}}
 <div class="ems-modal-overlay" id="modal-add-request">
     <div class="ems-modal" style="max-width: 580px;">

@@ -12,9 +12,9 @@
             </h1>
             <p style="font-size: 13.5px; color: #94a3b8; max-width: 600px;">
                 @if ($isEmployee ?? false)
-                    متابعة مباشرة لمهامك ومشاريعك وسجل دوامك وتقييم أدائك في مجموعة إياس الإعلامية.
+                    متابعة بياناتك ومهامك ومشاريعك وسجل دوامك بحسب الصلاحيات المتاحة لحسابك.
                 @else
-                    نظرة تنفيذية شاملة على سير العمليات والإنتاج وشؤون الكوادر في مجموعة إياس الإعلامية بكافة دوائرها التخصصية.
+                    نظرة على سير العمليات والإنتاج وشؤون الكوادر ضمن نطاق صلاحياتك في مجموعة إياس الإعلامية.
                 @endif
             </p>
         </div>
@@ -32,7 +32,7 @@
                     <span>طلبات بانتظار المراجعة ({{ $pendingRequestsCount }})</span>
                 </a>
             @endif
-            @if (auth()->user()?->hasPermission('projects.create'))
+            @if ($canCreateProject)
                 <a href="{{ route('projects.index') }}" class="ems-btn ems-btn-primary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19" />
@@ -41,10 +41,12 @@
                     <span>مشروع جديد</span>
                 </a>
             @endif
-            <a href="{{ route('tasks.index') }}" class="ems-btn ems-btn-secondary"
-                style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff;">
-                <span>{{ ($isEmployee ?? false) ? 'متابعة مهامي' : 'متابعة المهام' }} ({{ $taskCount }})</span>
-            </a>
+            @if ($canViewTasks)
+                <a href="{{ route('tasks.index') }}" class="ems-btn ems-btn-secondary"
+                    style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff;">
+                    <span>{{ ($isEmployee ?? false) ? 'متابعة مهامي' : 'متابعة المهام' }} ({{ $taskCount }})</span>
+                </a>
+            @endif
         </div>
     </div>
 
@@ -52,6 +54,7 @@
     <div class="ems-stats-grid">
         @if ($isEmployee ?? false)
             <!-- كروت مخصصة للموظف -->
+            @if ($canViewTasks)
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">مهامي النشطة</span>
@@ -65,7 +68,9 @@
                     </svg>
                 </div>
             </div>
+            @endif
 
+            @if ($canViewProjects)
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">مشاريعي الحالية</span>
@@ -79,7 +84,9 @@
                     </svg>
                 </div>
             </div>
+            @endif
 
+            @if ($canViewAttendance)
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">سجل دوامي هذا الشهر</span>
@@ -93,7 +100,9 @@
                     </svg>
                 </div>
             </div>
+            @endif
 
+            @if ($canViewPerformance)
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">تقييم أدائي الأخير</span>
@@ -108,13 +117,17 @@
                     </svg>
                 </div>
             </div>
+            @endif
         @else
             <!-- كروت الإدارة العامة -->
+            @if ($canViewEmployees)
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">إجمالي الكادر والقيادة</span>
                     <span class="ems-stat-value">{{ $employeeCount }}</span>
-                    <span class="ems-stat-subtext" style="color: #10b981;">{{ $departmentCount }} دوائر تخصصية رئيسية</span>
+                    @if ($canViewDepartments)
+                        <span class="ems-stat-subtext" style="color: #10b981;">{{ $departmentCount }} دوائر تخصصية رئيسية</span>
+                    @endif
                 </div>
                 <div class="ems-stat-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -125,7 +138,9 @@
                     </svg>
                 </div>
             </div>
+            @endif
 
+            @if ($canViewProjects)
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">المشاريع البرمجية والإعلامية</span>
@@ -139,7 +154,9 @@
                     </svg>
                 </div>
             </div>
+            @endif
 
+            @if ($canViewTasks)
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">المهام في دورة العمل</span>
@@ -153,7 +170,9 @@
                     </svg>
                 </div>
             </div>
+            @endif
 
+            @if ($canViewAttendance)
             <div class="ems-stat-card">
                 <div class="ems-stat-info">
                     <span class="ems-stat-label">نسبة الالتزام بالدوام اليوم</span>
@@ -167,12 +186,14 @@
                     </svg>
                 </div>
             </div>
+            @endif
         @endif
     </div>
 
     <div class="ems-two-columns">
         <div>
             <!-- بطاقة المشاريع الحيوية -->
+            @if ($canViewProjects)
             <div class="ems-card">
                 <div class="ems-card-header">
                     <div class="ems-card-title">مشاريع الإنتاج والتطوير النشطة</div>
@@ -206,8 +227,10 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             <!-- بطاقة حالات المهام الخمس -->
+            @if ($canViewTasks)
             <div class="ems-card">
                 <div class="ems-card-header">
                     <div class="ems-card-title">حالات المهام الخمس المعتمدة (Task Lifecycle)</div>
@@ -256,6 +279,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
 
@@ -263,7 +287,7 @@
             <!-- سجل الأنشطة المباشرة -->
             <div class="ems-card">
                 <div class="ems-card-header">
-                    <div class="ems-card-title">سجل الأنشطة التنفيذية المباشرة</div>
+                    <div class="ems-card-title">سجل أنشطتك الأخيرة</div>
                     <span class="ems-status-dot"></span>
                 </div>
                 <div class="ems-card-body">

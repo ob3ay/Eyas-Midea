@@ -501,11 +501,21 @@
         const tag = document.createElement('div');
         tag.className = 'ems-badge badge-gold';
         tag.style.cssText = 'display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12.5px;';
-        tag.innerHTML = `
-            <span>${sectionName}</span>
-            <input type="hidden" name="sections[]" value="${sectionName}">
-            <button type="button" style="cursor: pointer; color: #ef4444; font-weight: bold; background: none; border: none;" onclick="this.parentElement.remove(); checkEmptySections();">✕</button>
-        `;
+        const label = document.createElement('span');
+        label.textContent = sectionName;
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'sections[]';
+        hiddenInput.value = sectionName;
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.style.cssText = 'cursor:pointer;color:#ef4444;font-weight:bold;background:none;border:none;';
+        removeButton.textContent = '✕';
+        removeButton.addEventListener('click', () => {
+            tag.remove();
+            checkEmptySections();
+        });
+        tag.append(label, hiddenInput, removeButton);
         container.appendChild(tag);
         input.value = '';
         input.focus();

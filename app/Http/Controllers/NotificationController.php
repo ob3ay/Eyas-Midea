@@ -19,7 +19,7 @@ class NotificationController extends Controller
             ->get();
 
         return response()->json([
-            'notifications' => $notifications->map(fn(Notification $notification): array => $this->serialize($notification)),
+            'notifications' => $notifications->map(fn (Notification $notification): array => $this->serialize($notification)),
             'unread_count' => $user->notifications()->unread()->count(),
         ]);
     }
@@ -81,11 +81,11 @@ class NotificationController extends Controller
     private function relatedEntityUrl(Notification $notification): ?string
     {
         if (Str::endsWith($notification->related_entity_type ?? '', '\\Task') && $notification->related_entity_id !== null) {
-            return route('tasks.index') . '#task-' . $notification->related_entity_id;
+            return route('tasks.index').'#task-'.$notification->related_entity_id;
         }
 
         if (Str::endsWith($notification->related_entity_type ?? '', '\\Project') && $notification->related_entity_id !== null) {
-            return route('projects.index') . '#project-' . $notification->related_entity_id;
+            return route('projects.index').'#project-'.$notification->related_entity_id;
         }
 
         return null;

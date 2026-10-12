@@ -20,7 +20,7 @@ return new class extends Migration
                 ->constrained('permissions')
                 ->cascadeOnDelete();
 
-            $table->enum('scope', ['self', 'department', 'organization'])
+            $table->enum('scope', ['self', 'section', 'department', 'organization'])
                 ->comment('نطاق تطبيق الصلاحية: ذاتي، القسم/الدائرة، المؤسسة بالكامل');
 
             $table->primary(['role_id', 'permission_id']);

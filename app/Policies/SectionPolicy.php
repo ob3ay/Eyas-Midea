@@ -20,7 +20,7 @@ class SectionPolicy
      */
     public function view(User $user, Section $section): bool
     {
-        return $user->hasPermission('departments.view') && $this->withinScope($user, $section, 'departments.view');
+        return $user->hasPermission('departments.view') && $user->allowsSectionWithinScope('departments.view', $section);
     }
 
     /**
@@ -36,7 +36,7 @@ class SectionPolicy
      */
     public function update(User $user, Section $section): bool
     {
-        return $user->hasPermission('departments.update') && $this->withinScope($user, $section, 'departments.update');
+        return $user->hasPermission('departments.update') && $user->allowsSectionWithinScope('departments.update', $section);
     }
 
     /**
@@ -44,7 +44,7 @@ class SectionPolicy
      */
     public function delete(User $user, Section $section): bool
     {
-        return $user->hasPermission('departments.delete') && $this->withinScope($user, $section, 'departments.delete');
+        return $user->hasPermission('departments.delete') && $user->allowsSectionWithinScope('departments.delete', $section);
     }
 
     /**
@@ -63,14 +63,4 @@ class SectionPolicy
         return false;
     }
 
-    private function withinScope(User $user, Section $section, string $permission): bool
-    {
-        $scope = $user->highestScopeFor($permission);
-
-        if ($scope === 'organization') {
-            return true;
-        }
-
-        return $scope === 'department' && (int) $user->employee?->department_id === $section->department_id;
-    }
 }

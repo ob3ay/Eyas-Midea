@@ -24,10 +24,11 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl border shadow-xl text-sm font-medium transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto ${bgColors[type] || bgColors.success}`;
-    toast.innerHTML = `
-      <div class="w-2 h-2 rounded-full ${type === 'warning' ? 'bg-amber-400' : 'bg-emerald-400'} animate-ping"></div>
-      <span>${message}</span>
-    `;
+    const dot = document.createElement('div');
+    dot.className = `w-2 h-2 rounded-full ${type === 'warning' ? 'bg-amber-400' : 'bg-emerald-400'} animate-ping`;
+    const label = document.createElement('span');
+    label.textContent = String(message ?? '');
+    toast.append(dot, label);
 
     container.appendChild(toast);
     requestAnimationFrame(() => {

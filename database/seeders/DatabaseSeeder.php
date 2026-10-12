@@ -15,11 +15,25 @@ use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            throw new \RuntimeException('DatabaseSeeder contains demo data and is disabled in production.');
+        }
+
+        $adminPassword = (string) config('seeding.admin_password');
+        if (strlen($adminPassword) < 8) {
+            throw new \RuntimeException('Set SEED_ADMIN_PASSWORD to a password of at least 12 characters before seeding.');
+        }
+
+        // Demo seeders are intended to restore the canonical local/test RBAC fixtures.
+        Role::onlyTrashed()->restore();
+        Permission::onlyTrashed()->restore();
+
         // 1) الأدوار السبعة الأساسية
         $roles = [
             ['name' => 'SA', 'display_name' => 'مدير النظام الأعلى (Super Admin)'],
@@ -31,7 +45,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'TA', 'display_name' => 'مساعد إداري (Technical Assistant)'],
         ];
         foreach ($roles as $role) {
-            Role::firstOrCreate(['name' => $role['name']], $role);
+            Role::withTrashed()->firstOrCreate(['name' => $role['name']], $role);
         }
 
         // 2) حساب تجريبي لتسجيل الدخول (Super Admin) - بدائرة إدارية منفصلة
@@ -46,13 +60,14 @@ class DatabaseSeeder extends Seeder
                 'hire_date' => now(),
             ]
         );
-        $adminUser = User::firstOrCreate(
-            ['email' => 'saleh@eyasmedia.com'],
+        $adminUser = User::updateOrCreate(
+            ['email' => (string) config('seeding.admin_email')],
             [
                 'employee_id' => $adminEmployee->id,
                 'username' => 'admin',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make($adminPassword),
                 'is_active' => true,
+                'must_change_password' => true,
             ]
         );
         $superAdminRole = Role::where('name', 'SA')->first();
@@ -151,16 +166,17 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $empUser = User::firstOrCreate(
-            ['email' => 'employee@eyasmedia.com'],
+        $employeePassword = (string) (config('seeding.employee_password') ?: Str::random(64));
+        $empUser = User::updateOrCreate(
+            ['email' => (string) config('seeding.employee_email')],
             [
                 'employee_id' => $empRecord->id,
                 'username' => 'employee',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make($employeePassword),
                 'is_active' => true,
+                'must_change_password' => true,
             ]
         );
-        $empUser->update(['password' => Hash::make('password123')]);
 
         $empRole = Role::where('name', 'EMP')->first();
         if ($empRole && ! $empUser->roles()->where('role_id', $empRole->id)->exists()) {
@@ -177,20 +193,22 @@ class DatabaseSeeder extends Seeder
             'reports' => ['view'],
             'users' => ['view', 'create', 'update', 'delete'],
             'settings' => ['view', 'update'],
+            'requests' => ['view', 'create', 'approve', 'reject', 'cancel'],
+            'audit_logs' => ['view'],
         ];
 
         $permissionModels = [];
         foreach ($modulesWithActions as $module => $actions) {
             foreach ($actions as $action) {
                 $key = "{$module}.{$action}";
-                $permissionModels[$key] = Permission::firstOrCreate(
+                $permissionModels[$key] = Permission::withTrashed()->firstOrCreate(
                     ['key' => $key],
                     ['display_name' => $this->permissionDisplayName($module, $action)]
                 );
             }
         }
         // صلاحية خاصة: إدارة مصفوفة الصلاحيات نفسها (مين يعطي مين شو) - للسوبر أدمن فقط
-        $permissionModels['settings.manage_permissions'] = Permission::firstOrCreate(
+        $permissionModels['settings.manage_permissions'] = Permission::withTrashed()->firstOrCreate(
             ['key' => 'settings.manage_permissions'],
             ['display_name' => 'إدارة صلاحيات الأدوار والنطاقات']
         );
@@ -216,6 +234,10 @@ class DatabaseSeeder extends Seeder
                 'users.view' => 'organization',
                 'users.update' => 'organization',
                 'settings.view' => 'organization',
+                'requests.view' => 'organization',
+                'requests.approve' => 'organization',
+                'requests.reject' => 'organization',
+                'audit_logs.view' => 'organization',
             ],
 
             'DP' => [
@@ -236,6 +258,9 @@ class DatabaseSeeder extends Seeder
                 'performance.update' => 'department',
                 'reports.view' => 'department',
                 'users.view' => 'department',
+                'requests.view' => 'department',
+                'requests.approve' => 'department',
+                'requests.reject' => 'department',
             ],
 
             'DM' => [
@@ -249,15 +274,20 @@ class DatabaseSeeder extends Seeder
                 'performance.view' => 'department',
                 'reports.view' => 'department',
                 'users.view' => 'department',
+                'requests.view' => 'department',
+                'requests.approve' => 'department',
+                'requests.reject' => 'department',
             ],
 
             'SH' => [
-                // ملاحظة: عمود scope فيه 3 قيم بس، وبنعامل "department" هون كحدود القسم (section) بالكود
-                'employees.view' => 'department',
-                'tasks.view' => 'department',
-                'tasks.update' => 'department',
-                'attendance.view' => 'department',
-                'performance.view' => 'department',
+                'employees.view' => 'section',
+                'tasks.view' => 'section',
+                'tasks.update' => 'section',
+                'attendance.view' => 'section',
+                'performance.view' => 'section',
+                'requests.view' => 'section',
+                'requests.approve' => 'section',
+                'requests.reject' => 'section',
             ],
 
             'EMP' => [
@@ -267,6 +297,9 @@ class DatabaseSeeder extends Seeder
                 'attendance.view' => 'self',
                 'performance.view' => 'self',
                 'projects.view' => 'self',
+                'requests.view' => 'self',
+                'requests.create' => 'self',
+                'requests.cancel' => 'self',
             ],
 
             'TA' => [
@@ -278,6 +311,9 @@ class DatabaseSeeder extends Seeder
                 // هاد بس مثال ابتدائي - السوبر أدمن يقدر يبدّله من مصفوفة الصلاحيات وقت ما بدو.
                 'attendance.create' => 'organization',
                 'performance.view' => 'self',
+                'requests.view' => 'self',
+                'requests.create' => 'self',
+                'requests.cancel' => 'self',
             ],
         ];
 

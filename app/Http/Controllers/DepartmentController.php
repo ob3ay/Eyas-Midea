@@ -7,6 +7,7 @@ use App\Http\Requests\StoreDepartmentRequest;
 use App\Http\Requests\StoreSectionRequest;
 use App\Http\Requests\UpdateDepartmentRequest;
 use App\Http\Requests\UpdateSectionRequest;
+use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Section;
@@ -35,7 +36,7 @@ class DepartmentController extends Controller
             ->get();
 
         $sections = Section::query()
-            ->when($scope !== 'organization', fn($query) => $query->where('department_id', $user->employee?->department_id ?? 0))
+            ->when($scope !== 'organization', fn ($query) => $query->where('department_id', $user->employee?->department_id ?? 0))
             ->with(['department', 'head.user'])
             ->withCount(['employees', 'users'])
             ->orderBy('name')
@@ -43,7 +44,7 @@ class DepartmentController extends Controller
 
         $availableEmployees = Employee::query()
             ->active()
-            ->when($scope !== 'organization', fn($query) => $query->where('department_id', $user->employee?->department_id ?? 0))
+            ->when($scope !== 'organization', fn ($query) => $query->where('department_id', $user->employee?->department_id ?? 0))
             ->with('user')
             ->orderBy('full_name')
             ->get();
@@ -55,6 +56,7 @@ class DepartmentController extends Controller
             'nextDeptCode' => $this->getNextDepartmentCode(),
         ]);
     }
+
     public function structure(Request $request)
     {
         $user = $request->user();
@@ -62,7 +64,7 @@ class DepartmentController extends Controller
         $scope = $user->highestScopeFor('departments.view');
 
         $departments = Department::query()
-            ->when($scope !== 'organization', fn($q) => $q->whereKey($user->employee?->department_id ?? 0))
+            ->when($scope !== 'organization', fn ($q) => $q->whereKey($user->employee?->department_id ?? 0))
             ->with(['manager', 'sections.head', 'sections.employees', 'employees'])
             ->withCount(['sections', 'employees'])
             ->orderBy('name')
@@ -99,10 +101,16 @@ class DepartmentController extends Controller
             'sections.head.user',
             'sections.employees.user',
             'employees.user',
-            'projects.owner.user',
+            'projects' => function ($query) use ($user): void {
+                $query->whereIn(
+                    'projects.id',
+                    $user->projectsWithinScope('projects.view')->select('projects.id'),
+                )->with('owner.user');
+            },
         ]);
         // Get available employees for assignment (those not already assigned to this department)
-        $availableEmployees = Employee::query()
+        $availableEmployees = $user->highestScopeFor('departments.update') === 'organization'
+            ? Employee::query()
             ->active()
             ->where(function ($query) use ($department) {
                 $query->whereNull('department_id')
@@ -110,11 +118,10 @@ class DepartmentController extends Controller
             })
             ->with('user')
             ->orderBy('full_name')
-            ->get();
-
+            ->get()
+            : collect();
 
         return view('departments.show', compact('department', 'availableEmployees'))->with('sections', $department->sections);
-
     }
 
     public function store(StoreDepartmentRequest $request): RedirectResponse
@@ -131,27 +138,15 @@ class DepartmentController extends Controller
         }
 
         DB::transaction(function () use ($data, $managerId, $sections) {
-            // Force delete any trashed department with the same code or name so MySQL unique constraints do not conflict
-            Department::onlyTrashed()
-                ->where(function ($q) use ($data) {
-                    $q->where('name', $data['name']);
-                    if (! empty($data['code'])) {
-                        $q->orWhere('code', $data['code']);
-                    }
-                })
-                ->forceDelete();
-
             $department = Department::create($data);
 
             if ($managerId) {
-                $manager = Employee::find($managerId);
-                if ($manager) {
-                    $manager->update([
-                        'department_id' => $department->id,
-                        'section_id' => null,
-                    ]);
-                    $department->update(['manager_employee_id' => $manager->id]);
-                }
+                $manager = Employee::query()->lockForUpdate()->findOrFail($managerId);
+                $manager->update([
+                    'department_id' => $department->id,
+                    'section_id' => null,
+                ]);
+                $department->update(['manager_employee_id' => $manager->id]);
             }
 
             if (! empty($sections)) {
@@ -166,6 +161,7 @@ class DepartmentController extends Controller
                     }
                 }
             }
+            AuditLog::record('Create', 'Department', $department->id);
         });
 
         return redirect()->route('departments.index')->with('success', 'تمت إضافة الدائرة وأقسامها بنجاح.');
@@ -175,17 +171,20 @@ class DepartmentController extends Controller
     {
         $data = $request->validated();
 
-        if (! empty($data['manager_employee_id'])) {
-            $manager = Employee::find((int) $data['manager_employee_id']);
-            if ($manager && $manager->department_id !== $department->id) {
-                $manager->update([
-                    'department_id' => $department->id,
-                    'section_id' => null,
-                ]);
+        DB::transaction(function () use ($data, $department): void {
+            if (! empty($data['manager_employee_id'])) {
+                $manager = Employee::query()->lockForUpdate()->findOrFail((int) $data['manager_employee_id']);
+                if ($manager->department_id !== $department->id) {
+                    $manager->update([
+                        'department_id' => $department->id,
+                        'section_id' => null,
+                    ]);
+                }
             }
-        }
 
-        $department->update($data);
+            $department->update($data);
+            AuditLog::record('Update', 'Department', $department->id);
+        });
 
         return redirect()->route('departments.index')->with('success', 'تم تحديث بيانات الدائرة بنجاح.');
     }
@@ -194,34 +193,43 @@ class DepartmentController extends Controller
     {
         Gate::authorize('delete', $department);
 
-        $reasons = [];
-        if ($department->employees()->exists()) {
-            $empCount = $department->employees()->count();
-            $empNames = $department->employees()->pluck('full_name')->take(3)->implode('، ');
-            if ($empCount > 3) {
-                $empNames .= ' وآخرين';
+        $reasons = DB::transaction(function () use ($department): array {
+            $lockedDepartment = Department::query()->lockForUpdate()->findOrFail($department->id);
+            $reasons = [];
+            $employees = $lockedDepartment->employees()->lockForUpdate();
+            if ($employees->exists()) {
+                $empCount = (clone $employees)->count();
+                $empNames = (clone $employees)->limit(3)->pluck('full_name')->implode('، ');
+                if ($empCount > 3) {
+                    $empNames .= ' وآخرين';
+                }
+                $reasons[] = "وجود ({$empCount}) موظف مسجلين بها [{$empNames}]";
             }
-            $reasons[] = "وجود ({$empCount}) موظف مسجلين بها [{$empNames}]";
+
+            $sections = $lockedDepartment->sections()->lockForUpdate();
+            if ($sections->exists()) {
+                $reasons[] = 'وجود ('.$sections->count().') قسم تخصصي تابع لها';
+            }
+
+            $projects = $lockedDepartment->projects()->lockForUpdate();
+            if ($projects->exists()) {
+                $reasons[] = 'وجود ('.$projects->count().') مشروع مرتبط بهذه الدائرة';
+            }
+
+            if ($reasons !== []) {
+                return $reasons;
+            }
+
+            $lockedDepartment->sections()->withTrashed()->forceDelete();
+            $lockedDepartment->forceDelete();
+            AuditLog::record('Delete', 'Department', $lockedDepartment->id);
+
+            return [];
+        });
+
+        if ($reasons !== []) {
+            return back()->with('error', 'لا يمكن حذف هذه الدائرة بسبب: '.implode('، و', $reasons).'. يرجى نقل الموظفين إلى دائرة أخرى أولاً عبر زر "نقل / تعيين موظف" أعلى الصفحة.');
         }
-
-        if ($department->sections()->exists()) {
-            $secCount = $department->sections()->count();
-            $reasons[] = "وجود ({$secCount}) قسم تخصصي تابع لها";
-        }
-
-        if ($department->projects()->exists()) {
-            $projCount = $department->projects()->count();
-            $reasons[] = "وجود ({$projCount}) مشروع مرتبط بهذه الدائرة";
-        }
-
-        if (! empty($reasons)) {
-            return back()->with('error', 'لا يمكن حذف هذه الدائرة بسبب: ' . implode('، و', $reasons) . '. يرجى نقل الموظفين إلى دائرة أخرى أولاً عبر زر "نقل / تعيين موظف" أعلى الصفحة.');
-        }
-
-        // Clean up any trashed sections belonging to this department so FK doesn't fail
-        $department->sections()->withTrashed()->forceDelete();
-
-        $department->forceDelete();
 
         return back()->with('success', 'تم حذف الدائرة بنجاح.');
     }
@@ -231,7 +239,10 @@ class DepartmentController extends Controller
         $data = $request->validated();
         $this->assertDepartmentScope($request->user(), $data['department_id'], 'departments.create');
 
-        Section::create($data);
+        DB::transaction(function () use ($data): void {
+            $section = Section::create($data);
+            AuditLog::record('Create', 'Section', $section->id);
+        });
 
         return back()->with('success', 'تمت إضافة القسم التخصصي بنجاح');
     }
@@ -240,7 +251,20 @@ class DepartmentController extends Controller
     {
         $data = $request->validated();
         $this->assertDepartmentScope($request->user(), $data['department_id'], 'departments.update');
-        $section->update($data);
+
+        if (
+            (int) $section->department_id !== (int) $data['department_id']
+            && $section->employees()->exists()
+        ) {
+            return back()->withInput()->withErrors([
+                'department_id' => 'انقل الموظفين المرتبطين بالقسم قبل نقله إلى دائرة أخرى.',
+            ]);
+        }
+
+        DB::transaction(function () use ($section, $data): void {
+            $section->update($data);
+            AuditLog::record('Update', 'Section', $section->id);
+        });
 
         return back()->with('success', 'تم تحديث بيانات القسم بنجاح');
     }
@@ -249,11 +273,21 @@ class DepartmentController extends Controller
     {
         Gate::authorize('delete', $section);
 
-        if ($section->employees()->exists()) {
+        $deleted = DB::transaction(function () use ($section): bool {
+            $lockedSection = Section::query()->lockForUpdate()->findOrFail($section->id);
+            if ($lockedSection->employees()->lockForUpdate()->exists()) {
+                return false;
+            }
+
+            $lockedSection->delete();
+            AuditLog::record('Delete', 'Section', $lockedSection->id);
+
+            return true;
+        });
+
+        if (! $deleted) {
             return back()->with('error', 'لا يمكن حذف هذا القسم نظراً لوجود موظفين مسجلين به.');
         }
-
-        $section->delete();
 
         return back()->with('success', 'تم حذف القسم بنجاح');
     }
@@ -261,12 +295,37 @@ class DepartmentController extends Controller
     public function assignEmployee(AssignEmployeeRequest $request, Employee $employee): RedirectResponse
     {
         $data = $request->validated();
-        Gate::authorize('update', Department::findOrFail($data['department_id']));
+        $user = $request->user();
+        $targetDepartment = Department::findOrFail($data['department_id']);
+        Gate::authorize('update', $targetDepartment);
 
-        $employee->update([
-            'department_id' => $data['department_id'],
-            'section_id' => $data['section_id'] ?? null,
-        ]);
+        $scope = $user->highestScopeFor('departments.update');
+        $ownEmployee = $user->employee;
+
+        if ($scope !== 'organization') {
+            abort_unless($ownEmployee !== null, 403, 'حسابك غير مرتبط بسجل موظف.');
+
+            if ($scope === 'self' && $employee->id !== $ownEmployee->id) {
+                abort(403, 'لا يمكنك نقل موظف خارج حسابك.');
+            }
+
+            if ($scope === 'department') {
+                abort_unless(
+                    (int) $employee->department_id === (int) $ownEmployee->department_id,
+                    403,
+                    'لا يمكنك نقل موظف خارج دائرتك.'
+                );
+            }
+        }
+
+        DB::transaction(function () use ($data, $employee): void {
+            $employee = Employee::query()->lockForUpdate()->findOrFail($employee->id);
+            $employee->update([
+                'department_id' => $data['department_id'],
+                'section_id' => $data['section_id'] ?? null,
+            ]);
+            AuditLog::record('AssignEmployee', 'Employee', $employee->id);
+        });
 
         return back()->with('success', 'تم نقل الموظف وتحديث تبعيته التنظيمية');
     }
@@ -275,17 +334,16 @@ class DepartmentController extends Controller
     {
         $user = $request->user();
         Gate::authorize('view', $section);
-        $scope = $user->highestScopeFor('departments.view');
-
-        if ($scope !== 'organization' && (int) $user->employee?->department_id !== $section->department_id && (int) $user->employee?->section_id !== $section->id) {
-            abort(403, 'لا يمكنك عرض تفاصيل هذا القسم خارج نطاقك.');
-        }
-
         $section->load([
             'department.manager.user',
             'head.user',
             'employees.user',
-            'department.projects.owner.user',
+            'department.projects' => function ($query) use ($user): void {
+                $query->whereIn(
+                    'projects.id',
+                    $user->projectsWithinScope('projects.view')->select('projects.id'),
+                )->with('owner.user');
+            },
         ]);
 
         return view('departments.section', compact('section'));
@@ -305,11 +363,11 @@ class DepartmentController extends Controller
         }
 
         $candidateNum = $maxNum + 1;
-        $code = 'DEPT-' . str_pad($candidateNum, 2, '0', STR_PAD_LEFT);
+        $code = 'DEPT-'.str_pad($candidateNum, 2, '0', STR_PAD_LEFT);
 
         while (Department::withTrashed()->where('code', $code)->exists()) {
             $candidateNum++;
-            $code = 'DEPT-' . str_pad($candidateNum, 2, '0', STR_PAD_LEFT);
+            $code = 'DEPT-'.str_pad($candidateNum, 2, '0', STR_PAD_LEFT);
         }
 
         return $code;

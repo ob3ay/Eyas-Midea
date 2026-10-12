@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\PerformanceEvaluation;
-use App\Models\Task;
 use App\Models\User;
 use App\Services\NotificationService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PerformanceController extends Controller
 {
@@ -17,51 +19,41 @@ class PerformanceController extends Controller
         $user = $request->user();
         $scope = $this->authorizeScope('performance.view');
 
-        $employees = Employee::active()
-            ->when($scope === 'self', fn($q) => $q->where('id', $user->employee?->id ?? 0))
-            ->when($scope === 'department', fn($q) => $user->hasRole('SH')
-                ? $q->where('section_id', $user->employee?->section_id)
-                : $q->where('department_id', $user->employee?->department_id))
-            ->with(['department', 'section'])
+        $employeesQuery = $user->employeesWithinScope('performance.view')->active();
+
+        $employees = $employeesQuery
+            ->with(['department', 'section', 'latestEvaluation.evaluator'])
+            ->withCount([
+                'assignedTasks as completed_tasks_count' => fn (Builder $query) => $query->where('status', 'Completed'),
+                'assignedTasks as completed_tasks_with_due_date_count' => fn (Builder $query) => $query
+                    ->where('status', 'Completed')
+                    ->whereNotNull('due_datetime'),
+                'assignedTasks as completed_on_time_count' => fn (Builder $query) => $query
+                    ->where('status', 'Completed')
+                    ->whereNotNull('due_datetime')
+                    ->whereColumn('completed_at', '<=', 'due_datetime'),
+            ])
             ->orderBy('full_name')
             ->get();
 
         $rows = $employees->map(function (Employee $employee) {
-            $completedTasks = Task::where('assignee_employee_id', $employee->id)
-                ->where('status', 'Completed')
-                ->count();
-
-            $totalTasksWithDueDate = Task::where('assignee_employee_id', $employee->id)
-                ->whereNotNull('due_datetime')
-                ->where('status', 'Completed')
-                ->count();
-
-            $onTimeTasks = Task::where('assignee_employee_id', $employee->id)
-                ->whereNotNull('due_datetime')
-                ->where('status', 'Completed')
-                ->whereColumn('completed_at', '<=', 'due_datetime')
-                ->count();
-
-            $onTimeRate = $totalTasksWithDueDate > 0 ? round(($onTimeTasks / $totalTasksWithDueDate) * 100, 1) : null;
-
-            $latestEvaluation = PerformanceEvaluation::where('employee_id', $employee->id)
-                ->with('evaluator')
-                ->latest('evaluation_date')
-                ->first();
+            $totalTasksWithDueDate = $employee->completed_tasks_with_due_date_count;
+            $onTimeRate = $totalTasksWithDueDate > 0
+                ? round(($employee->completed_on_time_count / $totalTasksWithDueDate) * 100, 1)
+                : null;
 
             return (object) [
                 'employee' => $employee,
-                'completed_tasks' => $completedTasks,
+                'completed_tasks' => $employee->completed_tasks_count,
                 'on_time_rate' => $onTimeRate,
-                'evaluation' => $latestEvaluation,
+                'evaluation' => $employee->latestEvaluation,
             ];
         });
 
-        $finalizedScores = PerformanceEvaluation::whereIn('employee_id', $employees->pluck('id'))
+        $overallScore = PerformanceEvaluation::whereIn('employee_id', $employees->modelKeys())
             ->where('is_finalized', true)
-            ->pluck('score');
-
-        $overallScore = $finalizedScores->isNotEmpty() ? round($finalizedScores->avg(), 1) : null;
+            ->avg('score');
+        $overallScore = $overallScore === null ? null : round((float) $overallScore, 1);
 
         $canCreate = $user->hasPermission('performance.create');
 
@@ -82,24 +74,22 @@ class PerformanceController extends Controller
         ]);
 
         $employee = Employee::findOrFail($data['employee_id']);
-        $this->assertWithinScope($user, $scope, $employee);
+        $this->assertWithinScope($user, 'performance.create', $employee);
 
-        $evaluation = PerformanceEvaluation::create([
-            'employee_id' => $employee->id,
-            'evaluator_user_id' => $user->id,
-            'evaluation_date' => $data['evaluation_date'],
-            'period' => $data['period'],
-            'score' => $data['score'],
-            'notes' => $data['notes'] ?? null,
-            'is_finalized' => true,
-        ]);
-        $notifications->createForEmployee(
-            $evaluation->employee_id,
-            'performance_evaluated',
-            'تم تسجيل تقييم أداء',
-            'تم تسجيل تقييم أداء جديد لك.',
-            $evaluation,
-        );
+        DB::transaction(function () use ($employee, $user, $data, $notifications): void {
+            $evaluation = PerformanceEvaluation::create([
+                'employee_id' => $employee->id,
+                'evaluator_user_id' => $user->id,
+                'evaluation_date' => $data['evaluation_date'],
+                'period' => $data['period'],
+                'score' => $data['score'],
+                'notes' => $data['notes'] ?? null,
+                'is_finalized' => true,
+            ]);
+            AuditLog::record('Create', 'PerformanceEvaluation', $evaluation->id);
+            $notifications->createForEmployee($evaluation->employee_id, 'performance_evaluated', 'تم تسجيل تقييم أداء',
+                'تم تسجيل تقييم أداء جديد لك.', $evaluation);
+        });
 
         return back()->with('success', "تم اعتماد تقييم أداء {$employee->full_name} بنجاح");
     }
@@ -116,26 +106,10 @@ class PerformanceController extends Controller
         return $scope;
     }
 
-    private function assertWithinScope(User $user, string $scope, Employee $employee): void
+    private function assertWithinScope(User $user, string $permissionKey, Employee $employee): void
     {
-        if ($scope === 'organization') {
-            return;
-        }
-
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee) {
-            abort(403, 'حسابك غير مرتبط بسجل موظف.');
-        }
-
-        if ($scope === 'self' && $employee->id !== $ownEmployee->id) {
-            abort(403, 'غير مصرح لك بإجراء تقييم خارج نطاق الصلاحيات الممنوحة لك.');
-        }
-
-        if ($scope === 'department') {
-            $boundaryField = $user->hasRole('SH') ? 'section_id' : 'department_id';
-            if ($employee->{$boundaryField} !== $ownEmployee->{$boundaryField}) {
-                abort(403, 'لا تملك صلاحية تقييم سوى الموظفين التابعين لنطاقك الإداري.');
-            }
+        if (! $user->allowsEmployeeWithinScope($permissionKey, $employee)) {
+            abort(403, 'لا تملك صلاحية تقييم هذا الموظف خارج نطاقك الإداري.');
         }
     }
 }

@@ -13,6 +13,7 @@ class ProjectAttachment extends Model
 
     protected $fillable = [
         'project_id',
+        'disk',
         'file_name',
         'file_path',
         'file_size_kb',
@@ -32,15 +33,15 @@ class ProjectAttachment extends Model
 
     public function getUrlAttribute(): string
     {
-        return asset('storage/' . $this->file_path);
+        return route('projects.attachments.download', $this);
     }
 
     public function getFormattedSizeAttribute(): string
     {
         if ($this->file_size_kb >= 1024) {
-            return number_format($this->file_size_kb / 1024, 1) . ' MB';
+            return number_format($this->file_size_kb / 1024, 1).' MB';
         }
 
-        return $this->file_size_kb . ' KB';
+        return $this->file_size_kb.' KB';
     }
 }

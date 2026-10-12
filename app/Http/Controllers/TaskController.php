@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\TaskStatusHistory;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
 {
@@ -20,9 +24,18 @@ class TaskController extends Controller
     {
         $user = $request->user();
         $scope = $this->authorizeScope('tasks.view');
-
+        $projectScope = $user->highestScopeFor('projects.view');
         $query = $this->scopedTasksQuery($user, $scope)
-            ->with(['project', 'assignee', 'creator', 'parentTask', 'subtasks']);
+            ->with([
+                'project' => fn ($query) => $projectScope === null
+                    ? $query->whereRaw('1 = 0')
+                    : $this->constrainProjectQuery($query, $user, $projectScope)->select(['projects.id', 'projects.title']),
+                'assignee:id,full_name',
+            ])
+            ->select([
+                'id', 'title', 'description', 'project_id', 'parent_task_id',
+                'assignee_employee_id', 'priority', 'due_datetime', 'status', 'completion_percentage', 'created_at',
+            ]);
 
         if ($request->filled('project_id')) {
             $query->where('project_id', $request->project_id);
@@ -42,14 +55,14 @@ class TaskController extends Controller
             ->latest()
             ->get();
 
-        $projects = $scope === 'organization'
-            ? Project::orderBy('title')->get()
-            : Project::where('department_id', $user->employee?->department_id ?? 0)->orderBy('title')->get();
+        $projects = $projectScope !== null
+            ? $this->scopedProjectsQuery($user, $projectScope)->orderBy('title')->get(['projects.id', 'projects.title'])
+            : collect();
 
-        $employees = Employee::active()
-            ->when($scope !== 'organization', fn($q) => $q->where('department_id', $user->employee?->department_id ?? 0))
-            ->orderBy('full_name')
-            ->get();
+        $assignmentPermission = $this->widestPermission($user, ['tasks.create', 'tasks.update']);
+        $employees = $assignmentPermission !== null
+            ? $user->employeesWithinScope($assignmentPermission)->active()->orderBy('full_name')->get(['id', 'full_name', 'employee_code', 'department_id'])
+            : collect();
 
         $stats = [
             'total' => $tasks->count(),
@@ -59,7 +72,9 @@ class TaskController extends Controller
             'under_review' => $tasks->where('status', 'Under Review')->count(),
             'completed' => $tasks->where('status', 'Completed')->count(),
             'rejected' => $tasks->where('status', 'Rejected')->count(),
-            'overdue' => $tasks->filter(fn($t) => $t->due_datetime && $t->due_datetime->isPast() && $t->status !== 'Completed')->count(),
+            'overdue' => $tasks->filter(fn ($task) => $task->due_datetime
+                && $task->due_datetime->isPast()
+                && $task->status !== 'Completed')->count(),
         ];
 
         $averageProgress = $tasks->avg('completion_percentage') ?? 0;
@@ -103,7 +118,8 @@ class TaskController extends Controller
         ]);
 
         $assignee = Employee::findOrFail($validated['assignee_employee_id']);
-        $this->assertWithinScope($user, $scope, $assignee);
+        $this->assertWithinScope($user, 'tasks.create', $assignee);
+        $this->assertTaskRelationships($validated, $assignee);
 
         $creatorEmployeeId = $user->employee?->id;
         if (! $creatorEmployeeId) {
@@ -118,14 +134,21 @@ class TaskController extends Controller
             $validated['completed_at'] = now();
         }
 
-        $task = Task::create($validated);
-        $notifications->createForEmployee(
-            $task->assignee_employee_id,
-            'task_assigned',
-            'تم إسناد مهمة جديدة',
-            "تم إسناد المهمة «{$task->title}» إليك.",
-            $task,
-        );
+        $this->assertTaskStatusAllowed($user, $validated['status']);
+
+        DB::transaction(function () use ($validated, $notifications, $creatorEmployeeId): void {
+            $task = Task::create($validated);
+            TaskStatusHistory::create([
+                'task_id' => $task->id,
+                'old_status' => $task->status,
+                'new_status' => $task->status,
+                'notes' => 'Initial status',
+                'changed_by' => $creatorEmployeeId,
+            ]);
+            AuditLog::record('Create', 'Task', $task->id);
+            $notifications->createForEmployee($task->assignee_employee_id, 'task_assigned', 'تم إسناد مهمة جديدة',
+                "تم إسناد المهمة «{$task->title}» إليك.", $task);
+        });
 
         return redirect()->route('tasks.index')->with('success', 'تم إنشاء المهمة بنجاح');
     }
@@ -133,6 +156,7 @@ class TaskController extends Controller
     public function update(Request $request, Task $task, NotificationService $notifications): RedirectResponse
     {
         $user = $request->user();
+        $this->assertTaskManagementAllowed($user);
         $scope = $this->authorizeScope('tasks.update', $task, $user);
 
         $validated = $request->validate([
@@ -148,11 +172,8 @@ class TaskController extends Controller
         ]);
 
         $assignee = Employee::findOrFail($validated['assignee_employee_id']);
-        $this->assertWithinScope($user, $scope, $assignee);
-
-        if (! empty($validated['parent_task_id']) && (int) $validated['parent_task_id'] === (int) $task->id) {
-            return back()->withInput()->withErrors(['parent_task_id' => 'لا يمكن أن تكون المهمة الرئيسية هي نفس المهمة.']);
-        }
+        $this->assertWithinScope($user, 'tasks.update', $assignee);
+        $this->assertTaskRelationships($validated, $assignee, $task);
 
         if ($validated['status'] === 'Completed') {
             $validated['completion_percentage'] = 100;
@@ -163,14 +184,26 @@ class TaskController extends Controller
             $validated['completed_at'] = null;
         }
 
-        $task->update($validated);
-        $notifications->createForEmployee(
-            $task->assignee_employee_id,
-            'task_updated',
-            'تم تحديث مهمة',
-            "تم تحديث المهمة «{$task->title}».",
-            $task,
-        );
+        $this->assertTaskStatusAllowed($user, $validated['status']);
+
+        DB::transaction(function () use ($task, $validated, $notifications, $user): void {
+            $lockedTask = Task::query()->lockForUpdate()->with('assignee')->findOrFail($task->id);
+            $this->authorizeScope('tasks.update', $lockedTask, $user);
+            $this->assertTaskStatusAllowed($user, $validated['status']);
+            $oldStatus = $lockedTask->status;
+            $lockedTask->update($validated);
+            if ($oldStatus !== $lockedTask->status && $user->employee_id !== null) {
+                TaskStatusHistory::create([
+                    'task_id' => $lockedTask->id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $lockedTask->status,
+                    'changed_by' => $user->employee_id,
+                ]);
+            }
+            AuditLog::record('Update', 'Task', $lockedTask->id, ['status' => $oldStatus], ['status' => $lockedTask->status]);
+            $notifications->createForEmployee($lockedTask->assignee_employee_id, 'task_updated', 'تم تحديث مهمة',
+                "تم تحديث المهمة «{$lockedTask->title}».", $lockedTask);
+        });
 
         return redirect()->route('tasks.index')->with('success', 'تم تحديث المهمة بنجاح');
     }
@@ -179,12 +212,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
 
-        if ($user->hasRole('SA')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'تغيير حالات المهام عبر لوحة الكانبان مخصص للموظف ومسؤوله المباشر، ودور مدير النظام الأعلى يقتصر على المتابعة والرقابة.',
-            ], 403);
-        }
+        $this->assertTaskManagementAllowed($user);
 
         $this->authorizeScope('tasks.update', $task, $user);
 
@@ -194,26 +222,34 @@ class TaskController extends Controller
         ]);
 
         $status = $validated['status'];
-        $progress = $validated['completion_percentage'] ?? $task->completion_percentage;
+        $this->assertTaskStatusAllowed($user, $status);
+        $task = DB::transaction(function () use ($task, $status, $validated, $user, $notifications): Task {
+            $lockedTask = Task::query()->lockForUpdate()->with('assignee')->findOrFail($task->id);
+            $this->authorizeScope('tasks.update', $lockedTask, $user);
+            $progress = $status === 'Completed'
+                ? 100
+                : ($validated['completion_percentage'] ?? $lockedTask->completion_percentage);
+            $completedAt = $status === 'Completed' ? ($lockedTask->completed_at ?? now()) : null;
+            $oldStatus = $lockedTask->status;
+            $lockedTask->update([
+                'status' => $status,
+                'completion_percentage' => $progress,
+                'completed_at' => $completedAt,
+            ]);
+            if ($oldStatus !== $lockedTask->status && $user->employee_id !== null) {
+                TaskStatusHistory::create([
+                    'task_id' => $lockedTask->id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $lockedTask->status,
+                    'changed_by' => $user->employee_id,
+                ]);
+            }
+            AuditLog::record('UpdateState', 'Task', $lockedTask->id, ['status' => $oldStatus], ['status' => $lockedTask->status]);
+            $notifications->createForEmployee($lockedTask->assignee_employee_id, 'task_status_changed', 'تغيرت حالة مهمة',
+                "تغيرت حالة المهمة «{$lockedTask->title}» إلى {$lockedTask->status}.", $lockedTask);
 
-        if ($status === 'Completed') {
-            $progress = 100;
-        }
-
-        $completedAt = $status === 'Completed' ? ($task->completed_at ?? now()) : null;
-
-        $task->update([
-            'status' => $status,
-            'completion_percentage' => $progress,
-            'completed_at' => $completedAt,
-        ]);
-        $notifications->createForEmployee(
-            $task->assignee_employee_id,
-            'task_status_changed',
-            'تغيرت حالة مهمة',
-            "تغيرت حالة المهمة «{$task->title}» إلى {$task->status}.",
-            $task,
-        );
+            return $lockedTask;
+        });
 
         return response()->json([
             'success' => true,
@@ -230,9 +266,15 @@ class TaskController extends Controller
     public function destroy(Request $request, Task $task): RedirectResponse
     {
         $user = $request->user();
+        $this->assertTaskManagementAllowed($user);
         $this->authorizeScope('tasks.delete', $task, $user);
 
-        $task->delete();
+        DB::transaction(function () use ($task, $user): void {
+            $lockedTask = Task::query()->lockForUpdate()->with('assignee')->findOrFail($task->id);
+            $this->authorizeScope('tasks.delete', $lockedTask, $user);
+            $lockedTask->delete();
+            AuditLog::record('Delete', 'Task', $lockedTask->id);
+        });
 
         return redirect()->route('tasks.index')->with('success', 'تم حذف المهمة بنجاح');
     }
@@ -246,64 +288,116 @@ class TaskController extends Controller
             abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
-        if ($task !== null && $scope !== 'organization') {
-            $ownEmployee = $user->employee;
-            if (! $ownEmployee) {
-                abort(403, 'حسابك غير مرتبط بسجل موظف.');
-            }
-
-            if ($scope === 'self' && $task->assignee_employee_id !== $ownEmployee->id) {
-                abort(403, 'لا تملك صلاحية إدارة سوى المهام المسندة إليك.');
-            }
-
-            if ($scope === 'department') {
-                $assigneeDept = $task->assignee?->department_id;
-                if ($assigneeDept !== $ownEmployee->department_id) {
-                    abort(403, 'لا تملك صلاحية إدارة سوى مهام موظفي دائرتك.');
-                }
-            }
+        if ($task !== null && ! $user->allowsTaskWithinScope($permissionKey, $task)) {
+            abort(403, 'لا تملك صلاحية إدارة هذه المهمة خارج نطاقك.');
         }
 
         return $scope;
     }
 
-    private function assertWithinScope(User $user, string $scope, Employee $assignee): void
+    private function assertTaskManagementAllowed(User $user): void
     {
-        if ($scope === 'organization') {
-            return;
-        }
+        abort_if($user->hasRole('SA'), 403,
+            'دور مدير النظام الأعلى مخصص لمتابعة المهام والرقابة، وإدارتها من مسؤول الدائرة أو القسم.');
+    }
 
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee) {
-            abort(403, 'حسابك غير مرتبط بسجل موظف.');
+    private function assertTaskStatusAllowed(User $user, string $status): void
+    {
+        if ($user->highestScopeFor('tasks.update') === 'self' && in_array($status, ['Completed', 'Rejected'], true)) {
+            abort(403, 'يمكنك إرسال المهمة للمراجعة، ويعتمد المسؤول إكمالها أو رفضها.');
         }
+    }
 
-        if ($scope === 'self' && $assignee->id !== $ownEmployee->id) {
-            abort(403, 'لا تملك صلاحية إنشاء أو تعديل مهام إلا لنفسك.');
-        }
-
-        if ($scope === 'department' && $assignee->department_id !== $ownEmployee->department_id) {
-            abort(403, 'لا تملك صلاحية إسناد مهام إلا لموظفي دائرتك.');
+    private function assertWithinScope(User $user, string $permissionKey, Employee $assignee): void
+    {
+        if (! $user->allowsEmployeeWithinScope($permissionKey, $assignee)) {
+            abort(403, 'لا تملك صلاحية إسناد المهمة إلى موظف خارج نطاقك.');
         }
     }
 
     private function scopedTasksQuery(User $user, string $scope)
     {
-        $query = Task::query();
+        return $user->tasksWithinScope('tasks.view', $scope);
+    }
 
-        if ($scope === 'organization') {
-            return $query;
+    private function scopedProjectsQuery(User $user, string $scope)
+    {
+        return $user->projectsWithinScope('projects.view', $scope);
+    }
+
+    private function constrainProjectQuery($query, User $user, string $scope)
+    {
+        return $query->whereIn(
+            'projects.id',
+            $user->projectsWithinScope('projects.view', $scope)->select('projects.id'),
+        );
+    }
+
+    private function widestPermission(User $user, array $permissions): ?string
+    {
+        $priority = ['self' => 1, 'section' => 2, 'department' => 3, 'organization' => 4];
+        $selected = null;
+        $selectedPriority = 0;
+
+        foreach ($permissions as $permission) {
+            $scope = $user->highestScopeFor($permission);
+            if ($scope !== null && ($priority[$scope] ?? 0) > $selectedPriority) {
+                $selected = $permission;
+                $selectedPriority = $priority[$scope];
+            }
         }
 
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee) {
-            return $query->whereRaw('1 = 0');
+        return $selected;
+    }
+
+    private function assertTaskRelationships(
+        array $data,
+        Employee $assignee,
+        ?Task $currentTask = null,
+    ): void {
+        $project = null;
+
+        if (! empty($data['project_id'])) {
+            $project = Project::query()
+                ->whereKey($data['project_id'])
+                ->where('department_id', $assignee->department_id)
+                ->first();
+
+            if ($project === null) {
+                throw ValidationException::withMessages([
+                    'project_id' => 'المشروع المحدد لا يتبع دائرة الموظف المكلّف.',
+                ]);
+            }
         }
 
-        if ($scope === 'self') {
-            return $query->where('assignee_employee_id', $ownEmployee->id);
+        if (empty($data['parent_task_id'])) {
+            return;
         }
 
-        return $query->whereHas('assignee', fn($q) => $q->where('department_id', $ownEmployee->department_id));
+        $parentTask = Task::query()->find($data['parent_task_id']);
+
+        if ($parentTask === null || $parentTask->project_id !== ($project?->id)) {
+            throw ValidationException::withMessages([
+                'parent_task_id' => 'يجب أن تتبع المهمة الأم المشروع نفسه.',
+            ]);
+        }
+
+        $visitedTaskIds = [];
+        while ($parentTask !== null) {
+            if ($currentTask !== null && $parentTask->id === $currentTask->id) {
+                throw ValidationException::withMessages([
+                    'parent_task_id' => 'لا يمكن إنشاء دورة في تسلسل المهام.',
+                ]);
+            }
+
+            if (isset($visitedTaskIds[$parentTask->id])) {
+                throw ValidationException::withMessages([
+                    'parent_task_id' => 'تسلسل المهام الحالي يحتوي دورة غير صالحة.',
+                ]);
+            }
+
+            $visitedTaskIds[$parentTask->id] = true;
+            $parentTask = $parentTask->parentTask;
+        }
     }
 }

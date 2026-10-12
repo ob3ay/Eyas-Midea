@@ -222,17 +222,21 @@
                                     $progress = (float) ($project->completion_percentage ?? 0);
 
                                     $statusLabels = [
+                                        'draft' => 'مسودة',
                                         'in_progress' => 'قيد التنفيذ',
                                         'in_review' => 'قيد المراجعة',
                                         'completed' => 'مكتمل',
                                         'on_hold' => 'متوقف',
+                                        'cancelled' => 'ملغي',
                                     ];
 
                                     $statusClasses = [
+                                        'draft' => 'badge-secondary',
                                         'in_progress' => 'badge-warning',
                                         'in_review' => 'badge-purple',
                                         'completed' => 'badge-success',
                                         'on_hold' => 'badge-danger',
+                                        'cancelled' => 'badge-danger',
                                     ];
 
                                     $statusLabel = $statusLabels[$project->status] ?? $project->status;
@@ -260,10 +264,15 @@
                                         @endif
 
                                         @if ($project->attachments->count() > 0)
-                                            <div style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                                <span class="ems-badge badge-gold" style="font-size: 11px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;" title="{{ $project->attachments->pluck('file_name')->implode('، ') }}">
-                                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                                            <div
+                                                style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                                <span class="ems-badge badge-gold"
+                                                    style="font-size: 11px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;"
+                                                    title="{{ $project->attachments->pluck('file_name')->implode('، ') }}">
+                                                    <svg viewBox="0 0 24 24" width="12" height="12"
+                                                        fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path
+                                                            d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                                                     </svg>
                                                     {{ $project->attachments->count() }} مرفق
                                                 </span>
@@ -352,8 +361,10 @@
                                         ">
 
                                             {{-- View Tasks Accordion --}}
-                                            <button type="button" class="ems-btn ems-btn-icon" title="عرض مهام المشروع ({{ $project->tasks->count() }})"
-                                                onclick="toggleProjectTasks({{ $project->id }})" id="btn-tasks-{{ $project->id }}" style="transition: all .2s ease;">
+                                            <button type="button" class="ems-btn ems-btn-icon"
+                                                title="عرض مهام المشروع ({{ $project->tasks->count() }})"
+                                                onclick="toggleProjectTasks({{ $project->id }})"
+                                                id="btn-tasks-{{ $project->id }}" style="transition: all .2s ease;">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                     stroke-width="2">
                                                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
@@ -377,7 +388,8 @@
 
                                             {{-- Delete --}}
                                             @if ($canDelete)
-                                                <form action="{{ route('projects.destroy', $project->id) }}" method="POST"
+                                                <form action="{{ route('projects.destroy', $project->id) }}"
+                                                    method="POST"
                                                     onsubmit="return confirm('هل أنت متأكد من رغبتك في حذف هذا المشروع؟');"
                                                     style="display: inline;">
                                                     @csrf
@@ -404,33 +416,47 @@
                                 </tr>
 
                                 {{-- Project Tasks Accordion Row --}}
-                                <tr id="project-tasks-row-{{ $project->id }}" class="project-tasks-row" style="display: none; background: #fdfbf7;">
-                                    <td colspan="8" style="padding: 16px 20px; border-bottom: 2px solid var(--ems-gold-light, #e2d2b4);">
-                                        <div style="background: var(--ems-surface, #ffffff); border: 1px solid var(--ems-border, #e5e7eb); border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-                                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                                <tr id="project-tasks-row-{{ $project->id }}" class="project-tasks-row"
+                                    style="display: none; background: #fdfbf7;">
+                                    <td colspan="8"
+                                        style="padding: 16px 20px; border-bottom: 2px solid var(--ems-gold-light, #e2d2b4);">
+                                        <div
+                                            style="background: var(--ems-surface, #ffffff); border: 1px solid var(--ems-border, #e5e7eb); border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                                            <div
+                                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
                                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(197, 160, 89, 0.15); display: flex; align-items: center; justify-content: center; color: var(--ems-gold-hover, #a8823b);">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                                            <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+                                                    <div
+                                                        style="width: 32px; height: 32px; border-radius: 8px; background: rgba(197, 160, 89, 0.15); display: flex; align-items: center; justify-content: center; color: var(--ems-gold-hover, #a8823b);">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" width="18" height="18">
+                                                            <rect width="18" height="18" x="3" y="3"
+                                                                rx="2"></rect>
                                                             <path d="m9 12 2 2 4-4"></path>
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--ems-text-main);">
+                                                        <h4
+                                                            style="margin: 0; font-size: 15px; font-weight: 700; color: var(--ems-text-main);">
                                                             مهام مشروع: {{ $project->title }}
                                                         </h4>
                                                         <span style="font-size: 12px; color: var(--ems-text-muted);">
-                                                            إجمالي المهام المسجلة: <strong>{{ $project->tasks->count() }}</strong> مهمة
+                                                            إجمالي المهام المسجلة:
+                                                            <strong>{{ $project->tasks->count() }}</strong> مهمة
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                <a href="{{ route('tasks.index', ['project_id' => $project->id]) }}" class="ems-btn ems-btn-sm ems-btn-secondary" style="font-size: 12px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px;">
+                                                <a href="{{ route('tasks.index', ['project_id' => $project->id]) }}"
+                                                    class="ems-btn ems-btn-sm ems-btn-secondary"
+                                                    style="font-size: 12px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px;">
                                                     <span>فتح في لوحة المهام</span>
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-                                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2" width="14" height="14">
+                                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6">
+                                                        </path>
                                                         <polyline points="15 3 21 3 21 9"></polyline>
-                                                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                                                        <line x1="10" y1="14" x2="21"
+                                                            y2="3"></line>
                                                     </svg>
                                                 </a>
                                             </div>
@@ -451,64 +477,115 @@
                                                         <tbody>
                                                             @php
                                                                 $taskStatusMap = [
-                                                                    'Draft' => ['label' => 'مسودة', 'class' => 'badge-draft'],
-                                                                    'To-Do' => ['label' => 'قيد الانتظار', 'class' => 'badge-danger'],
-                                                                    'In Progress' => ['label' => 'قيد التنفيذ', 'class' => 'badge-progress'],
-                                                                    'Under Review' => ['label' => 'قيد المراجعة', 'class' => 'badge-review'],
-                                                                    'Completed' => ['label' => 'مكتملة', 'class' => 'badge-completed'],
-                                                                    'Rejected' => ['label' => 'مرفوضة', 'class' => 'badge-danger'],
+                                                                    'Draft' => [
+                                                                        'label' => 'مسودة',
+                                                                        'class' => 'badge-draft',
+                                                                    ],
+                                                                    'To-Do' => [
+                                                                        'label' => 'قيد الانتظار',
+                                                                        'class' => 'badge-danger',
+                                                                    ],
+                                                                    'In Progress' => [
+                                                                        'label' => 'قيد التنفيذ',
+                                                                        'class' => 'badge-progress',
+                                                                    ],
+                                                                    'Under Review' => [
+                                                                        'label' => 'قيد المراجعة',
+                                                                        'class' => 'badge-review',
+                                                                    ],
+                                                                    'Completed' => [
+                                                                        'label' => 'مكتملة',
+                                                                        'class' => 'badge-completed',
+                                                                    ],
+                                                                    'Rejected' => [
+                                                                        'label' => 'مرفوضة',
+                                                                        'class' => 'badge-danger',
+                                                                    ],
                                                                 ];
                                                                 $taskPriorityMap = [
-                                                                    'Low' => ['label' => 'منخفضة', 'class' => 'badge-completed'],
-                                                                    'Medium' => ['label' => 'متوسطة', 'class' => 'badge-gold'],
-                                                                    'High' => ['label' => 'عالية', 'class' => 'badge-danger'],
-                                                                    'Urgent' => ['label' => 'عاجلة', 'class' => 'badge-danger'],
+                                                                    'Low' => [
+                                                                        'label' => 'منخفضة',
+                                                                        'class' => 'badge-completed',
+                                                                    ],
+                                                                    'Medium' => [
+                                                                        'label' => 'متوسطة',
+                                                                        'class' => 'badge-gold',
+                                                                    ],
+                                                                    'High' => [
+                                                                        'label' => 'عالية',
+                                                                        'class' => 'badge-danger',
+                                                                    ],
+                                                                    'Urgent' => [
+                                                                        'label' => 'عاجلة',
+                                                                        'class' => 'badge-danger',
+                                                                    ],
                                                                 ];
                                                             @endphp
                                                             @foreach ($project->tasks as $task)
                                                                 @php
-                                                                    $st = $taskStatusMap[$task->status] ?? ['label' => $task->status, 'class' => ''];
-                                                                    $pr = $taskPriorityMap[$task->priority] ?? ['label' => $task->priority, 'class' => ''];
-                                                                    $isMyTask = auth()->user()?->employee_id === $task->assignee_employee_id;
+                                                                    $st = $taskStatusMap[$task->status] ?? [
+                                                                        'label' => $task->status,
+                                                                        'class' => '',
+                                                                    ];
+                                                                    $pr = $taskPriorityMap[$task->priority] ?? [
+                                                                        'label' => $task->priority,
+                                                                        'class' => '',
+                                                                    ];
+                                                                    $isMyTask =
+                                                                        auth()->user()?->employee_id ===
+                                                                        $task->assignee_employee_id;
                                                                 @endphp
-                                                                <tr style="{{ $isMyTask ? 'background: rgba(197, 160, 89, 0.05);' : '' }}">
+                                                                <tr
+                                                                    style="{{ $isMyTask ? 'background: rgba(197, 160, 89, 0.05);' : '' }}">
                                                                     <td style="padding: 10px 12px;">
-                                                                        <div style="font-weight: 700; color: var(--ems-text-main);">
+                                                                        <div
+                                                                            style="font-weight: 700; color: var(--ems-text-main);">
                                                                             {{ $task->title }}
                                                                             @if ($isMyTask)
-                                                                                <span class="ems-badge badge-gold" style="font-size: 10px; padding: 2px 6px; margin-right: 6px;">مهمتي</span>
+                                                                                <span class="ems-badge badge-gold"
+                                                                                    style="font-size: 10px; padding: 2px 6px; margin-right: 6px;">مهمتي</span>
                                                                             @endif
                                                                         </div>
                                                                         @if ($task->description)
-                                                                            <div style="font-size: 11px; color: var(--ems-text-muted); margin-top: 3px;">
+                                                                            <div
+                                                                                style="font-size: 11px; color: var(--ems-text-muted); margin-top: 3px;">
                                                                                 {{ Str::limit($task->description, 65) }}
                                                                             </div>
                                                                         @endif
                                                                     </td>
-                                                                    <td style="padding: 10px 12px; color: var(--ems-text-main);">
+                                                                    <td
+                                                                        style="padding: 10px 12px; color: var(--ems-text-main);">
                                                                         {{ $task->assignee?->full_name ?? 'غير مسند' }}
                                                                     </td>
                                                                     <td style="padding: 10px 12px;">
-                                                                        <span class="ems-badge {{ $pr['class'] }}" style="font-size: 11px;">
+                                                                        <span class="ems-badge {{ $pr['class'] }}"
+                                                                            style="font-size: 11px;">
                                                                             {{ $pr['label'] }}
                                                                         </span>
                                                                     </td>
                                                                     <td style="padding: 10px 12px;">
-                                                                        <span class="ems-badge {{ $st['class'] }}" style="font-size: 11px;">
+                                                                        <span class="ems-badge {{ $st['class'] }}"
+                                                                            style="font-size: 11px;">
                                                                             {{ $st['label'] }}
                                                                         </span>
                                                                     </td>
                                                                     <td style="padding: 10px 12px;">
-                                                                        <div style="display: flex; align-items: center; gap: 8px; min-width: 90px;">
-                                                                            <div class="ems-progress" style="height: 5px; flex-grow: 1;">
-                                                                                <div class="ems-progress-bar {{ $task->completion_percentage >= 100 ? 'success' : '' }}" style="width: {{ min(100, $task->completion_percentage ?? 0) }}%;"></div>
+                                                                        <div
+                                                                            style="display: flex; align-items: center; gap: 8px; min-width: 90px;">
+                                                                            <div class="ems-progress"
+                                                                                style="height: 5px; flex-grow: 1;">
+                                                                                <div class="ems-progress-bar {{ $task->completion_percentage >= 100 ? 'success' : '' }}"
+                                                                                    style="width: {{ min(100, $task->completion_percentage ?? 0) }}%;">
+                                                                                </div>
                                                                             </div>
-                                                                            <span style="font-size: 11px; font-weight: 700; font-family: var(--font-mono);">
+                                                                            <span
+                                                                                style="font-size: 11px; font-weight: 700; font-family: var(--font-mono);">
                                                                                 {{ round($task->completion_percentage ?? 0) }}%
                                                                             </span>
                                                                         </div>
                                                                     </td>
-                                                                    <td style="padding: 10px 12px; font-size: 12px; color: var(--ems-text-muted);">
+                                                                    <td
+                                                                        style="padding: 10px 12px; font-size: 12px; color: var(--ems-text-muted);">
                                                                         {{ $task->due_datetime ? $task->due_datetime->format('Y-m-d') : '-' }}
                                                                     </td>
                                                                 </tr>
@@ -517,17 +594,24 @@
                                                     </table>
                                                 </div>
                                             @else
-                                                <div style="text-align: center; padding: 20px; color: var(--ems-text-muted); font-size: 13px;">
+                                                <div
+                                                    style="text-align: center; padding: 20px; color: var(--ems-text-muted); font-size: 13px;">
                                                     لا توجد مهام مسندة لهذا المشروع حالياً.
                                                 </div>
                                             @endif
 
                                             {{-- Project Attachments Section --}}
-                                            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--ems-border, #e5e7eb);">
-                                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                                                    <span style="font-size: 13.5px; font-weight: 700; color: var(--ems-text-main); display: inline-flex; align-items: center; gap: 6px;">
-                                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ems-gold-hover, #a8823b)" stroke-width="2">
-                                                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                                            <div
+                                                style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--ems-border, #e5e7eb);">
+                                                <div
+                                                    style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                                    <span
+                                                        style="font-size: 13.5px; font-weight: 700; color: var(--ems-text-main); display: inline-flex; align-items: center; gap: 6px;">
+                                                        <svg viewBox="0 0 24 24" width="16" height="16"
+                                                            fill="none" stroke="var(--ems-gold-hover, #a8823b)"
+                                                            stroke-width="2">
+                                                            <path
+                                                                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                                                         </svg>
                                                         مرفقات المشروع ({{ $project->attachments->count() }})
                                                     </span>
@@ -536,16 +620,29 @@
                                                 @if ($project->attachments->count() > 0)
                                                     <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                                                         @foreach ($project->attachments as $att)
-                                                            <div style="background: var(--ems-surface-alt, #f8fafc); border: 1px solid var(--ems-border, #e2e8f0); border-radius: 8px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 10px;">
-                                                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--ems-gold-hover, #a8823b)" stroke-width="2">
-                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                            <div
+                                                                style="background: var(--ems-surface-alt, #f8fafc); border: 1px solid var(--ems-border, #e2e8f0); border-radius: 8px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 10px;">
+                                                                <svg viewBox="0 0 24 24" width="18" height="18"
+                                                                    fill="none" stroke="var(--ems-gold-hover, #a8823b)"
+                                                                    stroke-width="2">
+                                                                    <path
+                                                                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z">
+                                                                    </path>
                                                                     <polyline points="14 2 14 8 20 8"></polyline>
                                                                 </svg>
                                                                 <div>
-                                                                    <div style="font-size: 12.5px; font-weight: 600; color: var(--ems-text-main);">{{ $att->file_name }}</div>
-                                                                    <div style="font-size: 11px; color: var(--ems-text-muted);">{{ $att->formatted_size }} &bull; {{ $att->created_at->format('Y-m-d') }}</div>
+                                                                    <div
+                                                                        style="font-size: 12.5px; font-weight: 600; color: var(--ems-text-main);">
+                                                                        {{ $att->file_name }}</div>
+                                                                    <div
+                                                                        style="font-size: 11px; color: var(--ems-text-muted);">
+                                                                        {{ $att->formatted_size }} &bull;
+                                                                        {{ $att->created_at->format('Y-m-d') }}</div>
                                                                 </div>
-                                                                <a href="{{ route('projects.attachments.download', $att) }}" class="ems-btn ems-btn-sm ems-btn-secondary" style="padding: 4px 10px; font-size: 11.5px; margin-right: 6px; text-decoration: none;" title="تحميل الملف">
+                                                                <a href="{{ route('projects.attachments.download', $att) }}"
+                                                                    class="ems-btn ems-btn-sm ems-btn-secondary"
+                                                                    style="padding: 4px 10px; font-size: 11.5px; margin-right: 6px; text-decoration: none;"
+                                                                    title="تحميل الملف">
                                                                     تحميل ⬇
                                                                 </a>
                                                             </div>
@@ -583,6 +680,10 @@
 
             </div>
 
+            <div class="ems-card-body" style="padding-top: 0;">
+                {{ $projects->links() }}
+            </div>
+
         </div>
 
     </div>
@@ -602,7 +703,8 @@
                     <div class="ems-modal-body">
                         <div class="ems-form-group">
                             <label class="ems-label"><span class="required">*</span> اسم المشروع</label>
-                            <input type="text" name="title" class="ems-input" required placeholder="أدخل اسم المشروع">
+                            <input type="text" name="title" class="ems-input" required
+                                placeholder="أدخل اسم المشروع">
                         </div>
 
                         <div class="ems-form-group">
@@ -612,14 +714,16 @@
 
                         <div class="ems-form-row">
                             <div class="ems-form-group">
-                                <label class="ems-label"><span class="required">*</span> الدائرة المسؤولة عن المشروع</label>
-                                <select name="department_id" id="add_department_id" class="ems-input" required onchange="handleDepartmentChange(this.value, 'add')">
+                                <label class="ems-label"><span class="required">*</span> الدائرة المسؤولة عن
+                                    المشروع</label>
+                                <select name="department_id" id="add_department_id" class="ems-input" required
+                                    onchange="handleDepartmentChange(this.value, 'add')">
                                     <option value="">-- اختر الدائرة المسؤولة --</option>
                                     @foreach ($departments as $department)
-                                        <option value="{{ $department->id }}" 
-                                                data-manager-id="{{ $department->manager_employee_id ?? '' }}"
-                                                data-manager-name="{{ $department->manager?->full_name ?? '' }}"
-                                                {{ $departments->count() === 1 ? 'selected' : '' }}>
+                                        <option value="{{ $department->id }}"
+                                            data-manager-id="{{ $department->manager_employee_id ?? '' }}"
+                                            data-manager-name="{{ $department->manager?->full_name ?? '' }}"
+                                            {{ $departments->count() === 1 ? 'selected' : '' }}>
                                             {{ $department->name }}
                                         </option>
                                     @endforeach
@@ -631,19 +735,22 @@
                                 <select name="owner_employee_id" id="add_owner_employee_id" class="ems-input">
                                     <option value="">اختر المسؤول</option>
                                     @foreach ($employees as $employee)
-                                        <option value="{{ $employee->id }}" data-department-id="{{ $employee->department_id ?? '' }}">
+                                        <option value="{{ $employee->id }}"
+                                            data-department-id="{{ $employee->department_id ?? '' }}">
                                             {{ $employee->full_name }}
                                         </option>
                                     @endforeach
                                 </select>
-                                <div id="add_manager_hint" style="font-size: 11.5px; color: #15803d; margin-top: 5px; display: none;"></div>
+                                <div id="add_manager_hint"
+                                    style="font-size: 11.5px; color: #15803d; margin-top: 5px; display: none;"></div>
                             </div>
                         </div>
 
                         <div class="ems-form-row">
                             <div class="ems-form-group">
                                 <label class="ems-label"><span class="required">*</span> تاريخ البداية</label>
-                                <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}" required>
+                                <input type="date" name="start_date" class="ems-input" value="{{ date('Y-m-d') }}"
+                                    required>
                             </div>
 
                             <div class="ems-form-group">
@@ -656,16 +763,19 @@
                             <div class="ems-form-group">
                                 <label class="ems-label"><span class="required">*</span> الحالة</label>
                                 <select name="status" class="ems-input" required>
+                                    <option value="draft">مسودة</option>
                                     <option value="in_progress">قيد التنفيذ</option>
                                     <option value="in_review">قيد المراجعة</option>
                                     <option value="completed">مكتمل</option>
                                     <option value="on_hold">متوقف</option>
+                                    <option value="cancelled">ملغي</option>
                                 </select>
                             </div>
 
                             <div class="ems-form-group">
                                 <label class="ems-label">نسبة الإنجاز (%)</label>
-                                <input type="number" name="completion_percentage" class="ems-input" min="0" max="100" value="0">
+                                <input type="number" name="completion_percentage" class="ems-input" min="0"
+                                    max="100" value="0">
                             </div>
                         </div>
 
@@ -673,40 +783,47 @@
                         <div class="ems-form-group">
                             <label class="ems-label">
                                 مرفقات المشروع
-                                <span style="font-size: 11px; font-weight: normal; color: var(--ems-text-muted); margin-right: 6px;">(اختياري — ملفات، مستندات، عروض، صور — حتى 20MB لكل ملف)</span>
+                                <span
+                                    style="font-size: 11px; font-weight: normal; color: var(--ems-text-muted); margin-right: 6px;">(اختياري
+                                    — ملفات، مستندات، عروض، صور — حتى 20MB لكل ملف)</span>
                             </label>
-                            <div class="ems-dropzone" style="border: 2px dashed var(--ems-border, #cbd5e1); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer; transition: all 0.2s;"
+                            <div class="ems-dropzone"
+                                style="border: 2px dashed var(--ems-border, #cbd5e1); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer; transition: all 0.2s;"
                                 onclick="document.getElementById('add_project_attachments').click()"
                                 id="addProjectDropzone"
                                 ondragover="event.preventDefault(); this.style.borderColor='var(--ems-gold, #c5a059)'; this.style.background='rgba(197, 160, 89, 0.05)';"
                                 ondragleave="this.style.borderColor=''; this.style.background='';"
                                 ondrop="handleProjectFilesDrop(event, 'add')">
-                                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="var(--ems-text-muted)" stroke-width="1.6" style="margin: 0 auto 6px; display:block;">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                    <polyline points="17 8 12 3 7 8"/>
-                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                <svg viewBox="0 0 24 24" width="30" height="30" fill="none"
+                                    stroke="var(--ems-text-muted)" stroke-width="1.6"
+                                    style="margin: 0 auto 6px; display:block;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
                                 </svg>
                                 <div style="font-size: 13px; font-weight: 600; color: var(--ems-text-main);">
                                     اضغط لرفع المرفقات أو اسحب الملفات هنا
                                 </div>
-                                <span style="font-size: 11.5px; color: var(--ems-text-muted); display: block; margin-top: 4px;">
+                                <span
+                                    style="font-size: 11.5px; color: var(--ems-text-muted); display: block; margin-top: 4px;">
                                     يمكن اختيار أكثر من ملف (PDF, Word, Excel, صور, ZIP)
                                 </span>
                             </div>
                             <input type="file" id="add_project_attachments" name="attachments[]" multiple
-                                style="display: none;"
-                                onchange="handleProjectFilesSelect(this, 'add')">
-                            <div id="add_project_files_list" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;"></div>
+                                style="display: none;" onchange="handleProjectFilesSelect(this, 'add')">
+                            <div id="add_project_files_list"
+                                style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;"></div>
                         </div>
                     </div>
 
-                <div class="ems-modal-footer">
-                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-add-project')">إلغاء</button>
-                    <button type="submit" class="ems-btn ems-btn-primary">حفظ المشروع</button>
-                </div>
-            </form>
+                    <div class="ems-modal-footer">
+                        <button type="button" class="ems-btn ems-btn-secondary"
+                            onclick="closeModal('modal-add-project')">إلغاء</button>
+                        <button type="submit" class="ems-btn ems-btn-primary">حفظ المشروع</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
     @endif
 
 
@@ -736,13 +853,15 @@
 
                         <div class="ems-form-row">
                             <div class="ems-form-group">
-                                <label class="ems-label"><span class="required">*</span> الدائرة المسؤولة عن المشروع</label>
-                                <select id="edit_department_id" name="department_id" class="ems-input" required onchange="handleDepartmentChange(this.value, 'edit')">
+                                <label class="ems-label"><span class="required">*</span> الدائرة المسؤولة عن
+                                    المشروع</label>
+                                <select id="edit_department_id" name="department_id" class="ems-input" required
+                                    onchange="handleDepartmentChange(this.value, 'edit')">
                                     <option value="">-- اختر الدائرة المسؤولة --</option>
                                     @foreach ($departments as $department)
-                                        <option value="{{ $department->id }}" 
-                                                data-manager-id="{{ $department->manager_employee_id ?? '' }}"
-                                                data-manager-name="{{ $department->manager?->full_name ?? '' }}">
+                                        <option value="{{ $department->id }}"
+                                            data-manager-id="{{ $department->manager_employee_id ?? '' }}"
+                                            data-manager-name="{{ $department->manager?->full_name ?? '' }}">
                                             {{ $department->name }}
                                         </option>
                                     @endforeach
@@ -754,12 +873,14 @@
                                 <select id="edit_owner_employee_id" name="owner_employee_id" class="ems-input">
                                     <option value="">اختر المسؤول</option>
                                     @foreach ($employees as $employee)
-                                        <option value="{{ $employee->id }}" data-department-id="{{ $employee->department_id ?? '' }}">
+                                        <option value="{{ $employee->id }}"
+                                            data-department-id="{{ $employee->department_id ?? '' }}">
                                             {{ $employee->full_name }}
                                         </option>
                                     @endforeach
                                 </select>
-                                <div id="edit_manager_hint" style="font-size: 11.5px; color: #15803d; margin-top: 5px; display: none;"></div>
+                                <div id="edit_manager_hint"
+                                    style="font-size: 11.5px; color: #15803d; margin-top: 5px; display: none;"></div>
                             </div>
                         </div>
 
@@ -778,16 +899,19 @@
                         <div class="ems-form-row">
                             <div class="ems-form-group">
                                 <label class="ems-label">تاريخ الانتهاء الفعلي</label>
-                                <input type="date" id="edit_actual_end_date" name="actual_end_date" class="ems-input">
+                                <input type="date" id="edit_actual_end_date" name="actual_end_date"
+                                    class="ems-input">
                             </div>
 
                             <div class="ems-form-group">
                                 <label class="ems-label"><span class="required">*</span> الحالة</label>
                                 <select id="edit_status" name="status" class="ems-input" required>
+                                    <option value="draft">مسودة</option>
                                     <option value="in_progress">قيد التنفيذ</option>
                                     <option value="in_review">قيد المراجعة</option>
                                     <option value="completed">مكتمل</option>
                                     <option value="on_hold">متوقف</option>
+                                    <option value="cancelled">ملغي</option>
                                 </select>
                             </div>
                         </div>
@@ -801,8 +925,11 @@
                         {{-- المرفقات الحالية للمشروع --}}
                         <div class="ems-form-group">
                             <label class="ems-label">المرفقات الحالية للمشروع</label>
-                            <div id="edit_project_existing_attachments" style="border: 1px solid var(--ems-border, #e5e7eb); border-radius: 8px; padding: 10px; min-height: 44px; background: var(--ems-surface-alt, #fafafa);">
-                                <div style="font-size: 12px; color: var(--ems-text-muted); text-align: center; padding: 6px;">لا توجد مرفقات سابقة لهذا المشروع.</div>
+                            <div id="edit_project_existing_attachments"
+                                style="border: 1px solid var(--ems-border, #e5e7eb); border-radius: 8px; padding: 10px; min-height: 44px; background: var(--ems-surface-alt, #fafafa);">
+                                <div
+                                    style="font-size: 12px; color: var(--ems-text-muted); text-align: center; padding: 6px;">
+                                    لا توجد مرفقات سابقة لهذا المشروع.</div>
                             </div>
                         </div>
 
@@ -810,37 +937,43 @@
                         <div class="ems-form-group">
                             <label class="ems-label">
                                 إضافة مرفقات جديدة
-                                <span style="font-size: 11px; font-weight: normal; color: var(--ems-text-muted); margin-right: 6px;">(اختياري — حتى 20MB لكل ملف)</span>
+                                <span
+                                    style="font-size: 11px; font-weight: normal; color: var(--ems-text-muted); margin-right: 6px;">(اختياري
+                                    — حتى 20MB لكل ملف)</span>
                             </label>
-                            <div class="ems-dropzone" style="border: 2px dashed var(--ems-border, #cbd5e1); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s;"
+                            <div class="ems-dropzone"
+                                style="border: 2px dashed var(--ems-border, #cbd5e1); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s;"
                                 onclick="document.getElementById('edit_project_attachments').click()"
                                 id="editProjectDropzone"
                                 ondragover="event.preventDefault(); this.style.borderColor='var(--ems-gold, #c5a059)'; this.style.background='rgba(197, 160, 89, 0.05)';"
                                 ondragleave="this.style.borderColor=''; this.style.background='';"
                                 ondrop="handleProjectFilesDrop(event, 'edit')">
-                                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--ems-text-muted)" stroke-width="1.6" style="margin: 0 auto 6px; display:block;">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                    <polyline points="17 8 12 3 7 8"/>
-                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                <svg viewBox="0 0 24 24" width="28" height="28" fill="none"
+                                    stroke="var(--ems-text-muted)" stroke-width="1.6"
+                                    style="margin: 0 auto 6px; display:block;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
                                 </svg>
                                 <div style="font-size: 13px; font-weight: 600; color: var(--ems-text-main);">
                                     اضغط لاختيار مرفقات جديدة أو اسحبها هنا
                                 </div>
                             </div>
                             <input type="file" id="edit_project_attachments" name="attachments[]" multiple
-                                style="display: none;"
-                                onchange="handleProjectFilesSelect(this, 'edit')">
-                            <div id="edit_project_files_list" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;"></div>
+                                style="display: none;" onchange="handleProjectFilesSelect(this, 'edit')">
+                            <div id="edit_project_files_list"
+                                style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;"></div>
                         </div>
                     </div>
 
-                <div class="ems-modal-footer">
-                    <button type="button" class="ems-btn ems-btn-secondary" onclick="closeModal('modal-edit-project')">إلغاء</button>
-                    <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
-                </div>
-            </form>
+                    <div class="ems-modal-footer">
+                        <button type="button" class="ems-btn ems-btn-secondary"
+                            onclick="closeModal('modal-edit-project')">إلغاء</button>
+                        <button type="submit" class="ems-btn ems-btn-primary">حفظ التعديلات</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
     @endif
 
     {{-- Hidden Delete Attachment Form --}}
@@ -854,6 +987,7 @@
     <script>
         const projectsData = @js(
     $projects
+        ->getCollection()
         ->map(function ($project) {
             return [
                 'id' => $project->id,
@@ -866,13 +1000,18 @@
                 'actual_end_date' => $project->actual_end_date?->format('Y-m-d'),
                 'status' => $project->status,
                 'completion_percentage' => (float) $project->completion_percentage,
-                'attachments' => $project->attachments->map(fn($att) => [
-                    'id' => $att->id,
-                    'file_name' => $att->file_name,
-                    'file_size_formatted' => $att->formatted_size,
-                    'download_url' => route('projects.attachments.download', $att),
-                    'delete_url' => route('projects.attachments.destroy', $att),
-                ])->values()->all(),
+                'attachments' => $project->attachments
+                    ->map(
+                        fn($att) => [
+                            'id' => $att->id,
+                            'file_name' => $att->file_name,
+                            'file_size_formatted' => $att->formatted_size,
+                            'download_url' => route('projects.attachments.download', $att),
+                            'delete_url' => route('projects.attachments.destroy', $att),
+                        ],
+                    )
+                    ->values()
+                    ->all(),
             ];
         })
         ->values()
@@ -889,7 +1028,8 @@
 
         function handleDepartmentChange(deptId, mode) {
             const deptSelect = document.getElementById(mode === 'add' ? 'add_department_id' : 'edit_department_id');
-            const ownerSelect = document.getElementById(mode === 'add' ? 'add_owner_employee_id' : 'edit_owner_employee_id');
+            const ownerSelect = document.getElementById(mode === 'add' ? 'add_owner_employee_id' :
+            'edit_owner_employee_id');
             const hint = document.getElementById(mode === 'add' ? 'add_manager_hint' : 'edit_manager_hint');
             if (!deptSelect || !ownerSelect) return;
 
@@ -908,7 +1048,11 @@
                 if (hint) {
                     hint.style.display = 'block';
                     hint.style.color = '#15803d';
-                    hint.innerHTML = '✓ تم تحديد مدير الدائرة تلقائياً: <strong>' + (managerName || '') + '</strong>';
+                    hint.replaceChildren();
+                    hint.append(document.createTextNode('✓ تم تحديد مدير الدائرة تلقائياً: '));
+                    const managerLabel = document.createElement('strong');
+                    managerLabel.textContent = managerName || '';
+                    hint.append(managerLabel);
                 }
             } else {
                 if (mode === 'add') {
@@ -930,76 +1074,99 @@
         });
 
         @if ($canUpdate)
-        function openEditProjectModal(projectId) {
-            const project = projectsData.find(
-                item => Number(item.id) === Number(projectId)
-            );
+            function openEditProjectModal(projectId) {
+                const project = projectsData.find(
+                    item => Number(item.id) === Number(projectId)
+                );
 
-            if (!project) {
-                return;
-            }
-
-            const form = document.getElementById('editProjectForm');
-            if (form) {
-                form.action = "{{ url('/projects') }}/" + project.id;
-            }
-
-            document.getElementById('edit_title').value = project.title ?? '';
-            document.getElementById('edit_description').value = project.description ?? '';
-            document.getElementById('edit_department_id').value = project.department_id ?? '';
-            document.getElementById('edit_owner_employee_id').value = project.owner_employee_id ?? '';
-            document.getElementById('edit_start_date').value = project.start_date ?? '';
-            document.getElementById('edit_end_date').value = project.end_date ?? '';
-            document.getElementById('edit_actual_end_date').value = project.actual_end_date ?? '';
-            document.getElementById('edit_status').value = project.status ?? 'in_progress';
-            document.getElementById('edit_completion_percentage').value = project.completion_percentage ?? 0;
-
-            const editHint = document.getElementById('edit_manager_hint');
-            if (!project.owner_employee_id && project.department_id) {
-                handleDepartmentChange(project.department_id, 'edit');
-            } else if (editHint) {
-                editHint.style.display = 'none';
-            }
-
-            // Render existing attachments
-            const existingContainer = document.getElementById('edit_project_existing_attachments');
-            if (existingContainer) {
-                if (project.attachments && project.attachments.length > 0) {
-                    existingContainer.innerHTML = project.attachments.map(att => `
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #fff; border: 1px solid var(--ems-border, #e5e7eb); border-radius: 6px; margin-bottom: 6px;">
-                            <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-                                <span style="font-size: 13px;">📎</span>
-                                <span style="font-size: 12.5px; font-weight: 600; color: var(--ems-text-main); white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 250px;" title="${att.file_name}">${att.file_name}</span>
-                                <span style="font-size: 11px; color: var(--ems-text-muted);">(${att.file_size_formatted})</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <a href="${att.download_url}" class="ems-btn ems-btn-sm ems-btn-secondary" style="padding: 3px 8px; font-size: 11px; text-decoration: none;" title="تحميل الملف">⬇</a>
-                                <button type="button" class="ems-btn ems-btn-sm" style="padding: 3px 8px; font-size: 11px; color: #ef4444; border-color: #fecaca; background: #fef2f2;" onclick="deleteProjectAttachment('${att.delete_url}')" title="حذف هذا المرفق">✕</button>
-                            </div>
-                        </div>
-                    `).join('');
-                } else {
-                    existingContainer.innerHTML = '<div style="font-size: 12px; color: var(--ems-text-muted); text-align: center; padding: 6px;">لا توجد مرفقات سابقة لهذا المشروع.</div>';
+                if (!project) {
+                    return;
                 }
+
+                const form = document.getElementById('editProjectForm');
+                if (form) {
+                    form.action = "{{ url('/projects') }}/" + project.id;
+                }
+
+                document.getElementById('edit_title').value = project.title ?? '';
+                document.getElementById('edit_description').value = project.description ?? '';
+                document.getElementById('edit_department_id').value = project.department_id ?? '';
+                document.getElementById('edit_owner_employee_id').value = project.owner_employee_id ?? '';
+                document.getElementById('edit_start_date').value = project.start_date ?? '';
+                document.getElementById('edit_end_date').value = project.end_date ?? '';
+                document.getElementById('edit_actual_end_date').value = project.actual_end_date ?? '';
+                document.getElementById('edit_status').value = project.status ?? 'in_progress';
+                document.getElementById('edit_completion_percentage').value = project.completion_percentage ?? 0;
+
+                const editHint = document.getElementById('edit_manager_hint');
+                if (!project.owner_employee_id && project.department_id) {
+                    handleDepartmentChange(project.department_id, 'edit');
+                } else if (editHint) {
+                    editHint.style.display = 'none';
+                }
+
+                // Render existing attachments
+                const existingContainer = document.getElementById('edit_project_existing_attachments');
+                if (existingContainer) {
+                    if (project.attachments && project.attachments.length > 0) {
+                        existingContainer.replaceChildren(...project.attachments.map((att) => {
+                            const row = document.createElement('div');
+                            row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#fff;border:1px solid var(--ems-border,#e5e7eb);border-radius:6px;margin-bottom:6px;';
+                            const details = document.createElement('div');
+                            details.style.cssText = 'display:flex;align-items:center;gap:8px;overflow:hidden;';
+                            const icon = document.createElement('span');
+                            icon.style.fontSize = '13px';
+                            icon.textContent = '📎';
+                            const name = document.createElement('span');
+                            name.style.cssText = 'font-size:12.5px;font-weight:600;color:var(--ems-text-main);white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:250px;';
+                            name.title = String(att.file_name || '');
+                            name.textContent = String(att.file_name || '');
+                            const size = document.createElement('span');
+                            size.style.cssText = 'font-size:11px;color:var(--ems-text-muted);';
+                            size.textContent = `(${String(att.file_size_formatted || '')})`;
+                            details.append(icon, name, size);
+                            const actions = document.createElement('div');
+                            actions.style.cssText = 'display:flex;align-items:center;gap:6px;';
+                            const download = document.createElement('a');
+                            download.href = String(att.download_url || '#');
+                            download.className = 'ems-btn ems-btn-sm ems-btn-secondary';
+                            download.style.cssText = 'padding:3px 8px;font-size:11px;text-decoration:none;';
+                            download.title = 'تحميل الملف';
+                            download.textContent = '⬇';
+                            const remove = document.createElement('button');
+                            remove.type = 'button';
+                            remove.className = 'ems-btn ems-btn-sm';
+                            remove.style.cssText = 'padding:3px 8px;font-size:11px;color:#ef4444;border-color:#fecaca;background:#fef2f2;';
+                            remove.title = 'حذف هذا المرفق';
+                            remove.textContent = '✕';
+                            remove.addEventListener('click', () => deleteProjectAttachment(String(att.delete_url || '')));
+                            actions.append(download, remove);
+                            row.append(details, actions);
+                            return row;
+                        }));
+                    } else {
+                        existingContainer.innerHTML =
+                            '<div style="font-size: 12px; color: var(--ems-text-muted); text-align: center; padding: 6px;">لا توجد مرفقات سابقة لهذا المشروع.</div>';
+                    }
+                }
+
+                // Reset new files input
+                const editFileInput = document.getElementById('edit_project_attachments');
+                if (editFileInput) editFileInput.value = '';
+                const editFilesList = document.getElementById('edit_project_files_list');
+                if (editFilesList) editFilesList.innerHTML = '';
+
+                openModal('modal-edit-project');
             }
 
-            // Reset new files input
-            const editFileInput = document.getElementById('edit_project_attachments');
-            if (editFileInput) editFileInput.value = '';
-            const editFilesList = document.getElementById('edit_project_files_list');
-            if (editFilesList) editFilesList.innerHTML = '';
-
-            openModal('modal-edit-project');
-        }
-
-        function deleteProjectAttachment(url) {
-            if (!confirm('هل أنت متأكد من رغبتك في حذف هذا المرفق نهائياً؟')) {
-                return;
+            function deleteProjectAttachment(url) {
+                if (!confirm('هل أنت متأكد من رغبتك في حذف هذا المرفق نهائياً؟')) {
+                    return;
+                }
+                const form = document.getElementById('deleteAttachmentForm');
+                form.action = url;
+                form.submit();
             }
-            const form = document.getElementById('deleteAttachmentForm');
-            form.action = url;
-            form.submit();
-        }
         @endif
 
         function handleProjectFilesSelect(input, mode) {
@@ -1029,22 +1196,29 @@
                 return;
             }
 
-            let html = '';
+            const items = [];
             for (let i = 0; i < files.length; i++) {
                 const f = files[i];
                 const kb = (f.size / 1024).toFixed(0);
                 const sizeStr = kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB' : kb + ' KB';
-                html += `
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px;">
-                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-                            <span style="color: #15803d; font-weight: bold;">✓</span>
-                            <span style="font-weight: 600; color: #166534; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 280px;">${f.name}</span>
-                            <span style="color: #6b7280; font-size: 11px;">(${sizeStr})</span>
-                        </div>
-                    </div>
-                `;
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:12px;';
+                const details = document.createElement('div');
+                details.style.cssText = 'display:flex;align-items:center;gap:6px;overflow:hidden;';
+                const check = document.createElement('span');
+                check.style.cssText = 'color:#15803d;font-weight:bold;';
+                check.textContent = '✓';
+                const name = document.createElement('span');
+                name.style.cssText = 'font-weight:600;color:#166534;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:280px;';
+                name.textContent = f.name;
+                const size = document.createElement('span');
+                size.style.cssText = 'color:#6b7280;font-size:11px;';
+                size.textContent = `(${sizeStr})`;
+                details.append(check, name, size);
+                row.append(details);
+                items.push(row);
             }
-            list.innerHTML = html;
+            list.replaceChildren(...items);
         }
 
         function toggleProjectTasks(projectId) {

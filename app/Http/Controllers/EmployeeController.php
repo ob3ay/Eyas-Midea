@@ -26,7 +26,7 @@ class EmployeeController extends Controller
         $user = $request->user();
         $scope = $this->authorizeScope('employees.view');
 
-        $employeeQuery = $this->scopedEmployeesQuery($user, $scope);
+        $employeeQuery = $user->employeesWithinScope('employees.view', $scope);
         $search = $request->string('search')->trim()->toString();
         $departmentId = $request->integer('department_id');
         $employmentStatus = $request->string('employment_status')->toString();
@@ -40,10 +40,10 @@ class EmployeeController extends Controller
                         ->orWhere('position', 'like', "%{$search}%");
                 });
             })
-            ->when($departmentId > 0, fn($query) => $query->where('department_id', $departmentId))
+            ->when($departmentId > 0, fn ($query) => $query->where('department_id', $departmentId))
             ->when(
                 in_array($employmentStatus, ['active', 'inactive', 'on_leave'], true),
-                fn($query) => $query->where('employment_status', $employmentStatus)
+                fn ($query) => $query->where('employment_status', $employmentStatus)
             );
 
         $employees = $filteredQuery
@@ -58,14 +58,14 @@ class EmployeeController extends Controller
         $onLeaveCount = (clone $employeeQuery)->where('employment_status', 'on_leave')->count();
         $departmentCount = (clone $employeeQuery)->whereNotNull('department_id')->distinct('department_id')->count('department_id');
 
-        $nextEmployeeCode = 'EMP-' . str_pad((Employee::withTrashed()->max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT);
+        $nextEmployeeCode = 'EMP-'.str_pad((Employee::withTrashed()->max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT);
 
         $departments = $scope === 'organization'
             ? Department::with('sections')->orderBy('name')->get()
             : Department::with('sections')
-            ->whereKey($user->employee?->department_id)
-            ->orderBy('name')
-            ->get();
+                ->whereKey($user->employee?->department_id)
+                ->orderBy('name')
+                ->get();
 
         $canCreate = $user->hasPermission('employees.create');
         $canUpdate = $user->hasPermission('employees.update');
@@ -90,7 +90,13 @@ class EmployeeController extends Controller
 
     public function show(Request $request, Employee $employee)
     {
-        $this->authorizeScope('employees.view', $employee, $request->user());
+        $viewer = $request->user();
+        $this->authorizeScope('employees.view', $employee, $viewer);
+        $canViewTasks = $viewer->allowsEmployeeWithinScope('tasks.view', $employee);
+        $canViewProjects = $viewer->allowsEmployeeWithinScope('projects.view', $employee);
+        $canViewAttendance = $viewer->allowsEmployeeWithinScope('attendance.view', $employee);
+        $canViewPerformance = $viewer->allowsEmployeeWithinScope('performance.view', $employee);
+        $canViewAuditLogs = $viewer->allowsEmployeeWithinScope('audit_logs.view', $employee);
         /*
     |--------------------------------------------------------------------------
     | بيانات الموظف الأساسية
@@ -109,25 +115,13 @@ class EmployeeController extends Controller
     | المهام المسندة للموظف
     |--------------------------------------------------------------------------
     */
-        $managedProjectIds = Project::where('owner_employee_id', $employee->id)->pluck('id');
-
-        $tasks = Task::with([
-            'project',
-            'assignee',
-            'comments',
-            'attachments',
-            'statusHistory',
-        ])
-            ->withCount([
-                'comments',
-                'attachments',
-            ])
-            ->where(function ($query) use ($employee, $managedProjectIds) {
-                $query->where('assignee_employee_id', $employee->id)
-                    ->orWhereIn('project_id', $managedProjectIds);
-            })
-            ->latest()
-            ->get();
+        $tasks = $canViewTasks
+            ? Task::with(['project', 'assignee', 'comments', 'attachments', 'statusHistory'])
+                ->withCount(['comments', 'attachments'])
+                ->where('assignee_employee_id', $employee->id)
+                ->latest()
+                ->get()
+            : collect();
 
         /*
     |--------------------------------------------------------------------------
@@ -157,87 +151,65 @@ class EmployeeController extends Controller
     | المشاريع التي الموظف عضو فيها
     |--------------------------------------------------------------------------
     */
-        $projects = Project::with([
-            'department',
-            'owner',
-        ])
-            ->withCount('tasks')
-            ->whereHas('members', function ($query) use ($employee) {
-                $query->where('employees.id', $employee->id);
-            })
-            ->latest()
-            ->get();
+        $projects = $canViewProjects
+            ? Project::with(['department', 'owner'])
+                ->whereHas('members', fn ($query) => $query->where('employees.id', $employee->id))
+                ->latest()
+                ->get()
+            : collect();
 
         /*
     |--------------------------------------------------------------------------
     | المشاريع التي الموظف مسؤول عنها
     |--------------------------------------------------------------------------
     */
-        $managedProjects = Project::with([
-            'department',
-        ])
-            ->withCount('tasks')
-            ->where('owner_employee_id', $employee->id)
-            ->latest()
-            ->get();
+        $managedProjects = $canViewProjects
+            ? Project::with('department')
+                ->where('owner_employee_id', $employee->id)
+                ->latest()
+                ->get()
+            : collect();
 
         /*
     |--------------------------------------------------------------------------
     | الحضور والانصراف
     |--------------------------------------------------------------------------
     */
-        $attendanceRecords = AttendanceRecord::where('employee_id', $employee->id)
-            ->latest('date')
-            ->latest('id')
-            ->limit(30)
-            ->get();
+        $attendanceRecords = $canViewAttendance
+            ? AttendanceRecord::where('employee_id', $employee->id)
+                ->latest('date')->latest('id')->limit(30)->get()
+            : collect();
 
-        $attendanceTotal = AttendanceRecord::where('employee_id', $employee->id)
-            ->count();
+        $attendanceTotal = $canViewAttendance ? AttendanceRecord::where('employee_id', $employee->id)->count() : 0;
 
-        $attendancePresent = AttendanceRecord::where('employee_id', $employee->id)
-            ->where('status', 'Present')
-            ->count();
+        $attendancePresent = $canViewAttendance ? AttendanceRecord::where('employee_id', $employee->id)->where('status', 'Present')->count() : 0;
 
-        $attendanceAbsent = AttendanceRecord::where('employee_id', $employee->id)
-            ->where('status', 'Absent')
-            ->count();
+        $attendanceAbsent = $canViewAttendance ? AttendanceRecord::where('employee_id', $employee->id)->where('status', 'Absent')->count() : 0;
 
-        $attendanceLate = AttendanceRecord::where('employee_id', $employee->id)
-            ->where('status', 'Late')
-            ->count();
+        $attendanceLate = $canViewAttendance ? AttendanceRecord::where('employee_id', $employee->id)->where('status', 'Late')->count() : 0;
 
-        $attendanceLeave = AttendanceRecord::where('employee_id', $employee->id)
-            ->where('status', 'Leave')
-            ->count();
+        $attendanceLeave = $canViewAttendance ? AttendanceRecord::where('employee_id', $employee->id)->where('status', 'Leave')->count() : 0;
 
         /*
     |--------------------------------------------------------------------------
     | طلبات تصحيح الحضور
     |--------------------------------------------------------------------------
     */
-        $correctionRequests = AttendanceCorrectionRequest::with([
-            'attendanceRecord',
-        ])
-            ->whereHas('attendanceRecord', function ($query) use ($employee) {
-                $query->where('employee_id', $employee->id);
-            })
-            ->latest()
-            ->limit(20)
-            ->get();
+        $correctionRequests = $canViewAttendance
+            ? AttendanceCorrectionRequest::with('attendanceRecord')
+                ->whereHas('attendanceRecord', fn ($query) => $query->where('employee_id', $employee->id))
+                ->latest()->limit(20)->get()
+            : collect();
 
         /*
     |--------------------------------------------------------------------------
     | تقييمات الأداء
     |--------------------------------------------------------------------------
     */
-        $evaluations = PerformanceEvaluation::with([
-            'evaluator',
-        ])
-            ->where('employee_id', $employee->id)
-            ->latest('evaluation_date')
-            ->latest('id')
-            ->get();
+        $evaluations = $canViewPerformance
+            ? PerformanceEvaluation::with('evaluator')->where('employee_id', $employee->id)
+                ->latest('evaluation_date')->latest('id')->get()
+            : collect();
 
         $averageScore = $evaluations->avg('score');
 
@@ -248,7 +220,7 @@ class EmployeeController extends Controller
     */
         $notifications = collect();
 
-        if ($employee->user) {
+        if ($employee->user && $viewer->is($employee->user)) {
             $notifications = $employee->user
                 ->notifications()
                 ->latest()
@@ -261,12 +233,10 @@ class EmployeeController extends Controller
     | سجل العمليات Audit
     |--------------------------------------------------------------------------
     */
-        $auditLogs = AuditLog::with('user')
-            ->where('entity_type', 'Employee')
-            ->where('entity_id', $employee->id)
-            ->latest()
-            ->limit(30)
-            ->get();
+        $auditLogs = $canViewAuditLogs
+            ? AuditLog::with('user')->where('entity_type', 'Employee')->where('entity_id', $employee->id)
+                ->latest()->limit(30)->get()
+            : collect();
 
         /*
     |--------------------------------------------------------------------------
@@ -283,6 +253,12 @@ class EmployeeController extends Controller
 
         return view('employees.show', compact(
             'employee',
+
+            'canViewTasks',
+            'canViewProjects',
+            'canViewAttendance',
+            'canViewPerformance',
+            'canViewAuditLogs',
 
             'tasks',
             'taskTotal',
@@ -318,6 +294,9 @@ class EmployeeController extends Controller
     {
         $user = $request->user();
         $scope = $this->authorizeScope('employees.create');
+        if (! in_array($scope, ['organization', 'department', 'section'], true)) {
+            abort(403, 'نطاق صلاحية إنشاء الموظفين غير صالح لهذه العملية.');
+        }
 
         $data = $request->validate([
             'emp_code' => ['nullable', 'string', 'max:30', 'unique:employees,employee_code'],
@@ -331,25 +310,33 @@ class EmployeeController extends Controller
                 'nullable',
                 'integer',
                 Rule::exists('sections', 'id')->where(
-                    fn($query) => $query->where('department_id', $request->integer('department_id'))
+                    fn ($query) => $query->where('department_id', $request->integer('department_id'))
                 ),
             ],
             'job_title' => ['required', 'string', 'max:100'],
             'hire_date' => ['required', 'date'],
         ]);
 
-        if ($scope === 'department' && (int) $data['department_id'] !== (int) $user->employee?->department_id) {
+        if (in_array($scope, ['department', 'section'], true)
+            && (int) $data['department_id'] !== (int) $user->employee?->department_id) {
             abort(403, 'لا تملك صلاحية إضافة موظفين إلا ضمن دائرتك.');
         }
 
+        if ($scope === 'section') {
+            $sectionId = $user->employee?->section_id;
+            if ($sectionId === null || (int) ($data['section_id'] ?? 0) !== (int) $sectionId) {
+                abort(403, 'لا تملك صلاحية إضافة موظفين إلا ضمن قسمك.');
+            }
+        }
+
         $username = $this->generateUniqueUsername($data['first_name'], $data['last_name']);
-        $temporaryPassword = "password123";
+        $temporaryPassword = Str::random(40);
 
         $employee = DB::transaction(function () use ($data, $username, $temporaryPassword) {
             $employee = Employee::create([
                 'employee_code' => $data['emp_code'] ?? null,
                 'national_id' => $data['national_id'],
-                'full_name' => trim($data['first_name'] . ' ' . $data['last_name']),
+                'full_name' => trim($data['first_name'].' '.$data['last_name']),
                 'phone' => $data['phone'],
                 'department_id' => $data['department_id'],
                 'section_id' => $data['section_id'] ?? null,
@@ -363,8 +350,11 @@ class EmployeeController extends Controller
                 'username' => $username,
                 'email' => $data['email'],
                 'password' => Hash::make($temporaryPassword),
+                'must_change_password' => true,
                 'is_active' => true,
             ]);
+
+            AuditLog::record('Create', 'Employee', $employee->id);
 
             return $employee;
         });
@@ -375,7 +365,7 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee): RedirectResponse
     {
         $user = $request->user();
-        $this->authorizeScope('employees.update', $employee, $user);
+        $scope = $this->authorizeScope('employees.update', $employee, $user);
 
         $data = $request->validate([
             'full_name' => ['required', 'string', 'max:200'],
@@ -385,18 +375,34 @@ class EmployeeController extends Controller
                 'nullable',
                 'integer',
                 Rule::exists('sections', 'id')->where(
-                    fn($query) => $query->where('department_id', $request->integer('department_id'))
+                    fn ($query) => $query->where('department_id', $request->integer('department_id'))
                 ),
             ],
             'phone' => ['nullable', 'string', 'max:25'],
             'employment_status' => ['required', Rule::in(['active', 'inactive', 'on_leave'])],
         ]);
 
+        if ($scope === 'self') {
+            // Self-service profile edits must never change the employee's authority anchor.
+            $data = array_intersect_key($data, array_flip(['full_name', 'phone']));
+        }
+
         if ($this->isDepartmentOutsideScope($user, $data['department_id'])) {
             abort(403, 'لا يمكنك إدارة موظفين خارج نطاق دائرتك.');
         }
 
-        $employee->update($data);
+        if ($user->highestScopeFor('employees.update') === 'section') {
+            $sectionId = $user->employee?->section_id;
+            if ($sectionId === null || (int) ($data['section_id'] ?? 0) !== (int) $sectionId) {
+                abort(403, 'لا يمكنك نقل الموظفين خارج قسمك.');
+            }
+        }
+
+        DB::transaction(function () use ($employee, $data): void {
+            $lockedEmployee = Employee::query()->lockForUpdate()->findOrFail($employee->id);
+            $lockedEmployee->update($data);
+            AuditLog::record('Update', 'Employee', $lockedEmployee->id);
+        });
 
         return back()->with('success', 'تم تحديث بيانات الموظف بنجاح');
     }
@@ -406,11 +412,21 @@ class EmployeeController extends Controller
         $user = $request->user();
         $this->authorizeScope('employees.delete', $employee, $user);
 
-        if ($employee->user()->exists()) {
+        $deleted = DB::transaction(function () use ($employee): bool {
+            $lockedEmployee = Employee::query()->lockForUpdate()->findOrFail($employee->id);
+            if ($lockedEmployee->user()->lockForUpdate()->exists()) {
+                return false;
+            }
+
+            $lockedEmployee->delete();
+            AuditLog::record('Delete', 'Employee', $lockedEmployee->id);
+
+            return true;
+        });
+
+        if (! $deleted) {
             return back()->with('error', 'لا يمكن حذف هذا الموظف لوجود حساب مستخدم مرتبط به، يرجى تعطيل الحساب أولاً.');
         }
-
-        $employee->delete();
 
         return back()->with('success', 'تم حذف الموظف بنجاح');
     }
@@ -424,53 +440,11 @@ class EmployeeController extends Controller
             abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
-        if ($target !== null && $scope !== 'organization') {
-            $ownEmployee = $user->employee;
-
-            if (! $ownEmployee) {
-                abort(403, 'حسابك غير مرتبط بسجل موظف.');
-            }
-
-            if ($scope === 'self' && $target->id !== $ownEmployee->id) {
-                abort(403, 'لا تملك صلاحية استعراض أو تعديل سوى بياناتك الشخصية.');
-            }
-
-            if ($scope === 'department') {
-                if ($user->hasRole('SH')) {
-                    if ($target->section_id !== $ownEmployee->section_id) {
-                        abort(403, 'لا تملك صلاحية استعراض أو تعديل سوى موظفي قسمك.');
-                    }
-                } elseif ($target->department_id !== $ownEmployee->department_id) {
-                    abort(403, 'لا تملك صلاحية استعراض أو تعديل سوى موظفي دائرتك.');
-                }
-            }
+        if ($target !== null && ! $user->allowsEmployeeWithinScope($permissionKey, $target)) {
+            abort(403, 'لا تملك صلاحية استعراض أو تعديل هذا الموظف خارج نطاقك.');
         }
 
         return $scope;
-    }
-
-    private function scopedEmployeesQuery(User $user, string $scope)
-    {
-        $query = Employee::query();
-
-        if ($scope === 'organization') {
-            return $query;
-        }
-
-        $ownEmployee = $user->employee;
-        if (! $ownEmployee) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        if ($scope === 'self') {
-            return $query->where('id', $ownEmployee->id);
-        }
-
-        if ($user->hasRole('SH')) {
-            return $query->where('section_id', $ownEmployee->section_id);
-        }
-
-        return $query->where('department_id', $ownEmployee->department_id);
     }
 
     private function isDepartmentOutsideScope(User $user, int $departmentId): bool
@@ -481,17 +455,18 @@ class EmployeeController extends Controller
             return false;
         }
 
-        return (int) $user->employee?->department_id !== $departmentId;
+        return in_array($scope, ['department', 'section'], true)
+            && (int) $user->employee?->department_id !== $departmentId;
     }
 
     private function generateUniqueUsername(string $firstName, string $lastName): string
     {
-        $base = Str::slug($firstName . '.' . $lastName, '.');
+        $base = Str::slug($firstName.'.'.$lastName, '.');
         $username = $base;
         $counter = 1;
 
         while (User::where('username', $username)->exists()) {
-            $username = $base . $counter;
+            $username = $base.$counter;
             $counter++;
         }
 

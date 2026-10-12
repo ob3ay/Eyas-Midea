@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\EmployeeRequest;
 use App\Models\User;
 use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class EmployeeRequestController extends Controller
@@ -16,42 +18,43 @@ class EmployeeRequestController extends Controller
     {
         $user = $request->user();
         $employee = $user->employee;
-
-        $isSuperAdmin = $user->hasRole('SA') || $user->hasRole('EX');
-        $isAdmin = $isSuperAdmin || $user->hasRole('OM') || $user->hasRole('HOD') || $user->hasRole('SH');
+        $scope = $this->authorizeScope($user, 'requests.view');
+        $isAdmin = in_array($scope, ['section', 'department', 'organization'], true);
+        $canCreateRequest = $user->hasPermission('requests.create');
+        $canCancelRequest = $user->hasPermission('requests.cancel');
+        $canApproveRequest = $user->hasPermission('requests.approve');
+        $canRejectRequest = $user->hasPermission('requests.reject');
+        $isSuperAdmin = $user->hasRole('SA');
 
         $query = EmployeeRequest::with(['employee.department', 'employee.section', 'reviewer'])
             ->latest();
 
-        if ($user->hasRole('SA') || $user->hasRole('EX') || $user->hasRole('OM')) {
-            // الإدارة العليا ترى جميع طلبات الكوادر
-        } elseif ($user->hasRole('SH') && $employee?->section_id) {
-            $query->whereHas('employee', fn ($q) => $q->where('section_id', $employee->section_id));
-        } elseif ($user->hasRole('HOD') && $employee?->department_id) {
-            $query->whereHas('employee', fn ($q) => $q->where('department_id', $employee->department_id));
-        } else {
-            $query->where('employee_id', $employee?->id ?? 0);
-        }
+        $query->whereIn('employee_id', $user->employeesWithinScope('requests.view')->select('employees.id'));
 
-        $requests = $query->get();
-
-        $myRequests = $employee
-            ? EmployeeRequest::where('employee_id', $employee->id)->latest()->get()
-            : collect();
+        $statusCounts = (clone $query)
+            ->selectRaw('status, count(*) as aggregate')
+            ->reorder()
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+        $requests = $query->paginate(25)->withQueryString();
 
         $stats = [
-            'total' => $requests->count(),
-            'pending' => $requests->where('status', 'pending')->count(),
-            'approved' => $requests->where('status', 'approved')->count(),
-            'rejected' => $requests->where('status', 'rejected')->count(),
+            'total' => (int) $statusCounts->sum(),
+            'pending' => (int) $statusCounts->get('pending', 0),
+            'approved' => (int) $statusCounts->get('approved', 0),
+            'rejected' => (int) $statusCounts->get('rejected', 0),
         ];
 
-        return view('requests.index', compact('requests', 'myRequests', 'stats', 'employee', 'isAdmin', 'isSuperAdmin'));
+        return view('requests.index', compact(
+            'requests', 'stats', 'employee', 'isAdmin', 'isSuperAdmin',
+            'canCreateRequest', 'canCancelRequest', 'canApproveRequest', 'canRejectRequest',
+        ));
     }
 
     public function store(Request $request, NotificationService $notifications): RedirectResponse
     {
         $user = $request->user();
+        $this->authorizeScope($user, 'requests.create');
         $employee = $user->employee;
 
         if (! $employee) {
@@ -82,28 +85,34 @@ class EmployeeRequestController extends Controller
             $daysCount = $start->diffInDays($end) + 1;
         }
 
-        $empRequest = EmployeeRequest::create([
-            'employee_id' => $employee->id,
-            'type' => $validated['type'],
-            'title' => $validated['title'],
-            'reason' => $validated['reason'] ?? null,
-            'start_date' => $validated['start_date'] ?? null,
-            'end_date' => $validated['end_date'] ?? null,
-            'days_count' => $daysCount,
-            'amount' => $validated['amount'] ?? null,
-            'status' => 'pending',
-        ]);
+        DB::transaction(function () use ($employee, $validated, $daysCount, $notifications): void {
+            $employeeRequest = EmployeeRequest::create([
+                'employee_id' => $employee->id,
+                'type' => $validated['type'],
+                'title' => $validated['title'],
+                'reason' => $validated['reason'] ?? null,
+                'start_date' => $validated['start_date'] ?? null,
+                'end_date' => $validated['end_date'] ?? null,
+                'days_count' => $daysCount,
+                'amount' => $validated['amount'] ?? null,
+                'status' => 'pending',
+            ]);
+            AuditLog::record('Create', 'EmployeeRequest', $employeeRequest->id);
 
-        $adminUsers = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['SA', 'EX']))->get();
-        foreach ($adminUsers as $admin) {
-            $notifications->createForUser(
-                $admin,
-                'new_employee_request',
-                'طلب موظف جديد وارد',
-                'قام الموظف ' . $employee->full_name . ' بتقديم: ' . $validated['title'],
-                $empRequest
-            );
-        }
+            $adminUsers = User::whereHas('roles.permissions', fn ($q) => $q
+                ->where('permissions.key', 'requests.approve')
+                ->where('role_permissions.scope', 'organization'))
+                ->get();
+            foreach ($adminUsers as $admin) {
+                $notifications->createForUser(
+                    $admin,
+                    'new_employee_request',
+                    'طلب موظف جديد وارد',
+                    'قام الموظف '.$employee->full_name.' بتقديم: '.$validated['title'],
+                    $employeeRequest
+                );
+            }
+        });
 
         return redirect()->route('requests.index')->with('success', 'تم تقديم طلبك بنجاح، وهو الآن قيد المراجعة والاعتماد لدى الإدارة.');
     }
@@ -111,26 +120,14 @@ class EmployeeRequestController extends Controller
     public function approve(Request $request, EmployeeRequest $employeeRequest, NotificationService $notifications): RedirectResponse
     {
         $user = $request->user();
-        $this->assertCanDecide($user, $employeeRequest);
-
         $validated = $request->validate([
             'admin_notes' => ['nullable', 'string', 'max:1000'],
         ]);
-
-        $employeeRequest->update([
-            'status' => 'approved',
-            'reviewed_by' => $user->id,
-            'reviewed_at' => now(),
-            'admin_notes' => $validated['admin_notes'] ?? null,
-        ]);
-
-        $notifications->createForEmployee(
-            $employeeRequest->employee_id,
-            'request_approved',
-            'تمت الموافقة على طلبك',
-            'تمت الموافقة الرسمية على: ' . $employeeRequest->title . ($validated['admin_notes'] ? ' — ملاحظة: ' . $validated['admin_notes'] : ''),
-            $employeeRequest
-        );
+        DB::transaction(function () use ($user, $employeeRequest, $validated, $notifications): void {
+            $decided = $this->decide($user, $employeeRequest, 'requests.approve', 'approved', $validated['admin_notes'] ?? null);
+            $notifications->createForEmployee($decided->employee_id, 'request_approved', 'تمت الموافقة على طلبك',
+                'تمت الموافقة الرسمية على: '.$decided->title.(($validated['admin_notes'] ?? null) ? ' — ملاحظة: '.$validated['admin_notes'] : ''), $decided);
+        });
 
         return redirect()->route('requests.index')->with('success', 'تم اعتماد وقبول الطلب بنجاح، وتم إشعار الموظف بذلك.');
     }
@@ -138,26 +135,14 @@ class EmployeeRequestController extends Controller
     public function reject(Request $request, EmployeeRequest $employeeRequest, NotificationService $notifications): RedirectResponse
     {
         $user = $request->user();
-        $this->assertCanDecide($user, $employeeRequest);
-
         $validated = $request->validate([
             'admin_notes' => ['nullable', 'string', 'max:1000'],
         ]);
-
-        $employeeRequest->update([
-            'status' => 'rejected',
-            'reviewed_by' => $user->id,
-            'reviewed_at' => now(),
-            'admin_notes' => $validated['admin_notes'] ?? null,
-        ]);
-
-        $notifications->createForEmployee(
-            $employeeRequest->employee_id,
-            'request_rejected',
-            'تم رفض الطلب',
-            'تم رفض: ' . $employeeRequest->title . ($validated['admin_notes'] ? ' — السبب: ' . $validated['admin_notes'] : ''),
-            $employeeRequest
-        );
+        DB::transaction(function () use ($user, $employeeRequest, $validated, $notifications): void {
+            $decided = $this->decide($user, $employeeRequest, 'requests.reject', 'rejected', $validated['admin_notes'] ?? null);
+            $notifications->createForEmployee($decided->employee_id, 'request_rejected', 'تم رفض الطلب',
+                'تم رفض: '.$decided->title.(($validated['admin_notes'] ?? null) ? ' — السبب: '.$validated['admin_notes'] : ''), $decided);
+        });
 
         return redirect()->route('requests.index')->with('success', 'تم رفض الطلب وتسجيل الملاحظات، وتم إشعار الموظف.');
     }
@@ -167,37 +152,72 @@ class EmployeeRequestController extends Controller
         $user = $request->user();
         $employee = $user->employee;
 
-        if (! $employee || ($employeeRequest->employee_id !== $employee->id && ! $user->hasRole('SA'))) {
-            abort(403, 'غير مصرح لك بإلغاء هذا الطلب.');
-        }
+        abort_unless($employee !== null, 403, 'غير مصرح لك بإلغاء هذا الطلب.');
+        $cancelled = DB::transaction(function () use ($user, $employeeRequest): bool {
+            $lockedRequest = EmployeeRequest::query()->lockForUpdate()->with('employee')->findOrFail($employeeRequest->id);
+            $this->authorizeScope($user, 'requests.cancel');
+            if ($lockedRequest->employee === null || ! $user->allowsEmployeeWithinScope('requests.cancel', $lockedRequest->employee)) {
+                abort(403, 'غير مصرح لك بإلغاء هذا الطلب.');
+            }
 
-        if ($employeeRequest->status !== 'pending') {
+            if ($lockedRequest->status !== 'pending') {
+                return false;
+            }
+
+            $lockedRequest->update(['status' => 'cancelled']);
+            AuditLog::record('Cancel', 'EmployeeRequest', $lockedRequest->id);
+
+            return true;
+        });
+
+        if (! $cancelled) {
             return redirect()->route('requests.index')->with('error', 'لا يمكن إلغاء هذا الطلب لأنه تمت مراجعته مسبقاً.');
         }
-
-        $employeeRequest->update(['status' => 'cancelled']);
 
         return redirect()->route('requests.index')->with('success', 'تم إلغاء الطلب بنجاح.');
     }
 
-    private function assertCanDecide(User $user, EmployeeRequest $employeeRequest): void
+    private function assertCanDecide(User $user, EmployeeRequest $employeeRequest, string $permission): void
     {
-        if ($user->hasRole('SA') || $user->hasRole('EX') || $user->hasRole('OM')) {
-            return;
+        abort_unless($employeeRequest->status === 'pending', 409, 'تمت مراجعة هذا الطلب مسبقاً.');
+
+        // منع الموافقة الذاتية (تضارب مصالح): حتى لو دوره يسمحله يدير طلبات
+        // دائرته/قسمه، ما بيقدر يعتمد قرار بطلبه الشخصي هو.
+        if ($user->employee && $employeeRequest->employee_id === $user->employee->id) {
+            abort(403, 'لا يمكنك اعتماد أو رفض طلبك الشخصي - لازم مسؤول تاني يراجعه.');
         }
 
-        $employee = $user->employee;
+        $this->authorizeScope($user, $permission);
         $targetEmployee = $employeeRequest->employee;
+        if ($targetEmployee === null || ! $user->allowsEmployeeWithinScope($permission, $targetEmployee)) {
+            abort(403, 'غير مصرح لك باتخاذ قرار بشأن هذا الطلب.');
+        }
+    }
 
-        if ($user->hasRole('HOD') && $employee && $targetEmployee && $employee->department_id === $targetEmployee->department_id) {
-            return;
+    private function decide(User $user, EmployeeRequest $employeeRequest, string $permission, string $status, ?string $notes): EmployeeRequest
+    {
+        return DB::transaction(function () use ($user, $employeeRequest, $permission, $status, $notes): EmployeeRequest {
+            $lockedRequest = EmployeeRequest::query()->lockForUpdate()->with('employee')->findOrFail($employeeRequest->id);
+            $this->assertCanDecide($user, $lockedRequest, $permission);
+            $lockedRequest->update([
+                'status' => $status,
+                'reviewed_by' => $user->id,
+                'reviewed_at' => now(),
+                'admin_notes' => $notes,
+            ]);
+            AuditLog::record(ucfirst($status), 'EmployeeRequest', $lockedRequest->id);
+
+            return $lockedRequest->fresh('employee');
+        });
+    }
+
+    private function authorizeScope(User $user, string $permission): string
+    {
+        $scope = $user->highestScopeFor($permission);
+        if ($scope === null) {
+            abort(403, 'ليس لديك صلاحية لتنفيذ هذه العملية.');
         }
 
-        if ($user->hasRole('SH') && $employee && $targetEmployee && $employee->section_id === $targetEmployee->section_id) {
-            return;
-        }
-
-        abort(403, 'غير مصرح لك باتخاذ قرار بشأن هذا الطلب.');
+        return $scope;
     }
 }
-
